@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>KRB Keys</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #1a56db;
+      --blue-dark: #1341b0;
+      --red: #e02424;
+      --green: #057a55;
+      --yellow: #c27803;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 14px 16px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; padding-bottom: 10px; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.65);
+      font-size: .85rem;
+      font-weight: 600;
+      padding: 10px 4px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active {
+      color: #fff;
+      border-bottom-color: #fff;
+    }
+
+    /* ── Main content ── */
+    main { flex: 1; padding: 16px; max-width: 600px; width: 100%; margin: 0 auto; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .card-title { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+    .card-meta { font-size: .8rem; color: var(--gray-600); line-height: 1.5; }
+    .card-meta span { display: inline-block; margin-right: 10px; }
+
+    .badge {
+      display: inline-block;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 99px;
+    }
+    .badge-red { background: #fde8e8; color: var(--red); }
+    .badge-yellow { background: #fdf6b2; color: var(--yellow); }
+    .badge-green { background: #def7ec; color: var(--green); }
+    .badge-blue { background: #e1effe; color: var(--blue); }
+    .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--blue); color: #fff; width: 100%; margin-top: 12px; padding: 13px; font-size: 1rem; }
+    .btn-primary:hover { background: var(--blue-dark); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-success { background: var(--green); color: #fff; padding: 8px 14px; font-size: .85rem; }
+    .btn-success:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-sm { padding: 6px 12px; font-size: .8rem; }
+
+    /* ── Form elements ── */
+    label { display: block; font-size: .82rem; font-weight: 600; color: var(--gray-700); margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: .95rem;
+      color: var(--gray-900);
+      background: #fff;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: var(--blue); }
+    .form-group { margin-bottom: 14px; }
+
+    /* ── Search results dropdown ── */
+    .search-wrapper { position: relative; }
+    .search-results {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0; right: 0;
+      background: #fff;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+      z-index: 200;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .search-result-item {
+      padding: 11px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: .9rem;
+    }
+    .search-result-item:last-child { border-bottom: none; }
+    .search-result-item:hover, .search-result-item.focused { background: var(--gray-50); }
+    .search-result-item .result-code { font-size: .75rem; color: var(--gray-400); margin-top: 1px; }
+
+    /* ── Key selector ── */
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .key-btn {
+      background: var(--gray-50);
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 4px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .key-btn:hover { border-color: var(--blue); background: #e1effe; }
+    .key-btn.selected { border-color: var(--blue); background: var(--blue); color: #fff; }
+    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; display: block; }
+    .key-btn .key-type { font-size: .65rem; color: inherit; opacity: .75; margin-top: 2px; display: block; line-height: 1.2; }
+
+    /* ── Empty / loading states ── */
+    .empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: .9rem; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 30px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Checkin card layout ── */
+    .checkin-card {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .checkin-info { flex: 1; min-width: 0; }
+
+    /* ── Section header ── */
+    .section-header {
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--gray-400);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--gray-900);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 99px;
+      font-size: .9rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      transition: transform .25s ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { background: var(--red); }
+
+    /* ── Overdue highlight ── */
+    .overdue { border-left: 4px solid var(--red); }
+    .due-soon { border-left: 4px solid var(--yellow); }
+
+    /* ── Checkout form sections ── */
+    .checkout-step {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .checkout-step h3 {
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--gray-400);
+      margin-bottom: 12px;
+    }
+    .selected-prop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--gray-50);
+      border: 1.5px solid var(--blue);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: .9rem;
+      font-weight: 600;
+    }
+    .selected-prop button {
+      background: none;
+      border: none;
+      color: var(--gray-400);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .no-keys-msg { font-size: .85rem; color: var(--gray-400); padding: 10px 0; text-align: center; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🔑 KRB Key Manager</h1>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="checkout">Check Out</button>
+    <button class="tab-btn" data-tab="checkin">Check In</button>
+  </div>
+</header>
+
+<main>
+  <!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
+  <div id="tab-dashboard" class="tab-panel active">
+    <div id="dashboard-content"><div class="spinner"></div></div>
+  </div>
+
+  <!-- ═══════════════════════════════ CHECK OUT ═══════════════════════════════ -->
+  <div id="tab-checkout" class="tab-panel">
+
+    <!-- Step 1: Property search -->
+    <div class="checkout-step">
+      <h3>1 — Property</h3>
+      <div id="prop-search-area">
+        <div class="form-group search-wrapper">
+          <label for="prop-input">Search address or property code</label>
+          <input id="prop-input" type="text" placeholder="e.g. 1512 Grant or 1512grant" autocomplete="off" />
+          <div id="prop-results" class="search-results" style="display:none"></div>
+        </div>
+      </div>
+      <div id="prop-selected" style="display:none"></div>
+    </div>
+
+    <!-- Step 2: Key selection -->
+    <div class="checkout-step" id="step-key" style="display:none">
+      <h3>2 — Select Key</h3>
+      <div id="key-list"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Step 3: Details -->
+    <div class="checkout-step" id="step-details" style="display:none">
+      <h3>3 — Details</h3>
+      <div class="form-group">
+        <label for="sel-staff">Checked out by</label>
+        <select id="sel-staff">
+          <option value="">— Select staff —</option>
+          <option value="12fd872b-594c-8173-b8bb-0002a0d4fade">Chapin Hemphill</option>
+          <option value="1f9d872b-594c-8105-9a1d-0002838f22b5">Esau Vazquez</option>
+          <option value="32ed872b-594c-8147-9671-0002c935e2c2">Keen Glocel</option>
+          <option value="1add872b-594c-8162-b415-000286b954b1">Kyle F</option>
+          <option value="1fad872b-594c-812a-8d29-0002e16fc2a4">Michael Carpenedo</option>
+          <option value="1fad872b-594c-8154-9bc5-0002cc8e59a8">Nadja Prophete</option>
+          <option value="19dd872b-594c-816a-a92b-0002558f0d66">Pamela Palada</option>
+          <option value="1add872b-594c-811f-98d5-0002558b0b26">Rochelle Pausa</option>
+          <option value="1add872b-594c-81ba-962b-00024136b32b">Stefani Hemphill</option>
+          <option value="1add872b-594c-8183-834e-0002995b4763">Veb Torre</option>
+          <option value="1fad872b-594c-813d-8588-000265b1646c">Zandra Jean Madera</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="sel-purpose">Purpose</label>
+        <select id="sel-purpose">
+          <option value="">— Select purpose —</option>
+          <option>Rekey</option>
+          <option>Inspection</option>
+          <option>Emergency</option>
+          <option>Showing</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="inp-dateout">Date out</label>
+        <input type="date" id="inp-dateout" />
+      </div>
+      <div class="form-group">
+        <label for="inp-datedue">Expected return</label>
+        <input type="date" id="inp-datedue" />
+      </div>
+      <button class="btn btn-primary" id="btn-checkout" disabled>Check Out Key</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ CHECK IN ═══════════════════════════════ -->
+  <div id="tab-checkin" class="tab-panel">
+    <div id="checkin-content"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STAFF_MAP = {
+  '12fd872b-594c-8173-b8bb-0002a0d4fade': 'Chapin Hemphill',
+  '1f9d872b-594c-8105-9a1d-0002838f22b5': 'Esau Vazquez',
+  '32ed872b-594c-8147-9671-0002c935e2c2': 'Keen Glocel',
+  '1add872b-594c-8162-b415-000286b954b1': 'Kyle F',
+  '1fad872b-594c-812a-8d29-0002e16fc2a4': 'Michael Carpenedo',
+  '1fad872b-594c-8154-9bc5-0002cc8e59a8': 'Nadja Prophete',
+  '19dd872b-594c-816a-a92b-0002558f0d66': 'Pamela Palada',
+  '1add872b-594c-811f-98d5-0002558b0b26': 'Rochelle Pausa',
+  '1add872b-594c-81ba-962b-00024136b32b': 'Stefani Hemphill',
+  '1add872b-594c-8183-834e-0002995b4763': 'Veb Torre',
+  '1fad872b-594c-813d-8588-000265b1646c': 'Zandra Jean Madera',
+};
+
+function staffName(id) { return STAFF_MAP[id] || id; }
+
+function normalizeUrl(url) {
+  return (url || '').split('?')[0].replace(/-/g, '').replace(/.*notion\.so\//, '').toLowerCase();
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return `${m}/${d}/${y.slice(2)}`;
+}
+
+function isOverdue(dateDue) {
+  if (!dateDue) return false;
+  return new Date(dateDue) < new Date(new Date().toDateString());
+}
+
+function isDueSoon(dateDue) {
+  if (!dateDue) return false;
+  const diff = new Date(dateDue) - new Date(new Date().toDateString());
+  return diff >= 0 && diff <= 2 * 86400000;
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+let toastTimer;
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+const tabLoaded = {};
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (!tabLoaded[tab]) {
+      tabLoaded[tab] = true;
+      if (tab === 'dashboard') loadDashboard();
+      if (tab === 'checkin') loadCheckin();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  const el = document.getElementById('dashboard-content');
+  try {
+    const entries = await api('/api/dashboard');
+    if (entries.length === 0) {
+      el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>';
+      return;
+    }
+    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
+    let html = `<div class="section-header">${entries.length} key${entries.length !== 1 ? 's' : ''} out</div>`;
+    for (const e of entries) {
+      const overdue = isOverdue(e.dateDue);
+      const soon = !overdue && isDueSoon(e.dateDue);
+      const cardClass = overdue ? 'card overdue' : soon ? 'card due-soon' : 'card';
+      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
+      const purposeBadge = e.purpose ? `<span class="badge badge-blue">${e.purpose}</span> ` : '';
+      const dueBadge = overdue
+        ? `<span class="badge badge-red">Overdue</span>`
+        : soon ? `<span class="badge badge-yellow">Due soon</span>` : '';
+      html += `
+        <div class="${cardClass}">
+          <div class="card-title">${e.logEntry || '—'}</div>
+          <div class="card-meta">
+            <span>👤 ${who}</span>
+            <span>📤 ${formatDate(e.dateOut)}</span>
+            <span>📅 Due ${formatDate(e.dateDue)}</span>
+          </div>
+          <div style="margin-top:6px">${purposeBadge}${dueBadge}</div>
+        </div>`;
+    }
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+tabLoaded['dashboard'] = true;
+loadDashboard();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Check In
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function loadCheckin() {
+  const el = document.getElementById('checkin-content');
+  try {
+    const entries = await api('/api/dashboard');
+    if (entries.length === 0) {
+      el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>';
+      return;
+    }
+    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
+    let html = '';
+    for (const e of entries) {
+      const overdue = isOverdue(e.dateDue);
+      const cardClass = overdue ? 'card overdue' : 'card';
+      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
+      html += `
+        <div class="${cardClass}" id="ci-${e.id}">
+          <div class="checkin-card">
+            <div class="checkin-info">
+              <div class="card-title">${e.logEntry || '—'}</div>
+              <div class="card-meta">
+                <span>👤 ${who}</span><br>
+                <span>📤 ${formatDate(e.dateOut)}</span>
+                <span>📅 Due ${formatDate(e.dateDue)}</span>
+                ${overdue ? '<span class="badge badge-red">Overdue</span>' : ''}
+              </div>
+            </div>
+            <button class="btn btn-success" onclick="doCheckin('${e.id}', this)">Check In</button>
+          </div>
+        </div>`;
+    }
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+async function doCheckin(logId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    // Find the key ID from the log entry
+    const { keyId } = await api(`/api/key-by-log/${logId}`);
+    await api('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logId, keyId }),
+    });
+    const card = document.getElementById('ci-' + logId);
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .3s';
+    setTimeout(() => card.remove(), 300);
+    toast('Key checked in ✓');
+    // Refresh dashboard counts
+    tabLoaded['dashboard'] = false;
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Check In';
+    toast(e.message, true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Check Out — property search
+// ─────────────────────────────────────────────────────────────────────────────
+
+let searchTimer;
+let selectedProperty = null;
+let allKeys = [];
+let selectedKey = null;
+
+const propInput = document.getElementById('prop-input');
+const propResults = document.getElementById('prop-results');
+const propSelected = document.getElementById('prop-selected');
+const propSearchArea = document.getElementById('prop-search-area');
+
+propInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = propInput.value.trim();
+  if (q.length < 2) { propResults.style.display = 'none'; return; }
+  searchTimer = setTimeout(() => searchProperties(q), 280);
+});
+
+async function searchProperties(q) {
+  try {
+    const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+    if (results.length === 0) {
+      propResults.innerHTML = '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>';
+    } else {
+      propResults.innerHTML = results.map(r => {
+        const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
+        return `<div class="search-result-item" data-id="${r.id}" data-url="${r.url}"
+            data-label="${addr}" onclick="selectProperty(this)">
+            ${addr}
+            ${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+    propResults.style.display = 'block';
+  } catch (e) {
+    propResults.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`;
+    propResults.style.display = 'block';
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!propResults.contains(e.target) && e.target !== propInput) {
+    propResults.style.display = 'none';
+  }
+});
+
+async function selectProperty(el) {
+  propResults.style.display = 'none';
+  selectedProperty = { id: el.dataset.id, url: el.dataset.url, label: el.dataset.label };
+  propSearchArea.style.display = 'none';
+  propSelected.style.display = 'block';
+  propSelected.innerHTML = `
+    <div class="selected-prop">
+      <span>${selectedProperty.label}</span>
+      <button onclick="clearProperty()" title="Change">✕</button>
+    </div>`;
+  // Load keys for this property
+  await loadKeysForProperty();
+}
+
+function clearProperty() {
+  selectedProperty = null;
+  selectedKey = null;
+  propSearchArea.style.display = 'block';
+  propSelected.style.display = 'none';
+  propInput.value = '';
+  document.getElementById('step-key').style.display = 'none';
+  document.getElementById('step-details').style.display = 'none';
+  updateCheckoutBtn();
+}
+
+async function loadKeysForProperty() {
+  const stepKey = document.getElementById('step-key');
+  const keyList = document.getElementById('key-list');
+  stepKey.style.display = 'block';
+  keyList.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    if (allKeys.length === 0) {
+      allKeys = await api('/api/keys');
+    }
+    const normPropUrl = normalizeUrl(selectedProperty.url);
+    const matching = allKeys.filter(k => {
+      return k.status === 'In Office' &&
+        k.rentalMatrix.some(url => normalizeUrl(url) === normPropUrl);
+    });
+
+    if (matching.length === 0) {
+      keyList.innerHTML = '<div class="no-keys-msg">No available keys found for this property</div>';
+      return;
+    }
+
+    matching.sort((a, b) => parseInt(a.slot) - parseInt(b.slot));
+    keyList.innerHTML = '<div class="key-grid">' + matching.map(k => {
+      const types = k.keyTypes.join(', ') || '';
+      const shortType = types.replace('Front Door Key', 'Door').replace('Mailbox Key', 'Mail').replace('Garage Remote', 'Garage').replace('Pool Fob', 'Pool');
+      return `<div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
+          data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
+          <span class="key-num">#${k.slot}</span>
+          <span class="key-type">${shortType}</span>
+        </div>`;
+    }).join('') + '</div>';
+
+    document.getElementById('step-details').style.display = 'block';
+    setDefaultDates();
+  } catch (e) {
+    keyList.innerHTML = `<div class="no-keys-msg" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function selectKey(el) {
+  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedKey = {
+    id: el.dataset.id,
+    slot: el.dataset.slot,
+    logRelation: JSON.parse(el.dataset.logrel || '[]'),
+  };
+  updateCheckoutBtn();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Check Out — form
+// ─────────────────────────────────────────────────────────────────────────────
+
+function setDefaultDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  document.getElementById('inp-dateout').value = today;
+  document.getElementById('inp-datedue').value = nextWeek;
+}
+
+['sel-staff', 'sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
+  document.getElementById(id).addEventListener('change', updateCheckoutBtn);
+});
+
+function updateCheckoutBtn() {
+  const btn = document.getElementById('btn-checkout');
+  const ready = selectedProperty && selectedKey &&
+    document.getElementById('sel-staff').value &&
+    document.getElementById('sel-purpose').value &&
+    document.getElementById('inp-dateout').value &&
+    document.getElementById('inp-datedue').value;
+  btn.disabled = !ready;
+}
+
+document.getElementById('btn-checkout').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-checkout');
+  btn.disabled = true;
+  btn.textContent = 'Checking out…';
+
+  const staffEl = document.getElementById('sel-staff');
+  const staffId = staffEl.value;
+  const staffNameVal = staffEl.options[staffEl.selectedIndex].text;
+
+  try {
+    await api('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        keyId: selectedKey.id,
+        keySlot: selectedKey.slot,
+        existingLogRelation: selectedKey.logRelation,
+        staffId,
+        staffName: staffNameVal,
+        purpose: document.getElementById('sel-purpose').value,
+        dateOut: document.getElementById('inp-dateout').value,
+        dateDue: document.getElementById('inp-datedue').value,
+        propertyId: selectedProperty.id,
+        propertyUrl: selectedProperty.url,
+      }),
+    });
+
+    toast(`Key #${selectedKey.slot} checked out ✓`);
+
+    // Remove key from local cache so it won't show as available again this session
+    allKeys = allKeys.filter(k => k.id !== selectedKey.id);
+
+    // Reset form
+    clearProperty();
+    tabLoaded['dashboard'] = false;
+    tabLoaded['checkin'] = false;
+
+    btn.textContent = 'Check Out Key';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Check Out Key';
+    toast(e.message, true);
+  }
+});
+</script>
+</body>
+</html>
