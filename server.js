@@ -516,5 +516,96 @@ app.post('/api/add-key', async (req, res) => {
   }
 });
 
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+
+// Track which log entries we've already alerted about today to avoid repeat pings
+const notifiedToday = new Set();
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function clearNotifiedAtMidnight() {
+  const now = new Date();
+  const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+  setTimeout(() => {
+    notifiedToday.clear();
+    clearNotifiedAtMidnight();
+  }, msUntilMidnight);
+}
+clearNotifiedAtMidnight();
+
+async function sendSlackAlert(message) {
+  if (!SLACK_WEBHOOK_URL) return;
+  try {
+    await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: message }),
+    });
+  } catch (e) {
+    console.error('Slack alert failed:', e.message);
+  }
+}
+
+async function checkOverdueKeys() {
+  if (!SLACK_WEBHOOK_URL) return;
+  try {
+    const today = todayStr();
+    const rows = await queryAll(DB.log, {
+      and: [
+        { property: 'Date Returned', date: { is_empty: true } },
+        { property: 'Date Out', date: { before: today } },
+      ],
+    });
+
+    const overdue = rows.filter(row => {
+      const p = row.properties;
+      const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
+      const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start;
+      if (!title || !dateDue) return false;
+      if (new Date(dateDue) >= new Date(today)) return false;
+      const key = `${row.id}-${today}`;
+      if (notifiedToday.has(key)) return false;
+      notifiedToday.add(key);
+      return true;
+    });
+
+    if (overdue.length === 0) return;
+
+    const lines = overdue.map(row => {
+      const p = row.properties;
+      const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start || '';
+      const daysLate = Math.floor((new Date(today) - new Date(dateDue)) / 86400000);
+      const who = p['Checked Out By']?.people?.map(u => u.name).join(', ') || '?';
+      const purpose = p['Purpose']?.select?.name || '';
+      const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || 'Unknown key';
+      return `• *${title}* — checked out by ${who} | Purpose: ${purpose} | Due: ${dateDue} *(${daysLate} day${daysLate !== 1 ? 's' : ''} overdue)*`;
+    });
+
+    const msg = `🔑 *KRB Overdue Key Alert* — ${overdue.length} key${overdue.length !== 1 ? 's' : ''} past due:\n${lines.join('\n')}`;
+    await sendSlackAlert(msg);
+    console.log(`Slack: sent overdue alert for ${overdue.length} key(s)`);
+  } catch (e) {
+    console.error('checkOverdueKeys error:', e.message);
+  }
+}
+
+// POST /api/test-slack — manual trigger for testing
+app.post('/api/test-slack', async (req, res) => {
+  try {
+    await sendSlackAlert('✅ KRB Key App Slack connection test — working!');
+    res.json({ success: true, message: 'Test message sent to #maintenance-general' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`KRB Key App running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`KRB Key App running on http://localhost:${PORT}`);
+  // Check immediately on startup, then every hour
+  checkOverdueKeys();
+  setInterval(checkOverdueKeys, 60 * 60 * 1000);
+  if (!SLACK_WEBHOOK_URL) console.warn('⚠️  SLACK_WEBHOOK_URL not set — Slack alerts disabled');
+});
