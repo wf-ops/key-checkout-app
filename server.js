@@ -171,7 +171,7 @@ app.get('/api/keys-for-property/:propertyId', async (req, res) => {
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
         };
       })
-      .filter(k => k.status === 'In Office');
+      .filter(k => !k.status || k.status === 'In Office');
 
     res.json(keys);
   } catch (e) {
