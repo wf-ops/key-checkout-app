@@ -133,22 +133,46 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
-// GET /api/keys  — all keys (for filtering by property)
-app.get('/api/keys', async (req, res) => {
+// GET /api/keys-for-property/:propertyId
+// Fetches the property page, reads its "Keys & Access" relation, returns those key pages
+app.get('/api/keys-for-property/:propertyId', async (req, res) => {
   try {
-    const rows = await queryAll(DB.keys);
-    const keys = rows.map(row => {
-      const p = row.properties;
-      return {
-        id: row.id,
-        url: row.url,
-        slot: extractRichText(p['Key Slot #']),
-        status: extractSelect(p['Status']),
-        keyTypes: extractMultiSelect(p['Key Types']),
-        rentalMatrix: extractRelation(p['Rental Matrix']),
-        logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
-      };
-    });
+    // 1. Fetch the property page to get its Keys & Access relation
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+      headers: notionHeaders(),
+    }).then(r => r.json());
+
+    if (propPage.object === 'error') {
+      throw new Error(propPage.message);
+    }
+
+    const keyRelation = propPage.properties?.['Keys & Access']?.relation || [];
+    if (keyRelation.length === 0) {
+      return res.json([]);
+    }
+
+    // 2. Fetch each key page in parallel
+    const keyPages = await Promise.all(
+      keyRelation.map(r =>
+        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+      )
+    );
+
+    const keys = keyPages
+      .filter(row => row.object !== 'error')
+      .map(row => {
+        const p = row.properties;
+        return {
+          id: row.id,
+          url: row.url,
+          slot: extractRichText(p['Key Slot #']),
+          status: extractSelect(p['Status']),
+          keyTypes: extractMultiSelect(p['Key Types']),
+          logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
+        };
+      })
+      .filter(k => k.status === 'In Office');
+
     res.json(keys);
   } catch (e) {
     console.error(e);

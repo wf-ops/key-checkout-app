@@ -559,7 +559,6 @@ async function doCheckin(logId, btn) {
 
 let searchTimer;
 let selectedProperty = null;
-let allKeys = [];
 let selectedKey = null;
 
 const propInput = document.getElementById('prop-input');
@@ -634,24 +633,18 @@ async function loadKeysForProperty() {
   keyList.innerHTML = '<div class="spinner"></div>';
 
   try {
-    if (allKeys.length === 0) {
-      allKeys = await api('/api/keys');
-    }
-    const normPropUrl = normalizeUrl(selectedProperty.url);
-    const matching = allKeys.filter(k => {
-      return k.status === 'In Office' &&
-        k.rentalMatrix.some(url => normalizeUrl(url) === normPropUrl);
-    });
+    const keys = await api(`/api/keys-for-property/${selectedProperty.id}`);
 
-    if (matching.length === 0) {
+    if (keys.length === 0) {
       keyList.innerHTML = '<div class="no-keys-msg">No available keys found for this property</div>';
       return;
     }
 
-    matching.sort((a, b) => parseInt(a.slot) - parseInt(b.slot));
-    keyList.innerHTML = '<div class="key-grid">' + matching.map(k => {
-      const types = k.keyTypes.join(', ') || '';
-      const shortType = types.replace('Front Door Key', 'Door').replace('Mailbox Key', 'Mail').replace('Garage Remote', 'Garage').replace('Pool Fob', 'Pool');
+    keys.sort((a, b) => parseInt(a.slot) - parseInt(b.slot));
+    keyList.innerHTML = '<div class="key-grid">' + keys.map(k => {
+      const shortType = k.keyTypes
+        .map(t => t.replace('Front Door Key', 'Door').replace('Mailbox Key', 'Mail').replace('Garage Remote', 'Garage').replace('Pool Fob', 'Pool'))
+        .join(', ');
       return `<div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
           data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
           <span class="key-num">#${k.slot}</span>
@@ -730,9 +723,6 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     });
 
     toast(`Key #${selectedKey.slot} checked out ✓`);
-
-    // Remove key from local cache so it won't show as available again this session
-    allKeys = allKeys.filter(k => k.id !== selectedKey.id);
 
     // Reset form
     clearProperty();
