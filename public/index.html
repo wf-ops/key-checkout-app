@@ -403,7 +403,21 @@
     .key-type-check:has(input:checked) { border-color: var(--green); background: var(--green-bg); font-weight: 600; color: var(--green-dark); }
     .key-type-check input { accent-color: var(--green); width: 16px; height: 16px; }
 
-    /* ── Return note textarea ── */
+    /* ── Photo upload ── */
+    .photo-upload-area {
+      border: 2px dashed var(--gray-200);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .photo-upload-area:hover { border-color: var(--green); background: var(--green-bg); }
+    .photo-upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .photo-upload-area .upload-label { font-size: .85rem; color: var(--gray-400); pointer-events: none; }
+    .photo-preview { width: 100%; border-radius: 8px; max-height: 200px; object-fit: cover; margin-bottom: 14px; display: none; }
     textarea {
       width: 100%;
       padding: 10px 12px;
@@ -557,6 +571,14 @@
       <button class="panel-close" onclick="closeReturnPanel()">✕</button>
       <h2>✅ Return Missing Key</h2>
       <p id="return-panel-sub" class="panel-sub"></p>
+      <div class="form-group">
+        <label>Photo (optional)</label>
+        <img id="return-photo-preview" class="photo-preview" alt="preview" />
+        <div class="photo-upload-area" id="return-photo-area">
+          <input type="file" id="return-photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)" />
+          <div class="upload-label">📷 Tap to take or upload a photo</div>
+        </div>
+      </div>
       <div class="form-group">
         <label for="return-note">Notes (optional)</label>
         <textarea id="return-note" placeholder="e.g. Found in lockbox, replaced with new copy..."></textarea>
@@ -1182,9 +1204,21 @@ function openReturnPanel(keyId, slot, propertyName) {
   document.getElementById('return-panel-sub').textContent =
     `Confirm that Key #${slot}${propertyName ? ` (${propertyName})` : ''} has been located or replaced and is back in the office.`;
   document.getElementById('return-note').value = '';
+  document.getElementById('return-photo-input').value = '';
+  document.getElementById('return-photo-preview').style.display = 'none';
+  document.getElementById('return-photo-area').style.display = 'block';
   document.getElementById('return-confirm-btn').disabled = false;
   document.getElementById('return-confirm-btn').textContent = 'Confirm Key Returned';
   document.getElementById('return-key-overlay').style.display = 'flex';
+}
+
+function previewPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('return-photo-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.getElementById('return-photo-area').style.display = 'none';
 }
 
 function closeReturnPanel(e) {
@@ -1197,11 +1231,12 @@ async function confirmReturn() {
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
-    await api('/api/return-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyId: returnKeyId, note: document.getElementById('return-note').value }),
-    });
+    const formData = new FormData();
+    formData.append('keyId', returnKeyId);
+    formData.append('note', document.getElementById('return-note').value);
+    const photoFile = document.getElementById('return-photo-input').files[0];
+    if (photoFile) formData.append('photo', photoFile);
+    await fetch('/api/return-key', { method: 'POST', body: formData });
     document.getElementById('return-key-overlay').style.display = 'none';
     toast(`Key #${returnKeySlot} marked as returned ✓`);
     loadMissingKeys();

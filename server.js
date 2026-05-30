@@ -2,10 +2,26 @@ require('dotenv').config();
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve uploaded photos
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `key-return-${Date.now()}${ext}`);
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -416,32 +432,51 @@ app.get('/api/missing-keys', async (req, res) => {
   }
 });
 
-// POST /api/return-key — mark key as back In Office
-// Body: { keyId, note }
-app.post('/api/return-key', async (req, res) => {
+// POST /api/return-key — mark key as back In Office, accepts optional photo + note
+app.post('/api/return-key', upload.single('photo'), async (req, res) => {
   try {
     const { keyId, note } = req.body;
-    const props = { 'Status': { select: { name: 'In Office' } } };
-    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: props });
+    const photoFile = req.file;
 
-    // Append note as a page block if provided
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
+      properties: { 'Status': { select: { name: 'In Office' } } },
+    });
+
+    // Build Notion blocks for note + photo link
+    const children = [];
+    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
+
+    if (note || photoFile) {
+      children.push({
+        object: 'block', type: 'heading_3',
+        heading_3: { rich_text: [{ type: 'text', text: { content: `Key Returned — ${timestamp}` } }] },
+      });
+    }
     if (note) {
-      await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
-        method: 'PATCH',
-        headers: notionHeaders(),
-        body: JSON.stringify({
-          children: [{
-            object: 'block',
-            type: 'paragraph',
-            paragraph: {
-              rich_text: [{ type: 'text', text: { content: `Returned: ${note}` } }],
-            },
-          }],
-        }),
+      children.push({
+        object: 'block', type: 'paragraph',
+        paragraph: { rich_text: [{ type: 'text', text: { content: note } }] },
+      });
+    }
+    if (photoFile) {
+      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
+      children.push({
+        object: 'block', type: 'paragraph',
+        paragraph: {
+          rich_text: [{ type: 'text', text: { content: `📷 Return photo: ${photoUrl}`, link: { url: photoUrl } } }],
+        },
       });
     }
 
-    res.json({ success: true });
+    if (children.length > 0) {
+      await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
+        method: 'PATCH',
+        headers: notionHeaders(),
+        body: JSON.stringify({ children }),
+      });
+    }
+
+    res.json({ success: true, photoUrl: photoFile ? `/uploads/${photoFile.filename}` : null });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
