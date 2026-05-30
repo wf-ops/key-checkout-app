@@ -484,37 +484,55 @@
     <div class="panel" onclick="event.stopPropagation()">
       <button class="panel-close" onclick="closeAddKeyPanel()">✕</button>
       <h2>➕ Add Key to Property</h2>
-      <p class="panel-sub">Create or reassign a key slot in the Keys & Access database.</p>
+      <p class="panel-sub">Search for a property to see its current key assignments.</p>
 
-      <div class="form-group search-wrapper">
-        <label for="ak-prop-input">Property</label>
-        <input id="ak-prop-input" type="text" placeholder="Search address or property code" autocomplete="off" />
-        <div id="ak-prop-results" class="search-results" style="display:none"></div>
-      </div>
-      <div id="ak-prop-selected" style="display:none; margin-bottom:14px"></div>
-
-      <div class="form-group">
-        <label for="ak-slot">Key Slot #</label>
-        <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
-      </div>
-
-      <div class="form-group">
-        <label>Key Types</label>
-        <div class="key-types-grid">
-          <label class="key-type-check"><input type="checkbox" value="Front Door Key"> Front Door Key</label>
-          <label class="key-type-check"><input type="checkbox" value="Mailbox Key"> Mailbox Key</label>
-          <label class="key-type-check"><input type="checkbox" value="Garage Remote"> Garage Remote</label>
-          <label class="key-type-check"><input type="checkbox" value="Pool Fob"> Pool Fob</label>
-          <label class="key-type-check"><input type="checkbox" value="Shed Key"> Shed Key</label>
-          <label class="key-type-check"><input type="checkbox" value="Back Door Key"> Back Door Key</label>
-          <label class="key-type-check"><input type="checkbox" value="Gate Key"> Gate Key</label>
-          <label class="key-type-check"><input type="checkbox" value="Other"> Other</label>
+      <!-- Step 1: property search -->
+      <div id="ak-step1">
+        <div class="form-group search-wrapper">
+          <label for="ak-prop-input">Property</label>
+          <input id="ak-prop-input" type="text" placeholder="Search address or property code" autocomplete="off" />
+          <div id="ak-prop-results" class="search-results" style="display:none"></div>
         </div>
       </div>
 
-      <div id="ak-conflict" style="display:none"></div>
-
-      <button class="btn btn-primary" id="ak-check-btn" onclick="checkSlotAndSubmit()" disabled>Check Slot &amp; Save</button>
+      <!-- Step 2: existing assignments + action choice -->
+      <div id="ak-step2" style="display:none">
+        <div id="ak-prop-selected" style="margin-bottom:14px"></div>
+        <div id="ak-existing-info"></div>
+        <div id="ak-action-choice" style="display:none">
+          <div class="form-group">
+            <label>What would you like to do?</label>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+              <label class="key-type-check" style="grid-column:span 2">
+                <input type="radio" name="ak-action" value="replace"> Remove existing slot &amp; assign new slot
+              </label>
+              <label class="key-type-check" style="grid-column:span 2">
+                <input type="radio" name="ak-action" value="add"> Add an additional key slot
+              </label>
+            </div>
+          </div>
+        </div>
+        <div id="ak-new-slot-form" style="display:none">
+          <div class="form-group">
+            <label for="ak-slot">New Key Slot #</label>
+            <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
+          </div>
+          <div class="form-group">
+            <label>Key Types</label>
+            <div class="key-types-grid">
+              <label class="key-type-check"><input type="checkbox" value="Front Door Key"> Front Door Key</label>
+              <label class="key-type-check"><input type="checkbox" value="Mailbox Key"> Mailbox Key</label>
+              <label class="key-type-check"><input type="checkbox" value="Garage Remote"> Garage Remote</label>
+              <label class="key-type-check"><input type="checkbox" value="Pool Fob"> Pool Fob</label>
+              <label class="key-type-check"><input type="checkbox" value="Shed Key"> Shed Key</label>
+              <label class="key-type-check"><input type="checkbox" value="Back Door Key"> Back Door Key</label>
+              <label class="key-type-check"><input type="checkbox" value="Gate Key"> Gate Key</label>
+              <label class="key-type-check"><input type="checkbox" value="Other"> Other</label>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="ak-save-btn" onclick="doSaveKey()" disabled>Save</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -955,19 +973,15 @@ function updateCheckoutBtn() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 let akSelectedProperty = null;
-let akConflictKey = null;
+let akExistingKeys = [];
 
 function openAddKeyPanel() {
   akSelectedProperty = null;
-  akConflictKey = null;
+  akExistingKeys = [];
   document.getElementById('ak-prop-input').value = '';
-  document.getElementById('ak-prop-selected').style.display = 'none';
-  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'block';
-  document.getElementById('ak-slot').value = '';
-  document.getElementById('ak-conflict').style.display = 'none';
-  document.querySelectorAll('#add-key-overlay .key-type-check input').forEach(c => c.checked = false);
-  document.getElementById('ak-check-btn').textContent = 'Check Slot & Save';
-  document.getElementById('ak-check-btn').disabled = true;
+  document.getElementById('ak-prop-results').style.display = 'none';
+  document.getElementById('ak-step1').style.display = 'block';
+  document.getElementById('ak-step2').style.display = 'none';
   document.getElementById('add-key-overlay').style.display = 'flex';
 }
 
@@ -1002,99 +1016,87 @@ document.getElementById('ak-prop-input').addEventListener('input', () => {
   }, 280);
 });
 
-document.addEventListener('click', e => {
-  const res = document.getElementById('ak-prop-results');
-  if (res && !res.contains(e.target) && e.target !== document.getElementById('ak-prop-input')) {
-    res.style.display = 'none';
-  }
-});
-
-function akSelectProperty(id, label) {
+async function akSelectProperty(id, label) {
   akSelectedProperty = { id, label };
   document.getElementById('ak-prop-results').style.display = 'none';
-  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'none';
-  const sel = document.getElementById('ak-prop-selected');
-  sel.style.display = 'block';
-  sel.innerHTML = `<div class="selected-prop" style="margin-bottom:0">
-    <span>${label}</span>
-    <button onclick="akClearProperty()">✕</button>
-  </div>`;
-  updateAkBtn();
+  document.getElementById('ak-step1').style.display = 'none';
+  document.getElementById('ak-step2').style.display = 'block';
+
+  // Show selected property
+  document.getElementById('ak-prop-selected').innerHTML = `
+    <div class="selected-prop">
+      <span>${label}</span>
+      <button onclick="akClearProperty()">✕</button>
+    </div>`;
+
+  // Load existing keys for this property
+  const info = document.getElementById('ak-existing-info');
+  info.innerHTML = '<div style="font-size:.85rem;color:var(--gray-400);margin-bottom:12px">Loading existing keys…</div>';
+  document.getElementById('ak-action-choice').style.display = 'none';
+  document.getElementById('ak-new-slot-form').style.display = 'none';
+
+  try {
+    akExistingKeys = await api(`/api/keys-for-property/${id}`);
+    // Also include checked-out/missing keys, not just in-office
+    const allKeys = await api(`/api/all-keys-for-property/${id}`);
+    akExistingKeys = allKeys;
+  } catch (_) {}
+
+  if (akExistingKeys.length === 0) {
+    info.innerHTML = `<div class="badge badge-green" style="margin-bottom:14px;padding:8px 12px;border-radius:8px;display:block;font-size:.85rem">
+      No keys currently assigned to this property.</div>`;
+    // Jump straight to new slot form
+    akShowNewSlotForm();
+  } else {
+    const slotList = akExistingKeys.map(k =>
+      `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;margin-bottom:8px">
+        <span style="font-size:1.1rem;font-weight:700;color:var(--red);min-width:40px">#${k.slot}</span>
+        <div>
+          <div style="font-size:.85rem;font-weight:600">${k.keyTypes.join(', ') || 'No key types set'}</div>
+          <div style="font-size:.75rem;color:var(--gray-400)">${k.status || 'In Office'}</div>
+        </div>
+      </div>`
+    ).join('');
+
+    info.innerHTML = `<div class="conflict-box" style="background:#fde8e8;border-color:#f8b4b4;margin-bottom:14px">
+      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Slot #' + akExistingKeys[0].slot : akExistingKeys.length + ' key slots'}</strong>
+    </div>${slotList}`;
+
+    document.getElementById('ak-action-choice').style.display = 'block';
+    document.querySelectorAll('input[name="ak-action"]').forEach(r => {
+      r.checked = false;
+      r.onchange = () => akShowNewSlotForm();
+    });
+  }
+}
+
+function akShowNewSlotForm() {
+  document.getElementById('ak-new-slot-form').style.display = 'block';
+  document.getElementById('ak-slot').value = '';
+  document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('ak-save-btn').disabled = true;
+  document.getElementById('ak-slot').addEventListener('input', () => {
+    document.getElementById('ak-save-btn').disabled = !document.getElementById('ak-slot').value.trim();
+  }, { once: true });
 }
 
 function akClearProperty() {
   akSelectedProperty = null;
-  document.getElementById('ak-prop-selected').style.display = 'none';
-  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'block';
+  akExistingKeys = [];
+  document.getElementById('ak-step2').style.display = 'none';
+  document.getElementById('ak-step1').style.display = 'block';
   document.getElementById('ak-prop-input').value = '';
-  updateAkBtn();
 }
 
-document.getElementById('ak-slot').addEventListener('input', () => {
-  akConflictKey = null;
-  document.getElementById('ak-conflict').style.display = 'none';
-  document.getElementById('ak-check-btn').textContent = 'Check Slot & Save';
-  updateAkBtn();
-});
-
-function updateAkBtn() {
-  const ready = akSelectedProperty && document.getElementById('ak-slot').value.trim();
-  document.getElementById('ak-check-btn').disabled = !ready;
-}
-
-async function checkSlotAndSubmit() {
-  const btn = document.getElementById('ak-check-btn');
+async function doSaveKey() {
+  const btn = document.getElementById('ak-save-btn');
   const slot = document.getElementById('ak-slot').value.trim();
-  const keyTypes = [...document.querySelectorAll('#add-key-overlay .key-type-check input:checked')].map(c => c.value);
+  const keyTypes = [...document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]:checked')].map(c => c.value);
+  const action = document.querySelector('input[name="ak-action"]:checked')?.value;
 
-  // If we already confirmed a conflict, go straight to save
-  if (akConflictKey && btn.textContent === 'Yes, Reassign & Save') {
-    await doSaveKey(slot, keyTypes, akConflictKey.id);
-    return;
-  }
+  // If property had existing keys and user chose "replace", remove old relation
+  const existingToReplace = (action === 'replace' && akExistingKeys.length > 0) ? akExistingKeys[0].id : null;
 
-  btn.disabled = true;
-  btn.textContent = 'Checking…';
-
-  try {
-    const existing = await api(`/api/key-by-slot/${encodeURIComponent(slot)}`);
-
-    if (!existing) {
-      // No conflict — save right away
-      await doSaveKey(slot, keyTypes, null);
-      return;
-    }
-
-    if (existing.propertyName === akSelectedProperty.label ||
-        existing.rentalUrls?.some(u => u.includes(akSelectedProperty.id.replace(/-/g, '')))) {
-      // Same property — just update key types
-      await doSaveKey(slot, keyTypes, existing.id);
-      return;
-    }
-
-    // Conflict — different property
-    akConflictKey = existing;
-    const conflictBox = document.getElementById('ak-conflict');
-    conflictBox.style.display = 'block';
-    conflictBox.innerHTML = `<div class="conflict-box">
-      <strong>⚠️ Slot #${slot} is already assigned</strong>
-      This slot is currently linked to <strong>${existing.propertyName || 'another property'}</strong>
-      with status <strong>${existing.status || 'unknown'}</strong>
-      and key types: <strong>${existing.keyTypes.join(', ') || 'none'}</strong>.<br><br>
-      Saving will remove the old assignment and reassign this slot to <strong>${akSelectedProperty.label}</strong>.
-      Are you sure?
-    </div>`;
-    btn.textContent = 'Yes, Reassign & Save';
-    btn.disabled = false;
-  } catch (e) {
-    btn.textContent = 'Check Slot & Save';
-    btn.disabled = false;
-    toast(e.message, true);
-  }
-}
-
-async function doSaveKey(slot, keyTypes, existingKeyId) {
-  const btn = document.getElementById('ak-check-btn');
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
@@ -1105,14 +1107,14 @@ async function doSaveKey(slot, keyTypes, existingKeyId) {
         propertyId: akSelectedProperty.id,
         slot,
         keyTypes,
-        existingKeyId,
+        existingKeyId: existingToReplace,
       }),
     });
     document.getElementById('add-key-overlay').style.display = 'none';
     toast(`Key #${slot} ${result.created ? 'created' : 'updated'} for ${akSelectedProperty.label} ✓`);
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'Check Slot & Save';
+    btn.textContent = 'Save';
     toast(e.message, true);
   }
 }

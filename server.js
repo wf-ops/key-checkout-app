@@ -307,6 +307,43 @@ app.get('/api/key-by-log/:logId', async (req, res) => {
   }
 });
 
+// GET /api/all-keys-for-property/:propertyId — all keys regardless of status
+app.get('/api/all-keys-for-property/:propertyId', async (req, res) => {
+  try {
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+      headers: notionHeaders(),
+    }).then(r => r.json());
+    if (propPage.object === 'error') throw new Error(propPage.message);
+
+    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
+    if (keyRelation.length === 0) return res.json([]);
+
+    const keyPages = await Promise.all(
+      keyRelation.map(r =>
+        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+      )
+    );
+
+    const keys = keyPages
+      .filter(row => row.object !== 'error')
+      .map(row => {
+        const p = row.properties;
+        return {
+          id: row.id,
+          slot: extractRichText(p['Key Slot #']),
+          status: extractSelect(p['Status']),
+          keyTypes: extractMultiSelect(p['Key Types']),
+          logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
+        };
+      });
+
+    res.json(keys);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/mark-missing  — set key Status to "Missing"
 // Body: { keyId }
 app.post('/api/mark-missing', async (req, res) => {
