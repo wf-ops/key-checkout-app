@@ -569,7 +569,7 @@
   <div id="return-key-overlay" class="panel-overlay" style="display:none" onclick="closeReturnPanel(event)">
     <div class="panel" onclick="event.stopPropagation()">
       <button class="panel-close" onclick="closeReturnPanel()">✕</button>
-      <h2>✅ Return Missing Key</h2>
+      <h2 id="return-panel-title">✅ Return Missing Key</h2>
       <p id="return-panel-sub" class="panel-sub"></p>
       <div class="form-group">
         <label>Photo (optional)</label>
@@ -825,7 +825,7 @@ async function loadCheckin() {
                 ${overdue ? '<span class="badge badge-red">Overdue</span>' : ''}
               </div>
             </div>
-            <button class="btn btn-success" onclick="doCheckin('${e.id}', this)">Check In</button>
+            <button class="btn btn-success" onclick="openCheckinPanel('${e.id}', '${e.logEntry || ''}')">Check In</button>
           </div>
         </div>`;
     }
@@ -1162,6 +1162,7 @@ async function doSaveKey() {
 
 let returnKeyId = null;
 let returnKeySlot = null;
+let returnLogId = null; // set for check-in tab flow, null for missing-key flow
 
 async function loadMissingKeys() {
   const sec = document.getElementById('missing-section');
@@ -1201,6 +1202,8 @@ async function loadMissingKeys() {
 function openReturnPanel(keyId, slot, propertyName) {
   returnKeyId = keyId;
   returnKeySlot = slot;
+  returnLogId = null;
+  document.getElementById('return-panel-title').textContent = '✅ Return Missing Key';
   document.getElementById('return-panel-sub').textContent =
     `Confirm that Key #${slot}${propertyName ? ` (${propertyName})` : ''} has been located or replaced and is back in the office.`;
   document.getElementById('return-note').value = '';
@@ -1210,6 +1213,27 @@ function openReturnPanel(keyId, slot, propertyName) {
   document.getElementById('return-confirm-btn').disabled = false;
   document.getElementById('return-confirm-btn').textContent = 'Confirm Key Returned';
   document.getElementById('return-key-overlay').style.display = 'flex';
+}
+
+async function openCheckinPanel(logId, logEntry) {
+  returnLogId = logId;
+  returnKeyId = null;
+  returnKeySlot = null;
+  document.getElementById('return-panel-title').textContent = '✅ Check In Key';
+  document.getElementById('return-panel-sub').textContent =
+    `${logEntry || 'Key'} — optionally add a photo or note before checking in.`;
+  document.getElementById('return-note').value = '';
+  document.getElementById('return-photo-input').value = '';
+  document.getElementById('return-photo-preview').style.display = 'none';
+  document.getElementById('return-photo-area').style.display = 'block';
+  document.getElementById('return-confirm-btn').disabled = false;
+  document.getElementById('return-confirm-btn').textContent = 'Confirm Check In';
+  document.getElementById('return-key-overlay').style.display = 'flex';
+  // Fetch keyId in background so we have it ready
+  try {
+    const { keyId } = await api(`/api/key-by-log/${logId}`);
+    returnKeyId = keyId;
+  } catch (e) { /* will surface on confirm */ }
 }
 
 function previewPhoto(input) {
@@ -1231,18 +1255,37 @@ async function confirmReturn() {
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
-    const formData = new FormData();
-    formData.append('keyId', returnKeyId);
-    formData.append('note', document.getElementById('return-note').value);
+    if (!returnKeyId) throw new Error('Key ID not loaded yet, please try again.');
+    const note = document.getElementById('return-note').value;
     const photoFile = document.getElementById('return-photo-input').files[0];
-    if (photoFile) formData.append('photo', photoFile);
-    await fetch('/api/return-key', { method: 'POST', body: formData });
-    document.getElementById('return-key-overlay').style.display = 'none';
-    toast(`Key #${returnKeySlot} marked as returned ✓`);
-    loadMissingKeys();
+    if (!returnLogId || note || photoFile) {
+      // For missing-key returns: always call (sets status to In Office)
+      // For check-in: only call if there's a photo/note to save
+      const formData = new FormData();
+      formData.append('keyId', returnKeyId);
+      formData.append('note', note);
+      if (photoFile) formData.append('photo', photoFile);
+      await fetch('/api/return-key', { method: 'POST', body: formData });
+    }
+    if (returnLogId) {
+      // Check In tab flow — close the log entry
+      await api('/api/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logId: returnLogId, keyId: returnKeyId }),
+      });
+      document.getElementById('return-key-overlay').style.display = 'none';
+      toast('Key checked in ✓');
+      tabLoaded['dashboard'] = false;
+      loadCheckin();
+    } else {
+      document.getElementById('return-key-overlay').style.display = 'none';
+      toast(`Key #${returnKeySlot} marked as returned ✓`);
+      loadMissingKeys();
+    }
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'Confirm Key Returned';
+    btn.textContent = returnLogId ? 'Confirm Check In' : 'Confirm Key Returned';
     toast(e.message, true);
   }
 }
