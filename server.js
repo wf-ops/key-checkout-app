@@ -11,9 +11,9 @@ const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
 
 const DB = {
-  keys: 'b470ba9c-f1d3-4e46-aaa1-c167ddcbf694',
-  log: 'a5ffe8e4-0648-4428-b761-bf3b043f54ca',
-  properties: '2d161a46-cdef-8091-8d45-000b1071d25b',
+  keys: 'bb222b13-e089-42ec-9458-9f1800c06bd8',
+  log: '6493156c-9348-45a5-9632-0552edda23b5',
+  properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
 };
 
 function notionHeaders() {
