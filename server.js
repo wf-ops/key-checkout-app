@@ -324,5 +324,142 @@ app.post('/api/mark-missing', async (req, res) => {
   }
 });
 
+// GET /api/missing-keys — all keys with Status = "Missing", with property name
+app.get('/api/missing-keys', async (req, res) => {
+  try {
+    const rows = await queryAll(DB.keys, {
+      property: 'Status',
+      select: { equals: 'Missing' },
+    });
+
+    const keys = await Promise.all(rows.map(async row => {
+      const p = row.properties;
+      const slot = extractRichText(p['Key Slot #']);
+      const keyTypes = extractMultiSelect(p['Key Types']);
+      const rentalUrls = extractRelation(p['Rental Matrix']);
+
+      // Fetch property name for each related property
+      let propertyName = '';
+      if (rentalUrls.length > 0) {
+        try {
+          const propId = rentalUrls[0].split('/').pop();
+          const propPage = await fetch(`https://api.notion.com/v1/pages/${propId}`, {
+            headers: notionHeaders(),
+          }).then(r => r.json());
+          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
+                         extractRichText(propPage.properties?.['Property Code']) || '';
+        } catch (_) {}
+      }
+
+      return { id: row.id, slot, keyTypes, propertyName };
+    }));
+
+    res.json(keys);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/return-key — mark key as back In Office
+// Body: { keyId, note }
+app.post('/api/return-key', async (req, res) => {
+  try {
+    const { keyId, note } = req.body;
+    const props = { 'Status': { select: { name: 'In Office' } } };
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: props });
+
+    // Append note as a page block if provided
+    if (note) {
+      await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
+        method: 'PATCH',
+        headers: notionHeaders(),
+        body: JSON.stringify({
+          children: [{
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: `Returned: ${note}` } }],
+            },
+          }],
+        }),
+      });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/key-by-slot/:slot — find existing key record by slot number
+app.get('/api/key-by-slot/:slot', async (req, res) => {
+  try {
+    const rows = await queryAll(DB.keys, {
+      property: 'Key Slot #',
+      title: { equals: req.params.slot },
+    });
+    if (rows.length === 0) return res.json(null);
+    const row = rows[0];
+    const p = row.properties;
+    const rentalUrls = extractRelation(p['Rental Matrix']);
+    let propertyName = '';
+    if (rentalUrls.length > 0) {
+      try {
+        const propId = rentalUrls[0].split('/').pop();
+        const propPage = await fetch(`https://api.notion.com/v1/pages/${propId}`, {
+          headers: notionHeaders(),
+        }).then(r => r.json());
+        propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
+                       extractRichText(propPage.properties?.['Property Code']) || '';
+      } catch (_) {}
+    }
+    res.json({
+      id: row.id,
+      slot: extractRichText(p['Key Slot #']),
+      status: extractSelect(p['Status']),
+      keyTypes: extractMultiSelect(p['Key Types']),
+      propertyName,
+      rentalUrls,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/add-key
+// Body: { propertyId, slot, keyTypes, existingKeyId? }
+// Creates a new key record or updates the existing one (when reassigning)
+app.post('/api/add-key', async (req, res) => {
+  try {
+    const { propertyId, slot, keyTypes, existingKeyId } = req.body;
+
+    const properties = {
+      'Key Slot #': { title: [{ text: { content: String(slot) } }] },
+      'Status': { select: { name: 'In Office' } },
+      'Key Types': { multi_select: keyTypes.map(name => ({ name })) },
+      'Rental Matrix': { relation: [{ id: propertyId }] },
+    };
+
+    if (existingKeyId) {
+      // Update existing record
+      await notionPatch(`https://api.notion.com/v1/pages/${existingKeyId}`, { properties });
+      res.json({ success: true, keyId: existingKeyId, created: false });
+    } else {
+      // Create new record
+      const page = await notionPost('https://api.notion.com/v1/pages', {
+        parent: { database_id: DB.keys },
+        properties,
+      });
+      res.json({ success: true, keyId: page.id, created: true });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`KRB Key App running on http://localhost:${PORT}`));

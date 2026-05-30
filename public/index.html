@@ -312,6 +312,108 @@
     .overdue { border-left: 4px solid var(--red); }
     .due-soon { border-left: 4px solid var(--yellow); }
 
+    /* ── Dashboard action buttons ── */
+    .dash-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .btn-dash-action {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 11px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      background: #fff;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-dash-action:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
+    .btn-dash-action .icon { font-size: 1rem; }
+
+    /* ── Missing keys section ── */
+    .missing-section { margin-top: 18px; }
+    .missing-card { border-left: 4px solid var(--red); }
+    .missing-card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .btn-return { background: var(--green-bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 7px 12px; font-size: .8rem; font-weight: 700; color: var(--green-dark); cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0; }
+    .btn-return:hover { background: var(--green); color: #fff; }
+
+    /* ── Slide-in panel ── */
+    .panel-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      display: flex; align-items: flex-end;
+      padding: 0;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      padding: 24px 20px 32px;
+      width: 100%;
+      max-height: 90dvh;
+      overflow-y: auto;
+      box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .panel h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
+    .panel-sub { font-size: .82rem; color: var(--gray-600); margin-bottom: 16px; }
+    .panel-close { float: right; background: var(--gray-100); border: none; border-radius: 99px; width: 28px; height: 28px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* ── Conflict warning ── */
+    .conflict-box {
+      background: #fff8e1;
+      border: 1.5px solid #f6c90e;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      font-size: .85rem;
+      line-height: 1.5;
+    }
+    .conflict-box strong { display: block; margin-bottom: 4px; font-size: .9rem; }
+
+    /* ── Key type checkboxes ── */
+    .key-types-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .key-type-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .85rem;
+      transition: all .15s;
+    }
+    .key-type-check:has(input:checked) { border-color: var(--green); background: var(--green-bg); font-weight: 600; color: var(--green-dark); }
+    .key-type-check input { accent-color: var(--green); width: 16px; height: 16px; }
+
+    /* ── Return note textarea ── */
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: .9rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 72px;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--green); }
+
     /* ── Checkout form sections ── */
     .checkout-step {
       background: #fff;
@@ -369,7 +471,65 @@
 <main>
   <!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
   <div id="tab-dashboard" class="tab-panel active">
+    <div class="dash-actions">
+      <button class="btn-dash-action" onclick="openAddKeyPanel()"><span class="icon">➕</span> Add Key to Property</button>
+      <button class="btn-dash-action" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
+    </div>
     <div id="dashboard-content"><div class="spinner"></div></div>
+    <div id="missing-section" class="missing-section" style="display:none"></div>
+  </div>
+
+  <!-- Add Key Panel -->
+  <div id="add-key-overlay" class="panel-overlay" style="display:none" onclick="closeAddKeyPanel(event)">
+    <div class="panel" onclick="event.stopPropagation()">
+      <button class="panel-close" onclick="closeAddKeyPanel()">✕</button>
+      <h2>➕ Add Key to Property</h2>
+      <p class="panel-sub">Create or reassign a key slot in the Keys & Access database.</p>
+
+      <div class="form-group search-wrapper">
+        <label for="ak-prop-input">Property</label>
+        <input id="ak-prop-input" type="text" placeholder="Search address or property code" autocomplete="off" />
+        <div id="ak-prop-results" class="search-results" style="display:none"></div>
+      </div>
+      <div id="ak-prop-selected" style="display:none; margin-bottom:14px"></div>
+
+      <div class="form-group">
+        <label for="ak-slot">Key Slot #</label>
+        <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
+      </div>
+
+      <div class="form-group">
+        <label>Key Types</label>
+        <div class="key-types-grid">
+          <label class="key-type-check"><input type="checkbox" value="Front Door Key"> Front Door Key</label>
+          <label class="key-type-check"><input type="checkbox" value="Mailbox Key"> Mailbox Key</label>
+          <label class="key-type-check"><input type="checkbox" value="Garage Remote"> Garage Remote</label>
+          <label class="key-type-check"><input type="checkbox" value="Pool Fob"> Pool Fob</label>
+          <label class="key-type-check"><input type="checkbox" value="Shed Key"> Shed Key</label>
+          <label class="key-type-check"><input type="checkbox" value="Back Door Key"> Back Door Key</label>
+          <label class="key-type-check"><input type="checkbox" value="Gate Key"> Gate Key</label>
+          <label class="key-type-check"><input type="checkbox" value="Other"> Other</label>
+        </div>
+      </div>
+
+      <div id="ak-conflict" style="display:none"></div>
+
+      <button class="btn btn-primary" id="ak-check-btn" onclick="checkSlotAndSubmit()" disabled>Check Slot &amp; Save</button>
+    </div>
+  </div>
+
+  <!-- Return Key Panel -->
+  <div id="return-key-overlay" class="panel-overlay" style="display:none" onclick="closeReturnPanel(event)">
+    <div class="panel" onclick="event.stopPropagation()">
+      <button class="panel-close" onclick="closeReturnPanel()">✕</button>
+      <h2>✅ Return Missing Key</h2>
+      <p id="return-panel-sub" class="panel-sub"></p>
+      <div class="form-group">
+        <label for="return-note">Notes (optional)</label>
+        <textarea id="return-note" placeholder="e.g. Found in lockbox, replaced with new copy..."></textarea>
+      </div>
+      <button class="btn btn-primary" id="return-confirm-btn" onclick="confirmReturn()">Confirm Key Returned</button>
+    </div>
   </div>
 
   <!-- ═══════════════════════════════ CHECK OUT ═══════════════════════════════ -->
@@ -791,7 +951,248 @@ function updateCheckoutBtn() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Missing key flow
+// Add Key to Property
+// ─────────────────────────────────────────────────────────────────────────────
+
+let akSelectedProperty = null;
+let akConflictKey = null;
+
+function openAddKeyPanel() {
+  akSelectedProperty = null;
+  akConflictKey = null;
+  document.getElementById('ak-prop-input').value = '';
+  document.getElementById('ak-prop-selected').style.display = 'none';
+  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'block';
+  document.getElementById('ak-slot').value = '';
+  document.getElementById('ak-conflict').style.display = 'none';
+  document.querySelectorAll('#add-key-overlay .key-type-check input').forEach(c => c.checked = false);
+  document.getElementById('ak-check-btn').textContent = 'Check Slot & Save';
+  document.getElementById('ak-check-btn').disabled = true;
+  document.getElementById('add-key-overlay').style.display = 'flex';
+}
+
+function closeAddKeyPanel(e) {
+  if (e && e.target !== document.getElementById('add-key-overlay')) return;
+  document.getElementById('add-key-overlay').style.display = 'none';
+}
+
+// Property search within add-key panel
+let akSearchTimer;
+document.getElementById('ak-prop-input').addEventListener('input', () => {
+  clearTimeout(akSearchTimer);
+  const q = document.getElementById('ak-prop-input').value.trim();
+  const res = document.getElementById('ak-prop-results');
+  if (q.length < 2) { res.style.display = 'none'; return; }
+  akSearchTimer = setTimeout(async () => {
+    try {
+      const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+      res.innerHTML = results.length === 0
+        ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
+        : results.map(r => {
+            const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode;
+            return `<div class="search-result-item" onclick="akSelectProperty('${r.id}','${addr.replace(/'/g,"\\'")}')">
+              ${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}
+            </div>`;
+          }).join('');
+      res.style.display = 'block';
+    } catch (e) {
+      res.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`;
+      res.style.display = 'block';
+    }
+  }, 280);
+});
+
+document.addEventListener('click', e => {
+  const res = document.getElementById('ak-prop-results');
+  if (res && !res.contains(e.target) && e.target !== document.getElementById('ak-prop-input')) {
+    res.style.display = 'none';
+  }
+});
+
+function akSelectProperty(id, label) {
+  akSelectedProperty = { id, label };
+  document.getElementById('ak-prop-results').style.display = 'none';
+  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'none';
+  const sel = document.getElementById('ak-prop-selected');
+  sel.style.display = 'block';
+  sel.innerHTML = `<div class="selected-prop" style="margin-bottom:0">
+    <span>${label}</span>
+    <button onclick="akClearProperty()">✕</button>
+  </div>`;
+  updateAkBtn();
+}
+
+function akClearProperty() {
+  akSelectedProperty = null;
+  document.getElementById('ak-prop-selected').style.display = 'none';
+  document.getElementById('ak-prop-input').closest('.form-group').style.display = 'block';
+  document.getElementById('ak-prop-input').value = '';
+  updateAkBtn();
+}
+
+document.getElementById('ak-slot').addEventListener('input', () => {
+  akConflictKey = null;
+  document.getElementById('ak-conflict').style.display = 'none';
+  document.getElementById('ak-check-btn').textContent = 'Check Slot & Save';
+  updateAkBtn();
+});
+
+function updateAkBtn() {
+  const ready = akSelectedProperty && document.getElementById('ak-slot').value.trim();
+  document.getElementById('ak-check-btn').disabled = !ready;
+}
+
+async function checkSlotAndSubmit() {
+  const btn = document.getElementById('ak-check-btn');
+  const slot = document.getElementById('ak-slot').value.trim();
+  const keyTypes = [...document.querySelectorAll('#add-key-overlay .key-type-check input:checked')].map(c => c.value);
+
+  // If we already confirmed a conflict, go straight to save
+  if (akConflictKey && btn.textContent === 'Yes, Reassign & Save') {
+    await doSaveKey(slot, keyTypes, akConflictKey.id);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+
+  try {
+    const existing = await api(`/api/key-by-slot/${encodeURIComponent(slot)}`);
+
+    if (!existing) {
+      // No conflict — save right away
+      await doSaveKey(slot, keyTypes, null);
+      return;
+    }
+
+    if (existing.propertyName === akSelectedProperty.label ||
+        existing.rentalUrls?.some(u => u.includes(akSelectedProperty.id.replace(/-/g, '')))) {
+      // Same property — just update key types
+      await doSaveKey(slot, keyTypes, existing.id);
+      return;
+    }
+
+    // Conflict — different property
+    akConflictKey = existing;
+    const conflictBox = document.getElementById('ak-conflict');
+    conflictBox.style.display = 'block';
+    conflictBox.innerHTML = `<div class="conflict-box">
+      <strong>⚠️ Slot #${slot} is already assigned</strong>
+      This slot is currently linked to <strong>${existing.propertyName || 'another property'}</strong>
+      with status <strong>${existing.status || 'unknown'}</strong>
+      and key types: <strong>${existing.keyTypes.join(', ') || 'none'}</strong>.<br><br>
+      Saving will remove the old assignment and reassign this slot to <strong>${akSelectedProperty.label}</strong>.
+      Are you sure?
+    </div>`;
+    btn.textContent = 'Yes, Reassign & Save';
+    btn.disabled = false;
+  } catch (e) {
+    btn.textContent = 'Check Slot & Save';
+    btn.disabled = false;
+    toast(e.message, true);
+  }
+}
+
+async function doSaveKey(slot, keyTypes, existingKeyId) {
+  const btn = document.getElementById('ak-check-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const result = await api('/api/add-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        propertyId: akSelectedProperty.id,
+        slot,
+        keyTypes,
+        existingKeyId,
+      }),
+    });
+    document.getElementById('add-key-overlay').style.display = 'none';
+    toast(`Key #${slot} ${result.created ? 'created' : 'updated'} for ${akSelectedProperty.label} ✓`);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Check Slot & Save';
+    toast(e.message, true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Missing Keys
+// ─────────────────────────────────────────────────────────────────────────────
+
+let returnKeyId = null;
+let returnKeySlot = null;
+
+async function loadMissingKeys() {
+  const sec = document.getElementById('missing-section');
+  sec.style.display = 'block';
+  sec.innerHTML = '<div class="spinner"></div>';
+  try {
+    const keys = await api('/api/missing-keys');
+    if (keys.length === 0) {
+      sec.innerHTML = '<div class="empty">No missing keys on record ✓</div>';
+      return;
+    }
+    let html = `<div class="section-header">${keys.length} missing key${keys.length !== 1 ? 's' : ''}</div>`;
+    for (const k of keys) {
+      html += `<div class="card missing-card">
+        <div class="missing-card-row">
+          <div class="checkin-info">
+            <div class="card-title">Key #${k.slot}</div>
+            <div class="card-meta">
+              ${k.propertyName ? `<span>🏠 ${k.propertyName}</span>` : ''}
+              ${k.keyTypes.length ? `<span>🔑 ${k.keyTypes.join(', ')}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn-return" onclick="openReturnPanel('${k.id}','${k.slot}','${(k.propertyName||'').replace(/'/g,"\\'")}')">Return Key</button>
+        </div>
+      </div>`;
+    }
+    sec.innerHTML = html;
+  } catch (e) {
+    sec.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
+}
+
+function openReturnPanel(keyId, slot, propertyName) {
+  returnKeyId = keyId;
+  returnKeySlot = slot;
+  document.getElementById('return-panel-sub').textContent =
+    `Confirm that Key #${slot}${propertyName ? ` (${propertyName})` : ''} has been located or replaced and is back in the office.`;
+  document.getElementById('return-note').value = '';
+  document.getElementById('return-confirm-btn').disabled = false;
+  document.getElementById('return-confirm-btn').textContent = 'Confirm Key Returned';
+  document.getElementById('return-key-overlay').style.display = 'flex';
+}
+
+function closeReturnPanel(e) {
+  if (e && e.target !== document.getElementById('return-key-overlay')) return;
+  document.getElementById('return-key-overlay').style.display = 'none';
+}
+
+async function confirmReturn() {
+  const btn = document.getElementById('return-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await api('/api/return-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyId: returnKeyId, note: document.getElementById('return-note').value }),
+    });
+    document.getElementById('return-key-overlay').style.display = 'none';
+    toast(`Key #${returnKeySlot} marked as returned ✓`);
+    loadMissingKeys();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Confirm Key Returned';
+    toast(e.message, true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Missing key flow (checkout page)
 // ─────────────────────────────────────────────────────────────────────────────
 
 let missingKeyId = null;
