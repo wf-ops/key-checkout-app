@@ -343,6 +343,9 @@
     .missing-card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .btn-return { background: var(--green-bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 7px 12px; font-size: .8rem; font-weight: 700; color: var(--green-dark); cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0; }
     .btn-return:hover { background: var(--green); color: #fff; }
+    .missing-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .btn-remove-key { background: #fde8e8; border: 1.5px solid #f8b4b4; border-radius: 8px; padding: 7px 12px; font-size: .8rem; font-weight: 700; color: var(--red); cursor: pointer; white-space: nowrap; transition: all .15s; }
+    .btn-remove-key:hover { background: var(--red); color: #fff; border-color: var(--red); }
 
     /* ── Slide-in panel ── */
     .panel-overlay {
@@ -532,6 +535,18 @@
           </div>
           <button class="btn btn-primary" id="ak-save-btn" onclick="doSaveKey()" disabled>Save</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove Key Confirmation Modal -->
+  <div id="remove-key-modal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h2>🗑️ Remove Key from Slot?</h2>
+      <p id="remove-key-modal-text"></p>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeRemoveKeyModal()">Cancel</button>
+        <button class="btn-confirm-missing" id="remove-key-confirm-btn" onclick="confirmRemoveKey()">Yes, Remove</button>
       </div>
     </div>
   </div>
@@ -1138,7 +1153,8 @@ async function loadMissingKeys() {
     }
     let html = `<div class="section-header">${keys.length} missing key${keys.length !== 1 ? 's' : ''}</div>`;
     for (const k of keys) {
-      html += `<div class="card missing-card">
+      const safeProp = (k.propertyName||'').replace(/'/g,"\\'");
+      html += `<div class="card missing-card" id="mk-${k.id}">
         <div class="missing-card-row">
           <div class="checkin-info">
             <div class="card-title">Key #${k.slot}</div>
@@ -1147,7 +1163,10 @@ async function loadMissingKeys() {
               ${k.keyTypes.length ? `<span>🔑 ${k.keyTypes.join(', ')}</span>` : ''}
             </div>
           </div>
-          <button class="btn-return" onclick="openReturnPanel('${k.id}','${k.slot}','${(k.propertyName||'').replace(/'/g,"\\'")}')">Return Key</button>
+          <div class="missing-btns">
+            <button class="btn-return" onclick="openReturnPanel('${k.id}','${k.slot}','${safeProp}')">Return Key</button>
+            <button class="btn-remove-key" onclick="promptRemoveKey('${k.id}','${k.slot}','${safeProp}')">Remove Key</button>
+          </div>
         </div>
       </div>`;
     }
@@ -1189,6 +1208,47 @@ async function confirmReturn() {
   } catch (e) {
     btn.disabled = false;
     btn.textContent = 'Confirm Key Returned';
+    toast(e.message, true);
+  }
+}
+
+let removeKeyId = null;
+let removeKeySlot = null;
+
+function promptRemoveKey(keyId, slot, propertyName) {
+  removeKeyId = keyId;
+  removeKeySlot = slot;
+  document.getElementById('remove-key-modal-text').innerHTML =
+    `This will <strong>remove Key #${slot}</strong> from its key slot and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
+    The key tag will be unassigned and available for reassignment. This cannot be undone automatically.`;
+  document.getElementById('remove-key-confirm-btn').disabled = false;
+  document.getElementById('remove-key-confirm-btn').textContent = 'Yes, Remove';
+  document.getElementById('remove-key-modal').style.display = 'flex';
+}
+
+function closeRemoveKeyModal() {
+  document.getElementById('remove-key-modal').style.display = 'none';
+  removeKeyId = null;
+  removeKeySlot = null;
+}
+
+async function confirmRemoveKey() {
+  const btn = document.getElementById('remove-key-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Removing…';
+  try {
+    await api('/api/remove-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyId: removeKeyId }),
+    });
+    closeRemoveKeyModal();
+    const card = document.getElementById('mk-' + removeKeyId);
+    if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
+    toast(`Key #${removeKeySlot} removed from slot ✓`);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Yes, Remove';
     toast(e.message, true);
   }
 }

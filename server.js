@@ -344,6 +344,24 @@ app.get('/api/all-keys-for-property/:propertyId', async (req, res) => {
   }
 });
 
+// POST /api/remove-key — clear property relation and mark key as unassigned
+// Body: { keyId }
+app.post('/api/remove-key', async (req, res) => {
+  try {
+    const { keyId } = req.body;
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
+      properties: {
+        'Rental Matrix': { relation: [] },
+        'Status': { select: { name: 'In Office' } },
+      },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/mark-missing  — set key Status to "Missing"
 // Body: { keyId }
 app.post('/api/mark-missing', async (req, res) => {
