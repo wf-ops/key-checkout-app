@@ -8,18 +8,21 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --blue: #1a56db;
-      --blue-dark: #1341b0;
+      --green: #67c829;
+      --green-light: #b1f065;
+      --green-dark: #52a020;
+      --green-bg: #f0fbe6;
+      --charcoal: #333333;
+      --gray-mid: #515151;
       --red: #e02424;
-      --green: #057a55;
       --yellow: #c27803;
       --gray-50: #f9fafb;
       --gray-100: #f3f4f6;
       --gray-200: #e5e7eb;
       --gray-400: #9ca3af;
-      --gray-600: #4b5563;
-      --gray-700: #374151;
-      --gray-900: #111827;
+      --gray-600: #515151;
+      --gray-700: #333333;
+      --gray-900: #1a1a1a;
       --radius: 10px;
     }
 
@@ -34,15 +37,34 @@
 
     /* ── Header ── */
     header {
-      background: var(--blue);
+      background: var(--charcoal);
       color: #fff;
-      padding: 14px 16px 0;
+      padding: 12px 16px 0;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
     }
-    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; padding-bottom: 10px; }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      padding-bottom: 10px;
+    }
+    .header-logo img {
+      height: 36px;
+      width: auto;
+      object-fit: contain;
+    }
+    .header-logo-text {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--green-light);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-left: 10px;
+      border-left: 1px solid rgba(255,255,255,.2);
+      padding-left: 10px;
+    }
 
     /* ── Tabs ── */
     .tabs {
@@ -53,7 +75,7 @@
       flex: 1;
       background: transparent;
       border: none;
-      color: rgba(255,255,255,.65);
+      color: rgba(255,255,255,.55);
       font-size: .85rem;
       font-weight: 600;
       padding: 10px 4px;
@@ -61,9 +83,10 @@
       border-bottom: 3px solid transparent;
       transition: color .15s, border-color .15s;
     }
+    .tab-btn:hover { color: rgba(255,255,255,.85); }
     .tab-btn.active {
-      color: #fff;
-      border-bottom-color: #fff;
+      color: var(--green-light);
+      border-bottom-color: var(--green);
     }
 
     /* ── Main content ── */
@@ -94,7 +117,7 @@
     .badge-red { background: #fde8e8; color: var(--red); }
     .badge-yellow { background: #fdf6b2; color: var(--yellow); }
     .badge-green { background: #def7ec; color: var(--green); }
-    .badge-blue { background: #e1effe; color: var(--blue); }
+    .badge-blue { background: var(--green-bg); color: var(--green-dark); }
     .badge-gray { background: var(--gray-100); color: var(--gray-600); }
 
     /* ── Buttons ── */
@@ -113,10 +136,11 @@
       text-decoration: none;
     }
     .btn:active { transform: scale(.97); }
-    .btn-primary { background: var(--blue); color: #fff; width: 100%; margin-top: 12px; padding: 13px; font-size: 1rem; }
-    .btn-primary:hover { background: var(--blue-dark); }
+    .btn-primary { background: var(--green); color: #fff; width: 100%; margin-top: 12px; padding: 13px; font-size: 1rem; }
+    .btn-primary:hover { background: var(--green-dark); }
     .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
     .btn-success { background: var(--green); color: #fff; padding: 8px 14px; font-size: .85rem; }
+    .btn-success:hover { background: var(--green-dark); }
     .btn-success:disabled { opacity: .45; cursor: not-allowed; }
     .btn-sm { padding: 6px 12px; font-size: .8rem; }
 
@@ -133,7 +157,7 @@
       outline: none;
       transition: border-color .15s;
     }
-    input:focus, select:focus { border-color: var(--blue); }
+    input:focus, select:focus { border-color: var(--green); }
     .form-group { margin-bottom: 14px; }
 
     /* ── Search results dropdown ── */
@@ -157,7 +181,7 @@
       font-size: .9rem;
     }
     .search-result-item:last-child { border-bottom: none; }
-    .search-result-item:hover, .search-result-item.focused { background: var(--gray-50); }
+    .search-result-item:hover, .search-result-item.focused { background: var(--green-bg); }
     .search-result-item .result-code { font-size: .75rem; color: var(--gray-400); margin-top: 1px; }
 
     /* ── Key selector ── */
@@ -185,8 +209,8 @@
       align-items: center;
       gap: 10px;
     }
-    .key-btn:hover { border-color: var(--blue); background: #e1effe; }
-    .key-btn.selected { border-color: var(--green); background: var(--green); color: #fff; }
+    .key-btn:hover { border-color: var(--green); background: var(--green-bg); }
+    .key-btn.selected { border-color: var(--green-dark); background: var(--green); color: #fff; }
     .key-btn .key-num { font-size: 1.1rem; font-weight: 700; }
     .key-btn .key-type { font-size: .75rem; color: inherit; opacity: .75; }
     .key-missing-btn {
@@ -233,7 +257,7 @@
     .spinner {
       width: 28px; height: 28px;
       border: 3px solid var(--gray-200);
-      border-top-color: var(--blue);
+      border-top-color: var(--green);
       border-radius: 50%;
       animation: spin .7s linear infinite;
       margin: 30px auto;
@@ -304,12 +328,13 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--gray-50);
-      border: 1.5px solid var(--blue);
+      background: var(--green-bg);
+      border: 1.5px solid var(--green);
       border-radius: 8px;
       padding: 10px 12px;
       font-size: .9rem;
       font-weight: 600;
+      color: var(--charcoal);
     }
     .selected-prop button {
       background: none;
@@ -325,7 +350,11 @@
 </head>
 <body>
 <header>
-  <h1>🔑 KRB Key Manager</h1>
+  <div class="header-logo">
+    <img src="/logo.png" alt="Keyrenter Boise" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+    <span class="header-logo-text" style="display:none">Keyrenter Boise</span>
+    <span class="header-logo-text">Key Manager</span>
+  </div>
   <div class="tabs">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
     <button class="tab-btn" data-tab="checkout">Check Out</button>
