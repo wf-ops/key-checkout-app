@@ -110,21 +110,23 @@ app.get('/api/dashboard', async (req, res) => {
       date: { is_empty: true },
     });
 
-    const entries = rows.map(row => {
-      const p = row.properties;
-      return {
-        id: row.id,
-        url: row.url,
-        logEntry: extractRichText(p['Log Entry']),
-        checkedOutBy: extractPeople(p['Checked Out By']),
-        dateOut: extractDate(p['Date Out'], 'start'),
-        dateDue: extractDate(p['Date Out'], 'end'),
-        dateReturned: extractDate(p['Date Returned'], 'start'),
-        purpose: extractSelect(p['Purpose']),
-        property: extractRelation(p['Property']),
-        keyRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
-      };
-    });
+    const entries = rows
+      .map(row => {
+        const p = row.properties;
+        return {
+          id: row.id,
+          url: row.url,
+          logEntry: extractRichText(p['Log Entry']),
+          checkedOutBy: extractPeople(p['Checked Out By']),
+          dateOut: extractDate(p['Date Out'], 'start'),
+          dateDue: extractDate(p['Date Out'], 'end'),
+          dateReturned: extractDate(p['Date Returned'], 'start'),
+          purpose: extractSelect(p['Purpose']),
+          property: extractRelation(p['Property']),
+          keyRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
+        };
+      })
+      .filter(e => e.logEntry && e.dateOut);
 
     res.json(entries);
   } catch (e) {
