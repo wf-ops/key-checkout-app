@@ -223,7 +223,7 @@ app.post('/api/checkout', async (req, res) => {
   try {
     const { keyId, keyUrl, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl, existingLogRelation } = req.body;
 
-    const logTitle = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const logTitle = `Key #${keySlot} - ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`;
 
     // 1. Create log entry
     const logPage = await notionPost('https://api.notion.com/v1/pages', {
