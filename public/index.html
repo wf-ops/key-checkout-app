@@ -162,24 +162,71 @@
 
     /* ── Key selector ── */
     .key-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 8px;
       margin-top: 8px;
     }
+    .key-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .key-btn {
+      flex: 1;
       background: var(--gray-50);
       border: 1.5px solid var(--gray-200);
       border-radius: 8px;
-      padding: 10px 4px;
-      text-align: center;
+      padding: 12px;
+      text-align: left;
       cursor: pointer;
       transition: all .15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .key-btn:hover { border-color: var(--blue); background: #e1effe; }
-    .key-btn.selected { border-color: var(--blue); background: var(--blue); color: #fff; }
-    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; display: block; }
-    .key-btn .key-type { font-size: .65rem; color: inherit; opacity: .75; margin-top: 2px; display: block; line-height: 1.2; }
+    .key-btn.selected { border-color: var(--green); background: var(--green); color: #fff; }
+    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; }
+    .key-btn .key-type { font-size: .75rem; color: inherit; opacity: .75; }
+    .key-missing-btn {
+      background: #fde8e8;
+      border: 1.5px solid #f8b4b4;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .82rem;
+      font-weight: 700;
+      color: var(--red);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .key-missing-btn:hover { background: var(--red); color: #fff; border-color: var(--red); }
+    .key-missing-btn.confirmed { background: #fde8e8; color: var(--gray-400); border-color: var(--gray-200); cursor: default; }
+
+    /* ── Missing modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 8px; }
+    .modal p { font-size: .88rem; color: var(--gray-600); line-height: 1.5; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions button { flex: 1; padding: 11px; border-radius: 8px; border: none; font-size: .9rem; font-weight: 600; cursor: pointer; }
+    .btn-cancel { background: var(--gray-100); color: var(--gray-700); }
+    .btn-confirm-missing { background: var(--red); color: #fff; }
 
     /* ── Empty / loading states ── */
     .empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: .9rem; }
@@ -363,6 +410,18 @@
 </main>
 
 <div id="toast"></div>
+
+<!-- Missing key modal -->
+<div id="missing-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>⚠️ Mark Key as Missing?</h2>
+    <p id="missing-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMissingModal()">Cancel</button>
+      <button class="btn-confirm-missing" id="missing-confirm-btn" onclick="confirmMissing()">Mark Missing</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
@@ -645,10 +704,13 @@ async function loadKeysForProperty() {
       const shortType = k.keyTypes
         .map(t => t.replace('Front Door Key', 'Door').replace('Mailbox Key', 'Mail').replace('Garage Remote', 'Garage').replace('Pool Fob', 'Pool'))
         .join(', ');
-      return `<div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
-          data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
-          <span class="key-num">#${k.slot}</span>
-          <span class="key-type">${shortType}</span>
+      return `<div class="key-row">
+          <div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
+              data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
+            <span class="key-num">#${k.slot}</span>
+            <span class="key-type">${shortType}</span>
+          </div>
+          <button class="key-missing-btn" onclick="promptMissing('${k.id}', '${k.slot}', this)">Missing</button>
         </div>`;
     }).join('') + '</div>';
 
@@ -693,6 +755,54 @@ function updateCheckoutBtn() {
     document.getElementById('inp-dateout').value &&
     document.getElementById('inp-datedue').value;
   btn.disabled = !ready;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Missing key flow
+// ─────────────────────────────────────────────────────────────────────────────
+
+let missingKeyId = null;
+let missingKeySlot = null;
+let missingBtn = null;
+
+function promptMissing(keyId, slot, btn) {
+  missingKeyId = keyId;
+  missingKeySlot = slot;
+  missingBtn = btn;
+  document.getElementById('missing-modal-text').textContent =
+    `Key #${slot} will be marked as Missing in Notion. The team will need to locate or replace it before it can be checked out again.`;
+  document.getElementById('missing-modal').style.display = 'flex';
+}
+
+function closeMissingModal() {
+  document.getElementById('missing-modal').style.display = 'none';
+  missingKeyId = null;
+  missingKeySlot = null;
+  missingBtn = null;
+}
+
+async function confirmMissing() {
+  const confirmBtn = document.getElementById('missing-confirm-btn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Marking…';
+  try {
+    await api('/api/mark-missing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyId: missingKeyId }),
+    });
+    // Remove the entire key row from the list
+    const keyRow = missingBtn.closest('.key-row');
+    keyRow.style.opacity = '0';
+    keyRow.style.transition = 'opacity .3s';
+    setTimeout(() => keyRow.remove(), 300);
+    closeMissingModal();
+    toast(`Key #${missingKeySlot} marked as missing`, true);
+  } catch (e) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Mark Missing';
+    toast(e.message, true);
+  }
 }
 
 document.getElementById('btn-checkout').addEventListener('click', async () => {

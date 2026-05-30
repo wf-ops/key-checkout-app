@@ -307,5 +307,22 @@ app.get('/api/key-by-log/:logId', async (req, res) => {
   }
 });
 
+// POST /api/mark-missing  — set key Status to "Missing"
+// Body: { keyId }
+app.post('/api/mark-missing', async (req, res) => {
+  try {
+    const { keyId } = req.body;
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
+      properties: {
+        'Status': { select: { name: 'Missing' } },
+      },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`KRB Key App running on http://localhost:${PORT}`));
