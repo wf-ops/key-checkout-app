@@ -146,7 +146,7 @@ app.get('/api/keys-for-property/:propertyId', async (req, res) => {
       throw new Error(propPage.message);
     }
 
-    const keyRelation = propPage.properties?.['Keys & Access']?.relation || [];
+    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
     if (keyRelation.length === 0) {
       return res.json([]);
     }
