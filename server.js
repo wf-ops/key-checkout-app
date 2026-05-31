@@ -2,26 +2,32 @@ require('dotenv').config();
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
-const fs = require('fs');
+const { Readable } = require('stream');
 const multer = require('multer');
+const { google } = require('googleapis');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), { etag: false, lastModified: false, setHeaders: (res) => res.setHeader('Cache-Control', 'no-store') }));
 
-// Serve uploaded photos
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-app.use('/uploads', express.static(UPLOADS_DIR));
+// Photos stored in Google Drive — use memory storage (no local disk)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `key-return-${Date.now()}${ext}`);
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+async function uploadToDrive(buffer, originalname, mimetype) {
+  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive.file'] });
+  const drive = google.drive({ version: 'v3', auth });
+  const ext = path.extname(originalname) || '.jpg';
+  const filename = `key-photo-${Date.now()}${ext}`;
+  const file = await drive.files.create({
+    requestBody: { name: filename, parents: [process.env.GOOGLE_DRIVE_FOLDER_ID] },
+    media: { mimeType: mimetype || 'image/jpeg', body: Readable.from(buffer) },
+    fields: 'id,webViewLink',
+  });
+  // Make viewable by anyone with the link
+  await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
+  return file.data.webViewLink;
+}
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_VERSION = '2022-06-28';
@@ -254,12 +260,12 @@ app.post('/api/checkout', upload.single('photo'), async (req, res) => {
       },
     });
 
-    // 1b. Save checkout photo as a property on the log entry
+    // 1b. Save checkout photo to Google Drive and store link in Notion
     if (photoFile) {
-      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
+      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
       await notionPatch(`https://api.notion.com/v1/pages/${logPage.id}`, {
         properties: {
-          'Check-Out Photo': { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] },
+          'Check-Out Photo': { files: [{ name: photoFile.originalname || 'checkout-photo.jpg', type: 'external', external: { url: photoUrl } }] },
         },
       });
     }
@@ -293,8 +299,8 @@ app.post('/api/checkin', upload.single('photo'), async (req, res) => {
 
     const logProps = { 'Date Returned': { date: { start: today } } };
     if (photoFile) {
-      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
-      logProps['Check-In Photo'] = { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] };
+      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
+      logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
     }
 
     await Promise.all([
@@ -449,8 +455,8 @@ app.post('/api/return-key', upload.single('photo'), async (req, res) => {
 
     const keyProps = { 'Status': { select: { name: 'In Office' } } };
     if (photoFile) {
-      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
-      keyProps['Return Photo'] = { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] };
+      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
+      keyProps['Return Photo'] = { files: [{ name: photoFile.originalname || 'return-photo.jpg', type: 'external', external: { url: photoUrl } }] };
     }
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: keyProps });
 
@@ -467,7 +473,7 @@ app.post('/api/return-key', upload.single('photo'), async (req, res) => {
       });
     }
 
-    res.json({ success: true, photoUrl: photoFile ? `/uploads/${photoFile.filename}` : null });
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
