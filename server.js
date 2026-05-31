@@ -234,10 +234,11 @@ app.get('/api/search-properties', async (req, res) => {
 });
 
 // POST /api/checkout
-// Body: { keyId, keyUrl, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl, existingLogRelation }
-app.post('/api/checkout', async (req, res) => {
+app.post('/api/checkout', upload.single('photo'), async (req, res) => {
   try {
-    const { keyId, keyUrl, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl, existingLogRelation } = req.body;
+    const { keyId, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl } = req.body;
+    const existingLogRelation = JSON.parse(req.body.existingLogRelation || '[]');
+    const photoFile = req.file;
 
     const logTitle = `Key #${keySlot} - ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`;
 
@@ -252,6 +253,20 @@ app.post('/api/checkout', async (req, res) => {
         'Property': { relation: [{ id: propertyId }] },
       },
     });
+
+    // 1b. Attach photo block to log page if provided
+    if (photoFile) {
+      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
+      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
+      await fetch(`https://api.notion.com/v1/blocks/${logPage.id}/children`, {
+        method: 'PATCH',
+        headers: notionHeaders(),
+        body: JSON.stringify({ children: [
+          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `Checkout Photo — ${timestamp}` } }] } },
+          { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: `📷 Photo: ${photoUrl}`, link: { url: photoUrl } } }] } },
+        ]}),
+      });
+    }
 
     // 2. Update key: Status = Checked Out, append log entry to relation
     const updatedLogRelation = [...(existingLogRelation || []).map(url => {

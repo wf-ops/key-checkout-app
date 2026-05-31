@@ -647,6 +647,14 @@
         <label for="inp-datedue">Expected return</label>
         <input type="date" id="inp-datedue" />
       </div>
+      <div class="form-group">
+        <label>Photo (optional)</label>
+        <img id="checkout-photo-preview" class="photo-preview" alt="preview" />
+        <div class="photo-upload-area" id="checkout-photo-area">
+          <input type="file" id="checkout-photo-input" accept="image/*" capture="environment" onchange="previewCheckoutPhoto(this)" />
+          <div class="upload-label">📷 Tap to take or upload a photo</div>
+        </div>
+      </div>
       <button class="btn btn-primary" id="btn-checkout" disabled>Check Out Key</button>
     </div>
   </div>
@@ -1379,6 +1387,15 @@ async function confirmMissing() {
   }
 }
 
+function previewCheckoutPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('checkout-photo-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.getElementById('checkout-photo-area').style.display = 'none';
+}
+
 document.getElementById('btn-checkout').addEventListener('click', async () => {
   const btn = document.getElementById('btn-checkout');
   btn.disabled = true;
@@ -1389,27 +1406,29 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
   const staffNameVal = staffEl.options[staffEl.selectedIndex].text;
 
   try {
-    await api('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        keyId: selectedKey.id,
-        keySlot: selectedKey.slot,
-        existingLogRelation: selectedKey.logRelation,
-        staffId,
-        staffName: staffNameVal,
-        purpose: document.getElementById('sel-purpose').value,
-        dateOut: document.getElementById('inp-dateout').value,
-        dateDue: document.getElementById('inp-datedue').value,
-        propertyId: selectedProperty.id,
-        propertyUrl: selectedProperty.url,
-      }),
-    });
+    const formData = new FormData();
+    formData.append('keyId', selectedKey.id);
+    formData.append('keySlot', selectedKey.slot);
+    formData.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
+    formData.append('staffId', staffId);
+    formData.append('staffName', staffNameVal);
+    formData.append('purpose', document.getElementById('sel-purpose').value);
+    formData.append('dateOut', document.getElementById('inp-dateout').value);
+    formData.append('dateDue', document.getElementById('inp-datedue').value);
+    formData.append('propertyId', selectedProperty.id);
+    formData.append('propertyUrl', selectedProperty.url || '');
+    const photoFile = document.getElementById('checkout-photo-input').files[0];
+    if (photoFile) formData.append('photo', photoFile);
+
+    await fetch('/api/checkout', { method: 'POST', body: formData });
 
     toast(`Key #${selectedKey.slot} checked out ✓`);
 
     // Reset form
     clearProperty();
+    document.getElementById('checkout-photo-input').value = '';
+    document.getElementById('checkout-photo-preview').style.display = 'none';
+    document.getElementById('checkout-photo-area').style.display = 'block';
     tabLoaded['dashboard'] = false;
     tabLoaded['checkin'] = false;
 
