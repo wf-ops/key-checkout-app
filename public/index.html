@@ -710,14 +710,18 @@ function formatDate(iso) {
   return `${m}/${d}/${y.slice(2)}`;
 }
 
+function todayMT() {
+  return new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Boise' }) + 'T00:00:00');
+}
+
 function isOverdue(dateDue) {
   if (!dateDue) return false;
-  return new Date(dateDue) < new Date(new Date().toDateString());
+  return new Date(dateDue) < todayMT();
 }
 
 function isDueSoon(dateDue) {
   if (!dateDue) return false;
-  const diff = new Date(dateDue) - new Date(new Date().toDateString());
+  const diff = new Date(dateDue) - todayMT();
   return diff >= 0 && diff <= 2 * 86400000;
 }
 
@@ -992,11 +996,14 @@ function selectKey(el) {
 // Check Out — form
 // ─────────────────────────────────────────────────────────────────────────────
 
+function mtDateStr(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Boise' }); // en-CA → YYYY-MM-DD
+}
+
 function setDefaultDates() {
-  const today = new Date().toISOString().slice(0, 10);
-  const nextDay = new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10);
-  document.getElementById('inp-dateout').value = today;
-  document.getElementById('inp-datedue').value = nextDay;
+  document.getElementById('inp-dateout').value = mtDateStr(0);
+  document.getElementById('inp-datedue').value = mtDateStr(1);
 }
 
 ['sel-staff', 'sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {

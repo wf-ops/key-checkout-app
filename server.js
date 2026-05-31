@@ -240,7 +240,7 @@ app.post('/api/checkout', upload.single('photo'), async (req, res) => {
     const existingLogRelation = JSON.parse(req.body.existingLogRelation || '[]');
     const photoFile = req.file;
 
-    const logTitle = `Key #${keySlot} - ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`;
+    const logTitle = `Key #${keySlot} - ${mtTimestamp()}`;
 
     // 1. Create log entry
     const logPage = await notionPost('https://api.notion.com/v1/pages', {
@@ -289,7 +289,7 @@ app.post('/api/checkin', upload.single('photo'), async (req, res) => {
   try {
     const { logId, keyId } = req.body;
     const photoFile = req.file;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = mtDateStr();
 
     const logProps = { 'Date Returned': { date: { start: today } } };
     if (photoFile) {
@@ -456,7 +456,7 @@ app.post('/api/return-key', upload.single('photo'), async (req, res) => {
 
     // Append note as a page block if provided
     if (note) {
-      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
+      const timestamp = mtTimestamp();
       await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
         method: 'PATCH',
         headers: notionHeaders(),
@@ -547,13 +547,23 @@ const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 // Track which log entries we've already alerted about today to avoid repeat pings
 const notifiedToday = new Set();
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+const MT_TZ = 'America/Boise';
+
+function mtDateStr(date = new Date()) {
+  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); // en-CA gives YYYY-MM-DD
+}
+
+function mtTimestamp(date = new Date()) {
+  return date.toLocaleString('en-US', { timeZone: MT_TZ });
 }
 
 function clearNotifiedAtMidnight() {
+  // Schedule reset at Mountain Time midnight
   const now = new Date();
-  const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+  const tomorrowMT = new Date(now.toLocaleDateString('en-CA', { timeZone: MT_TZ }) + 'T00:00:00');
+  tomorrowMT.setDate(tomorrowMT.getDate() + 1);
+  const msMT = new Date(tomorrowMT.toLocaleString('en-US', { timeZone: MT_TZ }));
+  const msUntilMidnight = tomorrowMT - now;
   setTimeout(() => {
     notifiedToday.clear();
     clearNotifiedAtMidnight();
@@ -577,7 +587,7 @@ async function sendSlackAlert(message) {
 async function checkOverdueKeys() {
   if (!SLACK_WEBHOOK_URL) return;
   try {
-    const today = todayStr();
+    const today = mtDateStr();
     const rows = await queryAll(DB.log, {
       and: [
         { property: 'Date Returned', date: { is_empty: true } },
