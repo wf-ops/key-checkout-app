@@ -1266,27 +1266,24 @@ async function confirmReturn() {
     if (!returnKeyId) throw new Error('Key ID not loaded yet, please try again.');
     const note = document.getElementById('return-note').value;
     const photoFile = document.getElementById('return-photo-input').files[0];
-    if (!returnLogId || note || photoFile) {
-      // For missing-key returns: always call (sets status to In Office)
-      // For check-in: only call if there's a photo/note to save
-      const formData = new FormData();
-      formData.append('keyId', returnKeyId);
-      formData.append('note', note);
-      if (photoFile) formData.append('photo', photoFile);
-      await fetch('/api/return-key', { method: 'POST', body: formData });
-    }
     if (returnLogId) {
-      // Check In tab flow — close the log entry
-      await api('/api/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logId: returnLogId, keyId: returnKeyId }),
-      });
+      // Check In tab flow — send photo + note to /api/checkin
+      const fd = new FormData();
+      fd.append('logId', returnLogId);
+      fd.append('keyId', returnKeyId);
+      if (photoFile) fd.append('photo', photoFile);
+      await fetch('/api/checkin', { method: 'POST', body: fd });
       document.getElementById('return-key-overlay').style.display = 'none';
       toast('Key checked in ✓');
       tabLoaded['dashboard'] = false;
       loadCheckin();
     } else {
+      // Missing key return — always call return-key (sets status to In Office + optional photo/note)
+      const fd = new FormData();
+      fd.append('keyId', returnKeyId);
+      fd.append('note', note);
+      if (photoFile) fd.append('photo', photoFile);
+      await fetch('/api/return-key', { method: 'POST', body: fd });
       document.getElementById('return-key-overlay').style.display = 'none';
       toast(`Key #${returnKeySlot} marked as returned ✓`);
       loadMissingKeys();

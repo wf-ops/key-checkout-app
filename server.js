@@ -254,17 +254,13 @@ app.post('/api/checkout', upload.single('photo'), async (req, res) => {
       },
     });
 
-    // 1b. Attach photo block to log page if provided
+    // 1b. Save checkout photo as a property on the log entry
     if (photoFile) {
       const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
-      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
-      await fetch(`https://api.notion.com/v1/blocks/${logPage.id}/children`, {
-        method: 'PATCH',
-        headers: notionHeaders(),
-        body: JSON.stringify({ children: [
-          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `Checkout Photo — ${timestamp}` } }] } },
-          { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: `📷 Photo: ${photoUrl}`, link: { url: photoUrl } } }] } },
-        ]}),
+      await notionPatch(`https://api.notion.com/v1/pages/${logPage.id}`, {
+        properties: {
+          'Check-Out Photo': { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] },
+        },
       });
     }
 
@@ -289,23 +285,21 @@ app.post('/api/checkout', upload.single('photo'), async (req, res) => {
 });
 
 // POST /api/checkin
-// Body: { logId, keyId }
-app.post('/api/checkin', async (req, res) => {
+app.post('/api/checkin', upload.single('photo'), async (req, res) => {
   try {
     const { logId, keyId } = req.body;
+    const photoFile = req.file;
     const today = new Date().toISOString().slice(0, 10);
 
+    const logProps = { 'Date Returned': { date: { start: today } } };
+    if (photoFile) {
+      const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
+      logProps['Check-In Photo'] = { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] };
+    }
+
     await Promise.all([
-      notionPatch(`https://api.notion.com/v1/pages/${logId}`, {
-        properties: {
-          'Date Returned': { date: { start: today } },
-        },
-      }),
-      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
-        properties: {
-          'Status': { select: { name: 'In Office' } },
-        },
-      }),
+      notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps }),
+      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }),
     ]);
 
     res.json({ success: true });
@@ -453,41 +447,23 @@ app.post('/api/return-key', upload.single('photo'), async (req, res) => {
     const { keyId, note } = req.body;
     const photoFile = req.file;
 
-    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
-      properties: { 'Status': { select: { name: 'In Office' } } },
-    });
-
-    // Build Notion blocks for note + photo link
-    const children = [];
-    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
-
-    if (note || photoFile) {
-      children.push({
-        object: 'block', type: 'heading_3',
-        heading_3: { rich_text: [{ type: 'text', text: { content: `Key Returned — ${timestamp}` } }] },
-      });
-    }
-    if (note) {
-      children.push({
-        object: 'block', type: 'paragraph',
-        paragraph: { rich_text: [{ type: 'text', text: { content: note } }] },
-      });
-    }
+    const keyProps = { 'Status': { select: { name: 'In Office' } } };
     if (photoFile) {
       const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${photoFile.filename}`;
-      children.push({
-        object: 'block', type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: `📷 Return photo: ${photoUrl}`, link: { url: photoUrl } } }],
-        },
-      });
+      keyProps['Return Photo'] = { files: [{ name: photoFile.filename, type: 'external', external: { url: photoUrl } }] };
     }
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: keyProps });
 
-    if (children.length > 0) {
+    // Append note as a page block if provided
+    if (note) {
+      const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Boise' });
       await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
         method: 'PATCH',
         headers: notionHeaders(),
-        body: JSON.stringify({ children }),
+        body: JSON.stringify({ children: [
+          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `Key Returned — ${timestamp}` } }] } },
+          { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: note } }] } },
+        ]}),
       });
     }
 
