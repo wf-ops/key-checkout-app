@@ -7,7 +7,7 @@ const multer = require('multer');
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, lastModified: false, setHeaders: (res) => res.setHeader('Cache-Control', 'no-store') }));
 
 // Serve uploaded photos
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
