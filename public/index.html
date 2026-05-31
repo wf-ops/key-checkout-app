@@ -609,9 +609,19 @@
       <div id="key-list"><div class="spinner"></div></div>
     </div>
 
-    <!-- Step 3: Details -->
+    <!-- Step 3: Photo (required) -->
+    <div class="checkout-step" id="step-photo" style="display:none">
+      <h3>3 — Photo of Key Ring <span style="color:var(--green-dark);font-size:.8em">(required)</span></h3>
+      <img id="checkout-photo-preview" class="photo-preview" alt="preview" />
+      <div class="photo-upload-area" id="checkout-photo-area">
+        <input type="file" id="checkout-photo-input" accept="image/*" capture="environment" onchange="previewCheckoutPhoto(this)" />
+        <div class="upload-label">📷 Tap to take or upload a photo of the key ring</div>
+      </div>
+    </div>
+
+    <!-- Step 4: Details -->
     <div class="checkout-step" id="step-details" style="display:none">
-      <h3>3 — Details</h3>
+      <h3>4 — Details</h3>
       <div class="form-group">
         <label for="sel-staff">Checked out by</label>
         <select id="sel-staff">
@@ -646,14 +656,6 @@
       <div class="form-group">
         <label for="inp-datedue">Expected return</label>
         <input type="date" id="inp-datedue" />
-      </div>
-      <div class="form-group">
-        <label>Photo (optional)</label>
-        <img id="checkout-photo-preview" class="photo-preview" alt="preview" />
-        <div class="photo-upload-area" id="checkout-photo-area">
-          <input type="file" id="checkout-photo-input" accept="image/*" capture="environment" onchange="previewCheckoutPhoto(this)" />
-          <div class="upload-label">📷 Tap to take or upload a photo</div>
-        </div>
       </div>
       <button class="btn btn-primary" id="btn-checkout" disabled>Check Out Key</button>
     </div>
@@ -941,7 +943,11 @@ function clearProperty() {
   propSelected.style.display = 'none';
   propInput.value = '';
   document.getElementById('step-key').style.display = 'none';
+  document.getElementById('step-photo').style.display = 'none';
   document.getElementById('step-details').style.display = 'none';
+  document.getElementById('checkout-photo-input').value = '';
+  document.getElementById('checkout-photo-preview').style.display = 'none';
+  document.getElementById('checkout-photo-area').style.display = 'block';
   updateCheckoutBtn();
 }
 
@@ -974,8 +980,6 @@ async function loadKeysForProperty() {
         </div>`;
     }).join('') + '</div>';
 
-    document.getElementById('step-details').style.display = 'block';
-    setDefaultDates();
   } catch (e) {
     keyList.innerHTML = `<div class="no-keys-msg" style="color:var(--red)">${e.message}</div>`;
   }
@@ -989,6 +993,13 @@ function selectKey(el) {
     slot: el.dataset.slot,
     logRelation: JSON.parse(el.dataset.logrel || '[]'),
   };
+  // Show photo step; hide details until photo is taken
+  document.getElementById('step-photo').style.display = 'block';
+  document.getElementById('step-details').style.display = 'none';
+  // Reset photo state when a different key is selected
+  document.getElementById('checkout-photo-input').value = '';
+  document.getElementById('checkout-photo-preview').style.display = 'none';
+  document.getElementById('checkout-photo-area').style.display = 'block';
   updateCheckoutBtn();
 }
 
@@ -1012,7 +1023,8 @@ function setDefaultDates() {
 
 function updateCheckoutBtn() {
   const btn = document.getElementById('btn-checkout');
-  const ready = selectedProperty && selectedKey &&
+  const hasPhoto = document.getElementById('checkout-photo-input').files.length > 0;
+  const ready = selectedProperty && selectedKey && hasPhoto &&
     document.getElementById('sel-staff').value &&
     document.getElementById('sel-purpose').value &&
     document.getElementById('inp-dateout').value &&
@@ -1398,6 +1410,10 @@ function previewCheckoutPhoto(input) {
   preview.src = URL.createObjectURL(file);
   preview.style.display = 'block';
   document.getElementById('checkout-photo-area').style.display = 'none';
+  // Reveal details step now that photo is provided
+  document.getElementById('step-details').style.display = 'block';
+  setDefaultDates();
+  updateCheckoutBtn();
 }
 
 document.getElementById('btn-checkout').addEventListener('click', async () => {
