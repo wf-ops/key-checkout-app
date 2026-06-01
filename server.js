@@ -1,4 +1,7 @@
 require('dotenv').config();
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
@@ -800,7 +803,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
   // Check immediately on startup, then every hour
-  checkOverdueKeys();
-  setInterval(checkOverdueKeys, 60 * 60 * 1000);
+  checkOverdueKeys().catch(e => console.error('Startup overdue check failed:', e.message));
+  setInterval(() => checkOverdueKeys().catch(e => console.error('Overdue check failed:', e.message)), 60 * 60 * 1000);
   if (!SLACK_WEBHOOK_URL) console.warn('⚠️  SLACK_WEBHOOK_URL not set — Slack alerts disabled');
 });
