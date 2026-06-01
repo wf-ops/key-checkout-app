@@ -5,10 +5,31 @@ const path = require('path');
 const { Readable } = require('stream');
 const multer = require('multer');
 const { google } = require('googleapis');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'krb-key-app-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 8 * 60 * 60 * 1000 }, // 8 hours
+}));
 app.use(express.static(path.join(__dirname, 'public'), { etag: false, lastModified: false, setHeaders: (res) => res.setHeader('Cache-Control', 'no-store') }));
+
+// Auth middleware
+function requireAuth(req, res, next) {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  next();
+}
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!roles.includes(req.session.user.role)) return res.status(403).json({ error: 'Insufficient permissions' });
+    next();
+  };
+}
 
 // Photos stored in Google Drive — use memory storage (no local disk)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -24,7 +45,6 @@ async function uploadToDrive(buffer, originalname, mimetype) {
     media: { mimeType: mimetype || 'image/jpeg', body: Readable.from(buffer) },
     fields: 'id,webViewLink',
   });
-  // Make viewable by anyone with the link
   await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
   return file.data.webViewLink;
 }
@@ -36,6 +56,7 @@ const DB = {
   keys: 'bb222b13-e089-42ec-9458-9f1800c06bd8',
   log: '6493156c-9348-45a5-9632-0552edda23b5',
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
+  staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
 };
 
 function notionHeaders() {
@@ -124,8 +145,140 @@ function extractPeople(prop) {
 
 // --- API Routes ---
 
+// POST /api/login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, pin } = req.body;
+    if (!username || !pin) return res.status(400).json({ error: 'Username and PIN required' });
+    const rows = await queryAll(DB.staff, { property: 'Username', rich_text: { equals: username.toLowerCase().trim() } });
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid username or PIN' });
+    const user = rows[0];
+    const active = user.properties['Active']?.checkbox;
+    if (!active) return res.status(401).json({ error: 'Account is inactive' });
+    const hash = user.properties['PIN Hash']?.rich_text?.[0]?.plain_text || '';
+    const valid = await bcrypt.compare(pin, hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid username or PIN' });
+    req.session.user = {
+      id: user.id,
+      name: user.properties['Name']?.title?.[0]?.plain_text || username,
+      username: username.toLowerCase().trim(),
+      role: user.properties['Role']?.select?.name || 'Member',
+      notionPersonId: user.properties['Notion Person ID']?.rich_text?.[0]?.plain_text || '',
+    };
+    res.json({ success: true, user: req.session.user });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/logout
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ success: true });
+});
+
+// GET /api/me
+app.get('/api/me', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(req.session.user);
+});
+
+// POST /api/change-pin — any authenticated user can change their own PIN
+app.post('/api/change-pin', requireAuth, async (req, res) => {
+  try {
+    const { currentPin, newPin } = req.body;
+    if (!newPin || newPin.length < 4) return res.status(400).json({ error: 'PIN must be at least 4 digits' });
+    const rows = await queryAll(DB.staff, { property: 'Username', rich_text: { equals: req.session.user.username } });
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const user = rows[0];
+    const hash = user.properties['PIN Hash']?.rich_text?.[0]?.plain_text || '';
+    const valid = await bcrypt.compare(currentPin, hash);
+    if (!valid) return res.status(401).json({ error: 'Current PIN is incorrect' });
+    const newHash = await bcrypt.hash(newPin, 10);
+    await notionPatch(`https://api.notion.com/v1/pages/${user.id}`, { properties: { 'PIN Hash': { rich_text: [{ text: { content: newHash } }] } } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- Admin: User Management ---
+
+// GET /api/users
+app.get('/api/users', requireRole('Admin'), async (req, res) => {
+  try {
+    const rows = await queryAll(DB.staff, null);
+    const users = rows.map(u => ({
+      id: u.id,
+      name: u.properties['Name']?.title?.[0]?.plain_text || '',
+      username: u.properties['Username']?.rich_text?.[0]?.plain_text || '',
+      role: u.properties['Role']?.select?.name || 'Member',
+      active: u.properties['Active']?.checkbox || false,
+      notionPersonId: u.properties['Notion Person ID']?.rich_text?.[0]?.plain_text || '',
+    }));
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/users — create user
+app.post('/api/users', requireRole('Admin'), async (req, res) => {
+  try {
+    const { name, username, pin, role, notionPersonId } = req.body;
+    if (!name || !username || !pin || !role) return res.status(400).json({ error: 'name, username, pin, and role are required' });
+    const hash = await bcrypt.hash(pin, 10);
+    const page = await notionPost('https://api.notion.com/v1/pages', {
+      parent: { database_id: DB.staff },
+      properties: {
+        'Name': { title: [{ text: { content: name } }] },
+        'Username': { rich_text: [{ text: { content: username.toLowerCase().trim() } }] },
+        'PIN Hash': { rich_text: [{ text: { content: hash } }] },
+        'Role': { select: { name: role } },
+        'Notion Person ID': { rich_text: [{ text: { content: notionPersonId || '' } }] },
+        'Active': { checkbox: true },
+      },
+    });
+    res.json({ success: true, id: page.id });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/users/:id — update role, active, or reset PIN
+app.patch('/api/users/:id', requireRole('Admin'), async (req, res) => {
+  try {
+    const { role, active, pin, name, username, notionPersonId } = req.body;
+    const props = {};
+    if (role !== undefined) props['Role'] = { select: { name: role } };
+    if (active !== undefined) props['Active'] = { checkbox: active };
+    if (pin) props['PIN Hash'] = { rich_text: [{ text: { content: await bcrypt.hash(pin, 10) } }] };
+    if (name) props['Name'] = { title: [{ text: { content: name } }] };
+    if (username) props['Username'] = { rich_text: [{ text: { content: username.toLowerCase().trim() } }] };
+    if (notionPersonId !== undefined) props['Notion Person ID'] = { rich_text: [{ text: { content: notionPersonId } }] };
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: props });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/users/:id — deactivate (not hard delete)
+app.delete('/api/users/:id', requireRole('Admin'), async (req, res) => {
+  try {
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: { 'Active': { checkbox: false } } });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/dashboard  — open checkouts (no Date Returned)
-app.get('/api/dashboard', async (req, res) => {
+app.get('/api/dashboard', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.log, {
       property: 'Date Returned',
@@ -159,7 +312,7 @@ app.get('/api/dashboard', async (req, res) => {
 
 // GET /api/keys-for-property/:propertyId
 // Fetches the property page, reads its "Keys & Access" relation, returns those key pages
-app.get('/api/keys-for-property/:propertyId', async (req, res) => {
+app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
   try {
     // 1. Fetch the property page to get its Keys & Access relation
     const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
@@ -205,7 +358,7 @@ app.get('/api/keys-for-property/:propertyId', async (req, res) => {
 });
 
 // GET /api/search-properties?q=...
-app.get('/api/search-properties', async (req, res) => {
+app.get('/api/search-properties', requireAuth, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (q.length < 2) return res.json([]);
   try {
@@ -240,7 +393,7 @@ app.get('/api/search-properties', async (req, res) => {
 });
 
 // POST /api/checkout
-app.post('/api/checkout', upload.single('photo'), async (req, res) => {
+app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) => {
   try {
     const { keyId, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl } = req.body;
     const existingLogRelation = JSON.parse(req.body.existingLogRelation || '[]');
@@ -291,7 +444,7 @@ app.post('/api/checkout', upload.single('photo'), async (req, res) => {
 });
 
 // POST /api/checkin
-app.post('/api/checkin', upload.single('photo'), async (req, res) => {
+app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) => {
   try {
     const { logId, keyId } = req.body;
     const photoFile = req.file;
@@ -316,7 +469,7 @@ app.post('/api/checkin', upload.single('photo'), async (req, res) => {
 });
 
 // GET /api/key-by-log/:logId  — find key page associated with a log entry
-app.get('/api/key-by-log/:logId', async (req, res) => {
+app.get('/api/key-by-log/:logId', requireAuth, async (req, res) => {
   try {
     const logPage = await fetch(`https://api.notion.com/v1/pages/${req.params.logId}`, {
       headers: notionHeaders(),
@@ -339,7 +492,7 @@ app.get('/api/key-by-log/:logId', async (req, res) => {
 });
 
 // GET /api/all-keys-for-property/:propertyId — all keys regardless of status
-app.get('/api/all-keys-for-property/:propertyId', async (req, res) => {
+app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) => {
   try {
     const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
       headers: notionHeaders(),
@@ -377,7 +530,7 @@ app.get('/api/all-keys-for-property/:propertyId', async (req, res) => {
 
 // POST /api/remove-key — clear property relation and mark key as unassigned
 // Body: { keyId }
-app.post('/api/remove-key', async (req, res) => {
+app.post('/api/remove-key', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -395,7 +548,7 @@ app.post('/api/remove-key', async (req, res) => {
 
 // POST /api/mark-missing  — set key Status to "Missing"
 // Body: { keyId }
-app.post('/api/mark-missing', async (req, res) => {
+app.post('/api/mark-missing', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -411,7 +564,7 @@ app.post('/api/mark-missing', async (req, res) => {
 });
 
 // GET /api/missing-keys — all keys with Status = "Missing", with property name
-app.get('/api/missing-keys', async (req, res) => {
+app.get('/api/missing-keys', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
       property: 'Status',
@@ -448,7 +601,7 @@ app.get('/api/missing-keys', async (req, res) => {
 });
 
 // POST /api/return-key — mark key as back In Office, accepts optional photo + note
-app.post('/api/return-key', upload.single('photo'), async (req, res) => {
+app.post('/api/return-key', requireRole('Admin', 'Manager'), upload.single('photo'), async (req, res) => {
   try {
     const { keyId, note } = req.body;
     const photoFile = req.file;
@@ -481,7 +634,7 @@ app.post('/api/return-key', upload.single('photo'), async (req, res) => {
 });
 
 // GET /api/key-by-slot/:slot — find existing key record by slot number
-app.get('/api/key-by-slot/:slot', async (req, res) => {
+app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
       property: 'Key Slot #',
@@ -519,7 +672,7 @@ app.get('/api/key-by-slot/:slot', async (req, res) => {
 // POST /api/add-key
 // Body: { propertyId, slot, keyTypes, existingKeyId? }
 // Creates a new key record or updates the existing one (when reassigning)
-app.post('/api/add-key', async (req, res) => {
+app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { propertyId, slot, keyTypes, existingKeyId } = req.body;
 
@@ -634,7 +787,7 @@ async function checkOverdueKeys() {
 }
 
 // POST /api/test-slack — manual trigger for testing
-app.post('/api/test-slack', async (req, res) => {
+app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
   try {
     await sendSlackAlert('✅ KRB Key App Slack connection test — working!');
     res.json({ success: true, message: 'Test message sent to #maintenance-general' });
