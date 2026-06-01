@@ -209,6 +209,20 @@ app.post('/api/change-pin', requireAuth, async (req, res) => {
 
 // --- Admin: User Management ---
 
+// GET /api/user-list — public, returns only name+username for login dropdown
+app.get('/api/user-list', async (req, res) => {
+  try {
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
+    const users = rows.map(r => ({
+      username: extractRichText(r.properties['Username']),
+      name: extractRichText(r.properties['Name']),
+    })).filter(u => u.username);
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/users
 app.get('/api/users', requireRole('Admin'), async (req, res) => {
   try {

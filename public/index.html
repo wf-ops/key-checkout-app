@@ -478,8 +478,9 @@
     .login-box h2 { text-align:center; font-size:1.2rem; color:var(--charcoal); margin-bottom:24px; }
     .login-box .form-group { margin-bottom:16px; }
     .login-box label { display:block; font-size:.8rem; font-weight:600; color:var(--gray-600); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
-    .login-box input { width:100%; padding:12px 14px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; }
-    .login-box input:focus { outline:none; border-color:var(--green); }
+    .login-box input, .login-box select { width:100%; padding:12px 14px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; background:#fff; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+    .login-box input { background-image:none; }
+    .login-box input:focus, .login-box select:focus { outline:none; border-color:var(--green); }
     .login-btn { width:100%; padding:14px; background:var(--green); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer; margin-top:8px; }
     .login-btn:hover { background:var(--green-dark); }
     .login-error { color:var(--red); font-size:.85rem; text-align:center; margin-top:10px; min-height:20px; }
@@ -536,7 +537,7 @@
     <h2>KEY MANAGER</h2>
     <div class="form-group">
       <label>Username</label>
-      <input type="text" id="login-username" autocomplete="username" autocapitalize="none" placeholder="e.g. chapin" />
+      <select id="login-username"><option value="">Loading...</option></select>
     </div>
     <div class="form-group">
       <label>PIN</label>
@@ -835,14 +836,28 @@
 let currentUser = null;
 
 async function initAuth() {
+  await loadLoginUserDropdown();
   try {
     const res = await fetch('/api/me');
     if (res.ok) {
       currentUser = await res.json();
       onLoginSuccess();
     }
-    // else stay on login screen
   } catch (e) { /* stay on login screen */ }
+}
+
+async function loadLoginUserDropdown() {
+  try {
+    const res = await fetch('/api/user-list');
+    if (!res.ok) return;
+    const users = await res.json();
+    const sel = document.getElementById('login-username');
+    sel.innerHTML = '<option value="">Select your name...</option>' +
+      users.filter(u => u.active !== false)
+           .sort((a, b) => a.name.localeCompare(b.name))
+           .map(u => `<option value="${u.username}">${u.name}</option>`)
+           .join('');
+  } catch (e) { /* leave as-is */ }
 }
 
 async function doLogin() {
@@ -850,7 +865,7 @@ async function doLogin() {
   const pin = document.getElementById('login-pin').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  if (!username || !pin) { errEl.textContent = 'Enter username and PIN'; return; }
+  if (!username || !pin) { errEl.textContent = 'Select your name and enter your PIN'; return; }
   try {
     const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, pin }) });
     const data = await res.json();
@@ -893,7 +908,7 @@ async function doLogout() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('user-pill').style.display = 'none';
   document.getElementById('user-menu').classList.remove('open');
-  document.getElementById('login-username').value = '';
+  document.getElementById('login-username').selectedIndex = 0;
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').textContent = '';
 }
@@ -910,7 +925,7 @@ document.addEventListener('click', e => {
 // Allow Enter key on login
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('login-username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
+  document.getElementById('login-username').addEventListener('change', () => document.getElementById('login-pin').focus());
   initAuth();
 });
 
