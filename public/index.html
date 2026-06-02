@@ -381,6 +381,15 @@
     .report-overdue { color:var(--red); font-weight:600; }
     .report-export { float:right; padding:5px 14px; border:1.5px solid var(--gray-200); border-radius:6px; background:#fff; font-size:.78rem; font-weight:600; color:var(--gray-600); cursor:pointer; }
     .report-export:hover { border-color:var(--green); color:var(--green-dark); }
+    .codes-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .codes-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--gray-200); color:var(--gray-600); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+    .codes-table td { padding:9px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+    .codes-table tr:last-child td { border-bottom:none; }
+    .codes-table tr:hover td { background:var(--gray-50); }
+    .code-val { font-family:monospace; font-size:.88rem; font-weight:700; color:var(--charcoal); background:var(--gray-100); padding:2px 7px; border-radius:4px; }
+    .code-empty { color:var(--gray-400); font-size:.8rem; }
+    .codes-table .edit-inline { display:none; }
+    .codes-table tr:hover .edit-inline { display:inline; }
 
     /* ── Missing keys section ── */
     .missing-section { margin-top: 18px; }
@@ -906,10 +915,14 @@
 
   <!-- ══════════════════════════ CODES & ACCESS ══════════════════════════ -->
   <div id="tab-codes" class="tab-panel" style="display:none">
-    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
-      <div style="font-size:2.5rem;margin-bottom:12px">🔐</div>
-      <h3 style="color:var(--gray-600);margin-bottom:8px">Codes & Access</h3>
-      <p style="font-size:.9rem">Coming soon</p>
+    <div class="checkout-step">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h3 style="margin:0;flex:1">🔐 Codes & Access</h3>
+        <input type="text" id="codes-search" placeholder="Search property code or address…"
+          oninput="filterCodesTable(this.value)"
+          style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;width:260px" />
+      </div>
+      <div id="codes-content"><div class="spinner"></div></div>
     </div>
   </div>
 
@@ -1310,6 +1323,7 @@ function showTab(tab) {
     if (tab === 'checkin') loadCheckin();
     if (tab === 'users') { loadUsers(); loadPermissionsMatrix(); }
     if (tab === 'reports') initReports();
+    if (tab === 'codes') loadCodesAndAccess();
   }
 }
 
@@ -2005,6 +2019,134 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     toast(e.message, true);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Codes & Access
+// ─────────────────────────────────────────────────────────────────────────────
+
+let codesData = [];
+
+async function loadCodesAndAccess() {
+  const el = document.getElementById('codes-content');
+  try {
+    codesData = await api('/api/codes-and-access');
+    renderCodesTable(codesData);
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:.9rem">${e.message}</div>`;
+  }
+}
+
+function filterCodesTable(q) {
+  const term = q.toLowerCase();
+  const filtered = term.length < 1 ? codesData : codesData.filter(p =>
+    p.propertyCode.toLowerCase().includes(term) ||
+    p.address.toLowerCase().includes(term) ||
+    p.city.toLowerCase().includes(term)
+  );
+  renderCodesTable(filtered);
+}
+
+function renderCodesTable(rows) {
+  const el = document.getElementById('codes-content');
+  const canEdit = ['Admin','Manager'].includes(currentUser?.role);
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty">No properties found.</div>';
+    return;
+  }
+
+  const cell = (val) => val !== '' && val !== null && val !== undefined
+    ? `<span class="code-val">${val}</span>`
+    : `<span class="code-empty">—</span>`;
+
+  let html = `
+    <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:10px">${rows.length} propert${rows.length!==1?'ies':'y'}</div>
+    <div style="overflow-x:auto">
+    <table class="codes-table">
+      <thead><tr>
+        <th>Property Code</th>
+        <th>Address</th>
+        <th>Garage Keypad</th>
+        <th>Front Door Code</th>
+        <th>Community Entry</th>
+        <th>Lockboxes</th>
+        <th>Keys</th>
+        ${canEdit ? '<th></th>' : ''}
+      </tr></thead>
+      <tbody>`;
+
+  rows.forEach(p => {
+    html += `<tr>
+      <td><strong>${p.propertyCode}</strong></td>
+      <td style="color:var(--gray-600)">${p.address}${p.city ? ', '+p.city : ''}</td>
+      <td>${cell(p.garage)}</td>
+      <td>${cell(p.frontDoor)}</td>
+      <td>${cell(p.communityEntry)}</td>
+      <td>${cell(p.lockboxes)}</td>
+      <td>${p.keysCount > 0 ? `<span style="color:var(--green);font-weight:600">${p.keysCount} key${p.keysCount!==1?'s':''}</span>` : '<span class="code-empty">—</span>'}</td>
+      ${canEdit ? `<td><button class="edit-inline btn-sm" onclick="openCodeEdit(${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button></td>` : ''}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+function openCodeEdit(prop) {
+  const existing = document.getElementById('code-edit-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'code-edit-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:2000';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <h3 style="margin-bottom:4px">Edit Access Codes</h3>
+      <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:20px">${prop.propertyCode} — ${prop.address}</p>
+      ${field('Garage Keypad', 'edit-garage', prop.garage)}
+      ${field('Front Door Code', 'edit-frontdoor', prop.frontDoor)}
+      ${field('Community Entry Code', 'edit-entry', prop.communityEntry)}
+      ${field('Lockboxes #', 'edit-lockboxes', prop.lockboxes)}
+      <div id="code-edit-error" style="color:var(--red);font-size:.85rem;min-height:18px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:10px">
+        <button onclick="saveCodeEdit('${prop.id}')" class="btn btn-primary" style="margin:0;flex:1;padding:12px">Save</button>
+        <button onclick="document.getElementById('code-edit-modal').remove()" style="flex:1;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff;cursor:pointer;font-weight:600">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  function field(label, id, val) {
+    return `<div class="form-group" style="margin-bottom:14px">
+      <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">${label}</label>
+      <input id="${id}" type="text" value="${val ?? ''}" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.95rem" />
+    </div>`;
+  }
+}
+
+async function saveCodeEdit(propId) {
+  const errEl = document.getElementById('code-edit-error');
+  errEl.textContent = '';
+  const body = {
+    garage:         document.getElementById('edit-garage').value.trim(),
+    frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
+    communityEntry: document.getElementById('edit-entry').value.trim(),
+    lockboxes:      document.getElementById('edit-lockboxes').value.trim(),
+  };
+  try {
+    await api(`/api/codes-and-access/${propId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    document.getElementById('code-edit-modal').remove();
+    toast('Access codes updated ✓');
+    tabLoaded['codes'] = false;
+    loadCodesAndAccess();
+  } catch(e) {
+    errEl.textContent = e.message;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Permissions Matrix

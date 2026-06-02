@@ -798,6 +798,60 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
   }
 });
 
+// ─── Codes & Access ───────────────────────────────────────────────────────────
+
+// GET /api/codes-and-access — all active properties with access code fields
+app.get('/api/codes-and-access', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.properties,
+      { property: 'Active Property', select: { equals: 'ACTIVE' } },
+      [{ property: 'Property Code', direction: 'ascending' }]
+    );
+
+    const properties = rows.map(r => {
+      const p = r.properties;
+      const garage  = p['Garage Keypad']?.rich_text?.[0]?.plain_text || p['Garage Keypad']?.number || '';
+      const front   = p['Front Door Code']?.number ?? p['Front Door Code']?.rich_text?.[0]?.plain_text ?? '';
+      const entry   = p['Community Entry Code']?.rich_text?.[0]?.plain_text || '';
+      const lockboxes = p['Lockboxes']?.number ?? '';
+      const keys    = (p['KRB Keys & Access']?.relation || []).length;
+      return {
+        id: r.id,
+        propertyCode:   extractRichText(p['Property Code']),
+        address:        extractRichText(p['Street Address - Property']),
+        city:           p['City']?.rich_text?.[0]?.plain_text || p['City']?.select?.name || '',
+        garage,
+        frontDoor: front,
+        communityEntry: entry,
+        lockboxes,
+        keysCount: keys,
+      };
+    });
+
+    res.json(properties);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/codes-and-access/:propertyId — update access code fields
+app.patch('/api/codes-and-access/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { garage, frontDoor, communityEntry, lockboxes } = req.body;
+    const props = {};
+    if (garage       !== undefined) props['Garage Keypad']        = { rich_text: [{ text: { content: String(garage) } }] };
+    if (frontDoor    !== undefined) props['Front Door Code']       = { number: frontDoor === '' ? null : Number(frontDoor) };
+    if (communityEntry !== undefined) props['Community Entry Code'] = { rich_text: [{ text: { content: String(communityEntry) } }] };
+    if (lockboxes    !== undefined) props['Lockboxes']             = { number: lockboxes === '' ? null : Number(lockboxes) };
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
 // GET /api/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&staffId=&keySlot=&propertyId=
