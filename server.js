@@ -723,6 +723,73 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
   }
 });
 
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+// GET /api/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&staffId=&keySlot=&propertyId=
+app.get('/api/reports', requireAuth, async (req, res) => {
+  try {
+    const { from, to, staffId, keySlot, propertyId } = req.query;
+
+    const filters = [];
+    if (from) filters.push({ property: 'Date Out', date: { on_or_after: from } });
+    if (to)   filters.push({ property: 'Date Out', date: { on_or_before: to } });
+    if (staffId)    filters.push({ property: 'Checked Out By', people: { contains: staffId } });
+    if (propertyId) filters.push({ property: 'Property', relation: { contains: propertyId } });
+    if (keySlot)    filters.push({ property: 'Log Entry', title: { contains: `Key #${keySlot}` } });
+
+    const filter = filters.length === 0 ? undefined
+      : filters.length === 1 ? filters[0]
+      : { and: filters };
+
+    const rows = await queryAll(DB.log, filter, [{ property: 'Date Out', direction: 'descending' }]);
+
+    // Collect unique property IDs to resolve names
+    const propIds = [...new Set(
+      rows.flatMap(r => (r.properties['Property']?.relation || []).map(rel => rel.id))
+    )];
+    const propMap = {};
+    await Promise.all(propIds.map(async id => {
+      try {
+        const page = await fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json());
+        propMap[id] = extractRichText(page.properties?.['Street Address - Property'])
+          || extractRichText(page.properties?.['Property Code']) || id;
+      } catch (_) { propMap[id] = id; }
+    }));
+
+    const entries = rows.map(row => {
+      const p = row.properties;
+      const dateOut = extractDate(p['Date Out'], 'start');
+      const dateDue = extractDate(p['Date Out'], 'end');
+      const dateReturned = extractDate(p['Date Returned'], 'start');
+      const propRelation = p['Property']?.relation || [];
+      const propId = propRelation[0]?.id || null;
+
+      let durationDays = null;
+      if (dateOut && dateReturned) {
+        durationDays = Math.round((new Date(dateReturned) - new Date(dateOut)) / 86400000);
+      }
+
+      return {
+        id: row.id,
+        logEntry: extractRichText(p['Log Entry']),
+        checkedOutBy: (p['Checked Out By']?.people || []).map(u => ({ id: u.id, name: u.name || '' })),
+        dateOut,
+        dateDue,
+        dateReturned,
+        purpose: extractSelect(p['Purpose']),
+        propertyId: propId,
+        propertyName: propId ? (propMap[propId] || '') : '',
+        durationDays,
+      };
+    });
+
+    res.json(entries);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Kwikset Cut Routes ───────────────────────────────────────────────────────
 
 // GET /api/kwikset-cuts — all cuts sorted by key number

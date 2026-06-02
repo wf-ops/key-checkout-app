@@ -362,6 +362,25 @@
     .btn-dash-primary .icon { font-size: 1.6rem; }
     .btn-dash-primary.checkout { background: var(--green); color: #fff; }
     .btn-dash-primary.checkin  { background: var(--charcoal); color: #fff; }
+    .report-preset {
+      padding: 6px 14px; border: 1.5px solid var(--gray-200); border-radius: 20px;
+      background: #fff; font-size: .8rem; font-weight: 600; color: var(--gray-600);
+      cursor: pointer; transition: all .15s;
+    }
+    .report-preset:hover { border-color: var(--green); color: var(--green-dark); }
+    .report-preset.active { background: var(--green); border-color: var(--green); color: #fff; }
+    .report-stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .report-stat { flex:1; min-width:100px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:10px; padding:12px 14px; text-align:center; }
+    .report-stat .stat-val { font-size:1.5rem; font-weight:700; color:var(--charcoal); }
+    .report-stat .stat-lbl { font-size:.72rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+    .report-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .report-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--gray-200); color:var(--gray-600); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+    .report-table td { padding:9px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+    .report-table tr:last-child td { border-bottom:none; }
+    .report-table tr:hover td { background:var(--gray-50); }
+    .report-overdue { color:var(--red); font-weight:600; }
+    .report-export { float:right; padding:5px 14px; border:1.5px solid var(--gray-200); border-radius:6px; background:#fff; font-size:.78rem; font-weight:600; color:var(--gray-600); cursor:pointer; }
+    .report-export:hover { border-color:var(--green); color:var(--green-dark); }
 
     /* ── Missing keys section ── */
     .missing-section { margin-top: 18px; }
@@ -818,10 +837,56 @@
 
   <!-- ══════════════════════════════ REPORTS ══════════════════════════════ -->
   <div id="tab-reports" class="tab-panel" style="display:none">
-    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
-      <div style="font-size:2.5rem;margin-bottom:12px">📊</div>
-      <h3 style="color:var(--gray-600);margin-bottom:8px">Reports</h3>
-      <p style="font-size:.9rem">Coming soon</p>
+    <div class="checkout-step">
+      <h3 style="margin-bottom:16px">📊 Usage Report</h3>
+
+      <!-- Date presets -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="report-presets">
+        <button class="report-preset active" data-days="7">Last 7 days</button>
+        <button class="report-preset" data-days="30">Last 30 days</button>
+        <button class="report-preset" data-days="90">Last 90 days</button>
+        <button class="report-preset" data-days="365">Last year</button>
+        <button class="report-preset" data-days="0">Custom</button>
+      </div>
+
+      <!-- Custom date range -->
+      <div id="report-custom-dates" style="display:none;gap:10px;margin-bottom:12px;display:none">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;flex:1;min-width:140px">
+            <label style="font-size:.75rem">From</label>
+            <input type="date" id="report-from" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
+          </div>
+          <div class="form-group" style="margin:0;flex:1;min-width:140px">
+            <label style="font-size:.75rem">To</label>
+            <input type="date" id="report-to" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters row -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div class="form-group" style="margin:0;flex:1;min-width:160px">
+          <label style="font-size:.75rem">Team Member</label>
+          <select id="report-staff" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:#fff">
+            <option value="">All staff</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:120px">
+          <label style="font-size:.75rem">Key Slot #</label>
+          <input type="text" id="report-keyslot" placeholder="e.g. 5" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
+        </div>
+        <div class="form-group search-wrapper" style="margin:0;flex:2;min-width:200px">
+          <label style="font-size:.75rem">Property</label>
+          <input type="text" id="report-prop-search" placeholder="Search address or code…" autocomplete="off" oninput="reportSearchProps(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
+          <div id="report-prop-results" class="search-results" style="display:none"></div>
+        </div>
+      </div>
+      <div id="report-prop-selected" style="margin-bottom:10px;display:none"></div>
+
+      <button onclick="runReport()" style="padding:10px 24px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:18px">Run Report</button>
+
+      <!-- Results -->
+      <div id="report-results"></div>
     </div>
   </div>
 
@@ -1213,6 +1278,7 @@ function showTab(tab) {
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'checkin') loadCheckin();
     if (tab === 'users') loadUsers();
+    if (tab === 'reports') initReports();
   }
 }
 
@@ -1908,6 +1974,184 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     toast(e.message, true);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reports
+// ─────────────────────────────────────────────────────────────────────────────
+
+let reportSelectedProperty = null;
+let reportPropSearchTimer = null;
+
+function initReports() {
+  // Populate staff dropdown from STAFF_MAP
+  const sel = document.getElementById('report-staff');
+  if (sel && sel.options.length === 1) {
+    Object.entries(STAFF_MAP).sort((a,b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  }
+
+  // Wire up preset buttons
+  document.querySelectorAll('.report-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.report-preset').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const days = parseInt(btn.dataset.days);
+      const customDiv = document.getElementById('report-custom-dates');
+      if (days === 0) {
+        customDiv.style.display = 'flex';
+        customDiv.style.flexDirection = 'column';
+      } else {
+        customDiv.style.display = 'none';
+        const to = new Date();
+        const from = new Date(); from.setDate(from.getDate() - days);
+        document.getElementById('report-from').value = from.toISOString().slice(0,10);
+        document.getElementById('report-to').value = to.toISOString().slice(0,10);
+      }
+    });
+  });
+
+  // Set default: last 30 days
+  document.querySelector('.report-preset[data-days="30"]').click();
+  document.querySelector('.report-preset[data-days="30"]').classList.add('active');
+  document.querySelector('.report-preset[data-days="7"]').classList.remove('active');
+}
+
+function reportSearchProps(q) {
+  clearTimeout(reportPropSearchTimer);
+  const results = document.getElementById('report-prop-results');
+  if (q.length < 2) { results.style.display = 'none'; return; }
+  reportPropSearchTimer = setTimeout(async () => {
+    try {
+      const props = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+      if (!props.length) { results.style.display = 'none'; return; }
+      results.innerHTML = props.map(p =>
+        `<div class="search-result-item" onclick='reportSelectProp(${JSON.stringify(p).replace(/'/g,"&#39;")})'>
+          <strong>${p.propertyCode||''}</strong> ${p.address||''}, ${p.city||''}
+        </div>`
+      ).join('');
+      results.style.display = 'block';
+    } catch(e) { results.style.display = 'none'; }
+  }, 300);
+}
+
+function reportSelectProp(prop) {
+  reportSelectedProperty = prop;
+  document.getElementById('report-prop-search').value = '';
+  document.getElementById('report-prop-results').style.display = 'none';
+  const div = document.getElementById('report-prop-selected');
+  div.style.display = 'block';
+  div.innerHTML = `<div class="selected-prop"><strong>${prop.propertyCode||''}</strong> ${prop.address||''}, ${prop.city||''} <button onclick="reportClearProp()">✕</button></div>`;
+}
+
+function reportClearProp() {
+  reportSelectedProperty = null;
+  document.getElementById('report-prop-selected').style.display = 'none';
+  document.getElementById('report-prop-search').value = '';
+}
+
+async function runReport() {
+  const el = document.getElementById('report-results');
+  el.innerHTML = '<div class="spinner"></div>';
+
+  const from = document.getElementById('report-from').value;
+  const to   = document.getElementById('report-to').value;
+  const staffId  = document.getElementById('report-staff').value;
+  const keySlot  = document.getElementById('report-keyslot').value.trim();
+  const propertyId = reportSelectedProperty?.id || '';
+
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to)   params.set('to', to);
+  if (staffId)    params.set('staffId', staffId);
+  if (keySlot)    params.set('keySlot', keySlot);
+  if (propertyId) params.set('propertyId', propertyId);
+
+  try {
+    const entries = await api(`/api/reports?${params}`);
+
+    if (!entries.length) {
+      el.innerHTML = '<div class="empty">No results for the selected filters.</div>';
+      return;
+    }
+
+    const returned = entries.filter(e => e.dateReturned);
+    const avgDur = returned.length
+      ? (returned.reduce((s,e) => s + (e.durationDays||0), 0) / returned.length).toFixed(1)
+      : '—';
+    const uniqueProps = new Set(entries.map(e => e.propertyId).filter(Boolean)).size;
+
+    const today = new Date().toISOString().slice(0,10);
+
+    let html = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <strong style="font-size:.9rem">${entries.length} result${entries.length!==1?'s':''}</strong>
+        <button class="report-export" onclick="exportReportCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="report-stats">
+        <div class="report-stat"><div class="stat-val">${entries.length}</div><div class="stat-lbl">Checkouts</div></div>
+        <div class="report-stat"><div class="stat-val">${entries.filter(e=>e.dateReturned).length}</div><div class="stat-lbl">Returned</div></div>
+        <div class="report-stat"><div class="stat-val">${entries.filter(e=>!e.dateReturned).length}</div><div class="stat-lbl">Still Out</div></div>
+        <div class="report-stat"><div class="stat-val">${uniqueProps}</div><div class="stat-lbl">Properties</div></div>
+        <div class="report-stat"><div class="stat-val">${avgDur}</div><div class="stat-lbl">Avg Days</div></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="report-table">
+        <thead><tr>
+          <th>Key</th><th>Property</th><th>Checked Out By</th>
+          <th>Date Out</th><th>Due</th><th>Returned</th>
+          <th>Duration</th><th>Purpose</th>
+        </tr></thead>
+        <tbody>`;
+
+    entries.forEach(e => {
+      const keyLabel = e.logEntry.split(' - ')[0] || e.logEntry;
+      const who = e.checkedOutBy.map(u => u.name || staffName(u.id)).join(', ') || '—';
+      const overdue = !e.dateReturned && e.dateDue && e.dateDue < today;
+      const dur = e.durationDays !== null ? `${e.durationDays}d` : (e.dateReturned ? '—' : '<span style="color:var(--yellow)">Out</span>');
+      html += `<tr>
+        <td><strong>${keyLabel}</strong></td>
+        <td>${e.propertyName || '—'}</td>
+        <td>${who}</td>
+        <td>${formatDate(e.dateOut)}</td>
+        <td class="${overdue?'report-overdue':''}">${formatDate(e.dateDue)||'—'}</td>
+        <td>${e.dateReturned ? formatDate(e.dateReturned) : '<span style="color:var(--gray-400)">Not returned</span>'}</td>
+        <td>${dur}</td>
+        <td>${e.purpose||'—'}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+
+    // Cache entries for CSV export
+    window._reportEntries = entries;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:.9rem">${e.message}</div>`;
+  }
+}
+
+function exportReportCSV() {
+  const entries = window._reportEntries || [];
+  const rows = [['Key','Property','Checked Out By','Date Out','Due','Returned','Duration (days)','Purpose']];
+  entries.forEach(e => {
+    rows.push([
+      e.logEntry.split(' - ')[0],
+      e.propertyName||'',
+      e.checkedOutBy.map(u => u.name||staffName(u.id)).join('; '),
+      e.dateOut||'', e.dateDue||'', e.dateReturned||'',
+      e.durationDays !== null ? e.durationDays : '',
+      e.purpose||''
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `krb-key-report-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rekey
