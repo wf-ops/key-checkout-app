@@ -337,6 +337,31 @@
     }
     .btn-dash-action:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
     .btn-dash-action .icon { font-size: 1rem; }
+    .dash-primary-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .btn-dash-primary {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 20px 10px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-dash-primary:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-dash-primary:active { transform: translateY(0); }
+    .btn-dash-primary .icon { font-size: 1.6rem; }
+    .btn-dash-primary.checkout { background: var(--green); color: #fff; }
+    .btn-dash-primary.checkin  { background: var(--charcoal); color: #fff; }
 
     /* ── Missing keys section ── */
     .missing-section { margin-top: 18px; }
@@ -594,14 +619,19 @@
   </div>
   <div class="tabs">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="checkout">Check Out</button>
-    <button class="tab-btn" data-tab="checkin">Check In</button>
+    <button class="tab-btn" data-tab="lockboxes">Lockboxes</button>
+    <button class="tab-btn" data-tab="reports">Reports</button>
+    <button class="tab-btn" data-tab="codes">Codes & Access</button>
   </div>
 </header>
 
 <main>
   <!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
   <div id="tab-dashboard" class="tab-panel active">
+    <div class="dash-primary-actions">
+      <button class="btn-dash-primary checkout" onclick="showTab('checkout')"><span class="icon">🔑</span> Check Out</button>
+      <button class="btn-dash-primary checkin"  onclick="showTab('checkin')"><span class="icon">✅</span> Check In</button>
+    </div>
     <div class="dash-actions">
       <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Assign Property</button>
       <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
@@ -704,6 +734,7 @@
 
   <!-- ═══════════════════════════════ CHECK OUT ═══════════════════════════════ -->
   <div id="tab-checkout" class="tab-panel">
+    <div style="padding:10px 16px 0"><button onclick="showTab('dashboard')" style="background:none;border:none;color:var(--gray-600);font-size:.85rem;cursor:pointer;padding:0">← Dashboard</button></div>
 
     <!-- Step 1: Property search -->
     <div class="checkout-step">
@@ -761,6 +792,7 @@
 
   <!-- ═══════════════════════════════ CHECK IN ═══════════════════════════════ -->
   <div id="tab-checkin" class="tab-panel">
+    <div style="padding:10px 16px 0"><button onclick="showTab('dashboard')" style="background:none;border:none;color:var(--gray-600);font-size:.85rem;cursor:pointer;padding:0">← Dashboard</button></div>
     <div id="checkin-content"><div class="spinner"></div></div>
   </div>
 
@@ -772,6 +804,33 @@
         <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openAddUserModal()">+ Add User</button>
       </div>
       <div id="users-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ LOCKBOXES ══════════════════════════════ -->
+  <div id="tab-lockboxes" class="tab-panel" style="display:none">
+    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
+      <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
+      <h3 style="color:var(--gray-600);margin-bottom:8px">Lockboxes</h3>
+      <p style="font-size:.9rem">Coming soon</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ REPORTS ══════════════════════════════ -->
+  <div id="tab-reports" class="tab-panel" style="display:none">
+    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
+      <div style="font-size:2.5rem;margin-bottom:12px">📊</div>
+      <h3 style="color:var(--gray-600);margin-bottom:8px">Reports</h3>
+      <p style="font-size:.9rem">Coming soon</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ CODES & ACCESS ══════════════════════════ -->
+  <div id="tab-codes" class="tab-panel" style="display:none">
+    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
+      <div style="font-size:2.5rem;margin-bottom:12px">🔐</div>
+      <h3 style="color:var(--gray-600);margin-bottom:8px">Codes & Access</h3>
+      <p style="font-size:.9rem">Coming soon</p>
     </div>
   </div>
 
