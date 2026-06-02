@@ -65,6 +65,7 @@ const PERMISSION_DEFAULTS = {
   returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Manager'] },
   rekey:          { label: 'Rekey Property',               roles: ['Admin','Manager'] },
   reports:        { label: 'View Reports',                 roles: ['Admin','Manager'] },
+  editRentalMatrix: { label: 'Edit Rental Matrix',         roles: ['Admin','Manager'] },
   manageUsers:    { label: 'Manage Users',                 roles: ['Admin'], locked: true },
 };
 

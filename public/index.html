@@ -381,15 +381,19 @@
     .report-overdue { color:var(--red); font-weight:600; }
     .report-export { float:right; padding:5px 14px; border:1.5px solid var(--gray-200); border-radius:6px; background:#fff; font-size:.78rem; font-weight:600; color:var(--gray-600); cursor:pointer; }
     .report-export:hover { border-color:var(--green); color:var(--green-dark); }
-    .codes-table { width:100%; border-collapse:collapse; font-size:.82rem; }
-    .codes-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--gray-200); color:var(--gray-600); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
-    .codes-table td { padding:9px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
-    .codes-table tr:last-child td { border-bottom:none; }
-    .codes-table tr:hover td { background:var(--gray-50); }
-    .code-val { font-family:monospace; font-size:.88rem; font-weight:700; color:var(--charcoal); background:var(--gray-100); padding:2px 7px; border-radius:4px; }
+    .codes-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+    .code-card { background:#fff; border:1.5px solid var(--gray-200); border-radius:12px; padding:16px; position:relative; transition:box-shadow .15s; }
+    .code-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); border-color:var(--gray-400); }
+    .code-card-header { margin-bottom:12px; }
+    .code-card-code { font-size:.95rem; font-weight:800; color:var(--charcoal); }
+    .code-card-address { font-size:.78rem; color:var(--gray-600); margin-top:2px; }
+    .code-card-fields { display:flex; flex-direction:column; gap:7px; }
+    .code-field { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .code-field-label { font-size:.72rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+    .code-val { font-family:monospace; font-size:.88rem; font-weight:700; color:var(--charcoal); background:var(--gray-100); padding:2px 8px; border-radius:4px; }
     .code-empty { color:var(--gray-400); font-size:.8rem; }
-    .codes-table .edit-inline { display:none; }
-    .codes-table tr:hover .edit-inline { display:inline; }
+    .code-card-edit { position:absolute; top:12px; right:12px; opacity:0; transition:opacity .15s; }
+    .code-card:hover .code-card-edit { opacity:1; }
 
     /* ── Missing keys section ── */
     .missing-section { margin-top: 18px; }
@@ -2030,7 +2034,7 @@ async function loadCodesAndAccess() {
   const el = document.getElementById('codes-content');
   try {
     codesData = await api('/api/codes-and-access');
-    renderCodesTable(codesData);
+    renderCodesGallery(codesData);
   } catch(e) {
     el.innerHTML = `<div style="color:var(--red);font-size:.9rem">${e.message}</div>`;
   }
@@ -2043,12 +2047,12 @@ function filterCodesTable(q) {
     p.address.toLowerCase().includes(term) ||
     p.city.toLowerCase().includes(term)
   );
-  renderCodesTable(filtered);
+  renderCodesGallery(filtered);
 }
 
-function renderCodesTable(rows) {
+function renderCodesGallery(rows) {
   const el = document.getElementById('codes-content');
-  const canEdit = ['Admin','Manager'].includes(currentUser?.role);
+  const canEdit = hasPermission('editRentalMatrix');
 
   if (!rows.length) {
     el.innerHTML = '<div class="empty">No properties found.</div>';
@@ -2059,36 +2063,39 @@ function renderCodesTable(rows) {
     ? `<span class="code-val">${val}</span>`
     : `<span class="code-empty">—</span>`;
 
-  let html = `
-    <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:10px">${rows.length} propert${rows.length!==1?'ies':'y'}</div>
-    <div style="overflow-x:auto">
-    <table class="codes-table">
-      <thead><tr>
-        <th>Property Code</th>
-        <th>Address</th>
-        <th>Garage Keypad</th>
-        <th>Front Door Code</th>
-        <th>Community Entry</th>
-        <th>Lockboxes</th>
-        <th>Keys</th>
-        ${canEdit ? '<th></th>' : ''}
-      </tr></thead>
-      <tbody>`;
+  const row = (label, val) => `
+    <div class="code-field">
+      <span class="code-field-label">${label}</span>
+      ${cell(val)}
+    </div>`;
+
+  let html = `<div style="font-size:.8rem;color:var(--gray-600);margin-bottom:12px">${rows.length} propert${rows.length!==1?'ies':'y'}</div>
+    <div class="codes-gallery">`;
 
   rows.forEach(p => {
-    html += `<tr>
-      <td><strong>${p.propertyCode}</strong></td>
-      <td style="color:var(--gray-600)">${p.address}${p.city ? ', '+p.city : ''}</td>
-      <td>${cell(p.garage)}</td>
-      <td>${cell(p.frontDoor)}</td>
-      <td>${cell(p.communityEntry)}</td>
-      <td>${cell(p.lockboxes)}</td>
-      <td>${p.keysCount > 0 ? `<span style="color:var(--green);font-weight:600">${p.keysCount} key${p.keysCount!==1?'s':''}</span>` : '<span class="code-empty">—</span>'}</td>
-      ${canEdit ? `<td><button class="edit-inline btn-sm" onclick="openCodeEdit(${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button></td>` : ''}
-    </tr>`;
+    const propJson = JSON.stringify(p).replace(/"/g,'&quot;');
+    html += `<div class="code-card">
+      ${canEdit ? `<button class="code-card-edit btn-sm" onclick="openCodeEdit(${propJson})">Edit</button>` : ''}
+      <div class="code-card-header">
+        <div class="code-card-code">${p.propertyCode}</div>
+        <div class="code-card-address">${p.address}${p.city ? ', '+p.city : ''}</div>
+      </div>
+      <div class="code-card-fields">
+        ${row('Garage Keypad', p.garage)}
+        ${row('Front Door', p.frontDoor)}
+        ${row('Community Entry', p.communityEntry)}
+        ${row('Lockboxes', p.lockboxes)}
+        <div class="code-field">
+          <span class="code-field-label">Keys</span>
+          ${p.keysCount > 0
+            ? `<span style="color:var(--green);font-weight:700;font-size:.85rem">${p.keysCount} key${p.keysCount!==1?'s':''}</span>`
+            : `<span class="code-empty">—</span>`}
+        </div>
+      </div>
+    </div>`;
   });
 
-  html += `</tbody></table></div>`;
+  html += `</div>`;
   el.innerHTML = html;
 }
 
@@ -2141,8 +2148,17 @@ async function saveCodeEdit(propId) {
     });
     document.getElementById('code-edit-modal').remove();
     toast('Access codes updated ✓');
-    tabLoaded['codes'] = false;
-    loadCodesAndAccess();
+    // Update local cache and re-render without full reload
+    const idx = codesData.findIndex(p => p.id === propId);
+    if (idx > -1) {
+      codesData[idx] = { ...codesData[idx],
+        garage:         document.getElementById('edit-garage').value.trim(),
+        frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
+        communityEntry: document.getElementById('edit-entry').value.trim(),
+        lockboxes:      document.getElementById('edit-lockboxes').value.trim(),
+      };
+    }
+    renderCodesGallery(codesData);
   } catch(e) {
     errEl.textContent = e.message;
   }
