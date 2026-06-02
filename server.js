@@ -421,17 +421,24 @@ app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
       throw new Error(propPage.message);
     }
 
-    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    if (keyRelation.length === 0) {
-      return res.json([]);
-    }
+    // Try property page relation first; fall back to querying Keys DB directly
+    let keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
+    let keyPages;
 
-    // 2. Fetch each key page in parallel
-    const keyPages = await Promise.all(
-      keyRelation.map(r =>
-        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-      )
-    );
+    if (keyRelation.length > 0) {
+      keyPages = await Promise.all(
+        keyRelation.map(r =>
+          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+        )
+      );
+    } else {
+      // Fallback: query Keys DB for any key whose Rental Matrix points to this property
+      const fallbackRows = await queryAll(DB.keys, {
+        property: 'Rental Matrix',
+        relation: { contains: req.params.propertyId },
+      });
+      keyPages = fallbackRows;
+    }
 
     const keys = keyPages
       .filter(row => row.object !== 'error')
@@ -597,14 +604,21 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
     }).then(r => r.json());
     if (propPage.object === 'error') throw new Error(propPage.message);
 
-    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    if (keyRelation.length === 0) return res.json([]);
+    let keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
+    let keyPages;
 
-    const keyPages = await Promise.all(
-      keyRelation.map(r =>
-        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-      )
-    );
+    if (keyRelation.length > 0) {
+      keyPages = await Promise.all(
+        keyRelation.map(r =>
+          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+        )
+      );
+    } else {
+      keyPages = await queryAll(DB.keys, {
+        property: 'Rental Matrix',
+        relation: { contains: req.params.propertyId },
+      });
+    }
 
     const keys = keyPages
       .filter(row => row.object !== 'error')
