@@ -60,6 +60,7 @@ const DB = {
   log: '6493156c-9348-45a5-9632-0552edda23b5',
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
+  kwiksetCuts: '30a61a46-cdef-80b1-aa2b-e6cb42560512',
 };
 
 function notionHeaders() {
@@ -716,6 +717,114 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
       });
       res.json({ success: true, keyId: page.id, created: true });
     }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Kwikset Cut Routes ───────────────────────────────────────────────────────
+
+// GET /api/kwikset-cuts — all cuts sorted by key number
+app.get('/api/kwikset-cuts', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
+    const cuts = rows.map(r => {
+      const p = r.properties;
+      return {
+        id: r.id,
+        keyNumber: extractRichText(p['Kwikset Key #']),
+        keyCut: p['Key Cut']?.number ?? null,
+        keyBox: p['KRB Key Box #']?.rich_text?.[0]?.plain_text || '',
+        currentProperties: extractRelation(p['Rental Matrix (Kwikset Cut)']),
+      };
+    });
+    res.json(cuts);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/kwikset-cut-for-property/:propertyId — find the cut currently assigned to this property
+app.get('/api/kwikset-cut-for-property/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const rows = await queryAll(DB.kwiksetCuts, {
+      property: 'Rental Matrix (Kwikset Cut)',
+      relation: { contains: req.params.propertyId },
+    });
+    if (rows.length === 0) return res.json(null);
+    const r = rows[0];
+    const p = r.properties;
+    res.json({
+      id: r.id,
+      keyNumber: extractRichText(p['Kwikset Key #']),
+      keyCut: p['Key Cut']?.number ?? null,
+      keyBox: p['KRB Key Box #']?.rich_text?.[0]?.plain_text || '',
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/change-kwikset-cut
+// Body: { propertyId, newCutId }
+// 1. Remove property from old cut's "Rental Matrix (Kwikset Cut)", add to "Historical Assignment"
+// 2. Add property to new cut's "Rental Matrix (Kwikset Cut)"
+app.post('/api/change-kwikset-cut', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { propertyId, newCutId } = req.body;
+    if (!propertyId || !newCutId) return res.status(400).json({ error: 'propertyId and newCutId required' });
+
+    const propIdFormatted = propertyId.replace(/-/g, '');
+    const propUrl = `https://www.notion.so/${propIdFormatted}`;
+
+    // Find current cut for this property
+    const currentRows = await queryAll(DB.kwiksetCuts, {
+      property: 'Rental Matrix (Kwikset Cut)',
+      relation: { contains: propertyId },
+    });
+
+    // Helper: convert relation URLs to Notion relation array
+    function urlsToRelation(urls) {
+      return urls.map(url => {
+        const raw = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
+        return { id: `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}` };
+      });
+    }
+
+    if (currentRows.length > 0) {
+      const oldCut = currentRows[0];
+      const oldP = oldCut.properties;
+
+      // Remove property from old cut's Rental Matrix
+      const oldRental = extractRelation(oldP['Rental Matrix (Kwikset Cut)'])
+        .filter(u => !u.includes(propIdFormatted));
+      // Add property to old cut's Historical Assignment
+      const oldHistory = extractRelation(oldP['Historical Assignment']);
+      if (!oldHistory.some(u => u.includes(propIdFormatted))) oldHistory.push(propUrl);
+
+      await notionPatch(`https://api.notion.com/v1/pages/${oldCut.id}`, {
+        properties: {
+          'Rental Matrix (Kwikset Cut)': { relation: urlsToRelation(oldRental) },
+          'Historical Assignment': { relation: urlsToRelation(oldHistory) },
+        },
+      });
+    }
+
+    // Add property to new cut's Rental Matrix
+    const newCutPage = await fetch(`https://api.notion.com/v1/pages/${newCutId}`, { headers: notionHeaders() }).then(r => r.json());
+    const newRental = extractRelation(newCutPage.properties?.['Rental Matrix (Kwikset Cut)'] || { type: 'relation', relation: [] });
+    if (!newRental.some(u => u.includes(propIdFormatted))) newRental.push(propUrl);
+
+    await notionPatch(`https://api.notion.com/v1/pages/${newCutId}`, {
+      properties: {
+        'Rental Matrix (Kwikset Cut)': { relation: urlsToRelation(newRental) },
+      },
+    });
+
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });

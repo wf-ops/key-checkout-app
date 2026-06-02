@@ -596,6 +596,7 @@
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
     <button class="tab-btn" data-tab="checkout">Check Out</button>
     <button class="tab-btn" data-tab="checkin">Check In</button>
+    <button class="tab-btn" data-tab="rekey" data-role-required="Admin,Manager">Rekey</button>
   </div>
 </header>
 
@@ -737,23 +738,6 @@
     <div class="checkout-step" id="step-details" style="display:none">
       <h3>4 — Details</h3>
       <div class="form-group">
-        <label for="sel-staff">Checked out by</label>
-        <select id="sel-staff">
-          <option value="">— Select staff —</option>
-          <option value="12fd872b-594c-8173-b8bb-0002a0d4fade">Chapin Hemphill</option>
-          <option value="1f9d872b-594c-8105-9a1d-0002838f22b5">Esau Vazquez</option>
-          <option value="32ed872b-594c-8147-9671-0002c935e2c2">Keen Glocel</option>
-          <option value="1add872b-594c-8162-b415-000286b954b1">Kyle F</option>
-          <option value="1fad872b-594c-812a-8d29-0002e16fc2a4">Michael Carpenedo</option>
-          <option value="1fad872b-594c-8154-9bc5-0002cc8e59a8">Nadja Prophete</option>
-          <option value="19dd872b-594c-816a-a92b-0002558f0d66">Pamela Palada</option>
-          <option value="1add872b-594c-811f-98d5-0002558b0b26">Rochelle Pausa</option>
-          <option value="1add872b-594c-81ba-962b-00024136b32b">Stefani Hemphill</option>
-          <option value="1add872b-594c-8183-834e-0002995b4763">Veb Torre</option>
-          <option value="1fad872b-594c-813d-8588-000265b1646c">Zandra Jean Madera</option>
-        </select>
-      </div>
-      <div class="form-group">
         <label for="sel-purpose">Purpose</label>
         <select id="sel-purpose">
           <option value="">— Select purpose —</option>
@@ -788,6 +772,38 @@
         <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openAddUserModal()">+ Add User</button>
       </div>
       <div id="users-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ REKEY ═══════════════════════════════ -->
+  <div id="tab-rekey" class="tab-panel" style="display:none">
+    <div class="checkout-step">
+      <h3>🔑 Change Kwikset Cut</h3>
+      <p style="color:var(--gray-600);font-size:.9rem;margin:8px 0 20px">Search for a property, then assign a new Kwikset cut. The current cut will be moved to Historical Assignment.</p>
+
+      <!-- Property search -->
+      <div class="form-group">
+        <label>Property</label>
+        <input type="text" id="rekey-prop-search" placeholder="Search address or code…" autocomplete="off" oninput="rekeySearchProps(this.value)" />
+        <div id="rekey-prop-results" class="search-results" style="display:none"></div>
+      </div>
+      <div id="rekey-prop-selected" style="display:none;margin-bottom:16px"></div>
+
+      <!-- Current cut display -->
+      <div id="rekey-current" style="display:none;margin-bottom:16px;padding:12px 14px;background:var(--gray-100);border-radius:8px;font-size:.9rem">
+        <strong>Current cut:</strong> <span id="rekey-current-label">—</span>
+      </div>
+
+      <!-- New cut selector -->
+      <div class="form-group" id="rekey-new-group" style="display:none">
+        <label>New Kwikset Cut</label>
+        <select id="rekey-new-cut">
+          <option value="">Loading cuts…</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary" id="rekey-submit-btn" style="display:none;width:100%;padding:14px;margin-top:8px" onclick="submitRekey()">Assign New Cut</button>
+      <div id="rekey-error" style="color:var(--red);font-size:.85rem;margin-top:10px;min-height:18px"></div>
     </div>
   </div>
 </main>
@@ -891,13 +907,6 @@ function onLoginSuccess() {
     document.getElementById('manage-users-menu-item').style.display = 'block';
   }
   applyRoleUI();
-  // Pre-select logged-in user in checkout staff dropdown
-  const staffSel = document.getElementById('sel-staff');
-  if (staffSel && currentUser.notionPersonId) {
-    for (const opt of staffSel.options) {
-      if (opt.value === currentUser.notionPersonId) { opt.selected = true; break; }
-    }
-  }
   loadDashboard();
 }
 
@@ -1146,6 +1155,7 @@ function showTab(tab) {
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'checkin') loadCheckin();
     if (tab === 'users') loadUsers();
+    if (tab === 'rekey') loadKwiksetCuts();
   }
 }
 
@@ -1404,7 +1414,7 @@ function setDefaultDates() {
   document.getElementById('inp-datedue').value = mtDateStr(1);
 }
 
-['sel-staff', 'sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
+['sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
   document.getElementById(id).addEventListener('change', updateCheckoutBtn);
 });
 
@@ -1412,7 +1422,6 @@ function updateCheckoutBtn() {
   const btn = document.getElementById('btn-checkout');
   const hasPhoto = document.getElementById('checkout-photo-input').files.length > 0;
   const ready = selectedProperty && selectedKey && hasPhoto &&
-    document.getElementById('sel-staff').value &&
     document.getElementById('sel-purpose').value &&
     document.getElementById('inp-dateout').value &&
     document.getElementById('inp-datedue').value;
@@ -1808,17 +1817,13 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Checking out…';
 
-  const staffEl = document.getElementById('sel-staff');
-  const staffId = staffEl.value;
-  const staffNameVal = staffEl.options[staffEl.selectedIndex].text;
-
   try {
     const formData = new FormData();
     formData.append('keyId', selectedKey.id);
     formData.append('keySlot', selectedKey.slot);
     formData.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
-    formData.append('staffId', staffId);
-    formData.append('staffName', staffNameVal);
+    formData.append('staffId', currentUser.notionPersonId);
+    formData.append('staffName', currentUser.name);
     formData.append('purpose', document.getElementById('sel-purpose').value);
     formData.append('dateOut', document.getElementById('inp-dateout').value);
     formData.append('dateDue', document.getElementById('inp-datedue').value);
@@ -1846,6 +1851,108 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     toast(e.message, true);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rekey
+// ─────────────────────────────────────────────────────────────────────────────
+
+let rekeySelectedProperty = null;
+let rekeySearchTimer = null;
+let allKwiksetCuts = [];
+
+async function loadKwiksetCuts() {
+  if (allKwiksetCuts.length > 0) return;
+  try {
+    allKwiksetCuts = await api('/api/kwikset-cuts');
+    const sel = document.getElementById('rekey-new-cut');
+    sel.innerHTML = '<option value="">— Select new cut —</option>' +
+      allKwiksetCuts.map(c => `<option value="${c.id}">Key #${c.keyNumber} — Cut ${c.keyCut ?? '?'}${c.keyBox ? ` (Box ${c.keyBox})` : ''}</option>`).join('');
+  } catch (e) {
+    document.getElementById('rekey-new-cut').innerHTML = '<option value="">Failed to load cuts</option>';
+  }
+}
+
+function rekeySearchProps(q) {
+  clearTimeout(rekeySearchTimer);
+  const results = document.getElementById('rekey-prop-results');
+  if (q.length < 2) { results.style.display = 'none'; return; }
+  rekeySearchTimer = setTimeout(async () => {
+    try {
+      const props = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+      if (!props.length) { results.style.display = 'none'; return; }
+      results.innerHTML = props.map(p =>
+        `<div class="search-result-item" onclick="rekeySelectProperty(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+          <strong>${p.propertyCode || ''}</strong> ${p.address || ''}, ${p.city || ''}
+        </div>`
+      ).join('');
+      results.style.display = 'block';
+    } catch (e) { results.style.display = 'none'; }
+  }, 300);
+}
+
+async function rekeySelectProperty(prop) {
+  rekeySelectedProperty = prop;
+  document.getElementById('rekey-prop-search').value = '';
+  document.getElementById('rekey-prop-results').style.display = 'none';
+  document.getElementById('rekey-error').textContent = '';
+
+  const selectedDiv = document.getElementById('rekey-prop-selected');
+  selectedDiv.style.display = 'block';
+  selectedDiv.innerHTML = `<div class="selected-prop"><strong>${prop.propertyCode || ''}</strong> ${prop.address || ''}, ${prop.city || ''} <button onclick="rekeyDeselectProperty()">✕</button></div>`;
+
+  // Load current cut
+  const currentDiv = document.getElementById('rekey-current');
+  currentDiv.style.display = 'block';
+  document.getElementById('rekey-current-label').textContent = 'Loading…';
+  try {
+    const cut = await api(`/api/kwikset-cut-for-property/${prop.id}`);
+    document.getElementById('rekey-current-label').textContent = cut
+      ? `Key #${cut.keyNumber} — Cut ${cut.keyCut ?? '?'}${cut.keyBox ? ` (Box ${cut.keyBox})` : ''}`
+      : 'None assigned';
+  } catch (e) {
+    document.getElementById('rekey-current-label').textContent = 'Error loading';
+  }
+
+  await loadKwiksetCuts();
+  document.getElementById('rekey-new-group').style.display = 'block';
+  document.getElementById('rekey-submit-btn').style.display = 'block';
+}
+
+function rekeyDeselectProperty() {
+  rekeySelectedProperty = null;
+  document.getElementById('rekey-prop-selected').style.display = 'none';
+  document.getElementById('rekey-current').style.display = 'none';
+  document.getElementById('rekey-new-group').style.display = 'none';
+  document.getElementById('rekey-submit-btn').style.display = 'none';
+  document.getElementById('rekey-error').textContent = '';
+}
+
+async function submitRekey() {
+  const newCutId = document.getElementById('rekey-new-cut').value;
+  const errEl = document.getElementById('rekey-error');
+  errEl.textContent = '';
+  if (!rekeySelectedProperty) { errEl.textContent = 'Select a property first'; return; }
+  if (!newCutId) { errEl.textContent = 'Select a new cut'; return; }
+
+  const btn = document.getElementById('rekey-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await api('/api/change-kwikset-cut', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ propertyId: rekeySelectedProperty.id, newCutId }),
+    });
+    toast('Kwikset cut updated ✓');
+    rekeyDeselectProperty();
+    document.getElementById('rekey-prop-search').value = '';
+  } catch (e) {
+    errEl.textContent = e.message || 'Error saving';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Assign New Cut';
+  }
+}
 </script>
 </body>
 </html>
