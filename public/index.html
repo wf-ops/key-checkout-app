@@ -1900,6 +1900,8 @@ async function confirmReturn() {
       document.getElementById('return-key-overlay').style.display = 'none';
       toast('Key checked in ✓');
       tabLoaded['dashboard'] = false;
+      tabLoaded['checkin'] = false;
+      loadDashboard();
       loadCheckin();
     } else {
       // Missing key return — always call return-key (sets status to In Office + optional photo/note)
