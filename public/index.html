@@ -1441,6 +1441,7 @@ async function loadDashboard() {
       html += `
         <div class="${cardClass}">
           <div class="card-title">${e.logEntry || '—'}</div>
+          ${e.propertyAddress ? `<div style="font-size:.82rem;color:var(--gray-600);margin-bottom:4px">🏠 ${e.propertyAddress}</div>` : ''}
           <div class="card-meta">
             <span>👤 ${who}</span>
             <span>📤 ${formatDate(e.dateOut)}</span>
@@ -1481,6 +1482,7 @@ async function loadCheckin() {
           <div class="checkin-card">
             <div class="checkin-info">
               <div class="card-title">${e.logEntry || '—'}</div>
+              ${e.propertyAddress ? `<div style="font-size:.82rem;color:var(--gray-600);margin-bottom:4px">🏠 ${e.propertyAddress}</div>` : ''}
               <div class="card-meta">
                 <span>👤 ${who}</span><br>
                 <span>📤 ${formatDate(e.dateOut)}</span>

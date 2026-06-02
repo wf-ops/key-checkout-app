@@ -413,6 +413,30 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
       })
       .filter(e => e.logEntry && e.dateOut);
 
+    // Resolve property addresses for unique property IDs
+    const propIds = [...new Set(entries.flatMap(e => e.property).map(url => {
+      const raw = url.split('/').pop().replace(/-/g, '');
+      return `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`;
+    }).filter(Boolean))];
+
+    const propMap = {};
+    await Promise.all(propIds.map(async id => {
+      try {
+        const page = await fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json());
+        propMap[id] = extractRichText(page.properties?.['Street Address - Property']) || '';
+      } catch (_) {}
+    }));
+
+    entries.forEach(e => {
+      const rawId = e.property[0]?.split('/').pop().replace(/-/g, '');
+      if (rawId) {
+        const fmtId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
+        e.propertyAddress = propMap[fmtId] || '';
+      } else {
+        e.propertyAddress = '';
+      }
+    });
+
     res.json(entries);
   } catch (e) {
     console.error(e);
