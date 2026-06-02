@@ -535,8 +535,10 @@
     </div>
     <h2>KEY MANAGER</h2>
     <div class="form-group">
-      <label>Username</label>
-      <input type="text" id="login-username" autocomplete="username" autocapitalize="none" placeholder="e.g. chapin" />
+      <label>Who are you?</label>
+      <select id="login-username" style="width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem;background:#fff;color:var(--gray-900)">
+        <option value="">Loading...</option>
+      </select>
     </div>
     <div class="form-group">
       <label>PIN</label>
@@ -845,12 +847,32 @@ async function initAuth() {
   } catch (e) { /* stay on login screen */ }
 }
 
+async function loadUserList() {
+  const sel = document.getElementById('login-username');
+  try {
+    const res = await fetch('/api/user-list');
+    const users = await res.json();
+    sel.innerHTML = users.length
+      ? '<option value="">Select your name…</option>' + users.map(u => `<option value="${u.username}">${u.name}</option>`).join('')
+      : '<option value="">No staff found</option>';
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load — type username below</option>';
+    // Fallback: swap to text input
+    const input = document.createElement('input');
+    input.type = 'text'; input.id = 'login-username'; input.autocapitalize = 'none';
+    input.placeholder = 'e.g. chapin';
+    input.style.cssText = 'width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem';
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
+    sel.replaceWith(input);
+  }
+}
+
 async function doLogin() {
   const username = document.getElementById('login-username').value.trim();
   const pin = document.getElementById('login-pin').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  if (!username || !pin) { errEl.textContent = 'Enter username and PIN'; return; }
+  if (!username || !pin) { errEl.textContent = 'Select your name and enter PIN'; return; }
   try {
     const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, pin }) });
     const data = await res.json();
@@ -893,7 +915,8 @@ async function doLogout() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('user-pill').style.display = 'none';
   document.getElementById('user-menu').classList.remove('open');
-  document.getElementById('login-username').value = '';
+  const unEl = document.getElementById('login-username');
+  if (unEl) { if (unEl.tagName === 'SELECT') unEl.selectedIndex = 0; else unEl.value = ''; }
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').textContent = '';
 }
@@ -910,7 +933,7 @@ document.addEventListener('click', e => {
 // Allow Enter key on login
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('login-username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
+  loadUserList();
   initAuth();
 });
 

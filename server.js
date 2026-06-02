@@ -148,6 +148,24 @@ function extractPeople(prop) {
 
 // --- API Routes ---
 
+// GET /api/user-list — public endpoint, returns active staff for login dropdown
+app.get('/api/user-list', async (req, res) => {
+  try {
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
+    const users = rows
+      .map(u => ({
+        username: u.properties['Username']?.rich_text?.[0]?.plain_text || '',
+        name: u.properties['Name']?.title?.[0]?.plain_text || '',
+      }))
+      .filter(u => u.username)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    res.json(users);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/login
 app.post('/api/login', async (req, res) => {
   try {
