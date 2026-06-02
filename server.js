@@ -53,6 +53,81 @@ async function uploadToDrive(buffer, originalname, mimetype) {
 }
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
+const NOTION_CONFIG_PAGE_ID = process.env.NOTION_CONFIG_PAGE_ID;
+
+// ─── Permissions ─────────────────────────────────────────────────────────────
+
+const PERMISSION_DEFAULTS = {
+  checkout:       { label: 'Check Out Keys',               roles: ['Admin','Manager','Member'] },
+  checkin:        { label: 'Check In Keys',                roles: ['Admin','Manager','Member'] },
+  assignProperty: { label: 'Assign Property to Key Slot',  roles: ['Admin','Manager'] },
+  markMissing:    { label: 'Mark Key Missing',             roles: ['Admin','Manager'] },
+  returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Manager'] },
+  rekey:          { label: 'Rekey Property',               roles: ['Admin','Manager'] },
+  reports:        { label: 'View Reports',                 roles: ['Admin','Manager'] },
+  manageUsers:    { label: 'Manage Users',                 roles: ['Admin'], locked: true },
+};
+
+let permissionsCache = JSON.parse(JSON.stringify(PERMISSION_DEFAULTS));
+
+async function loadPermissions() {
+  if (!NOTION_CONFIG_PAGE_ID) return;
+  try {
+    const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
+    const codeBlock = blocks.results?.find(b => b.type === 'code');
+    if (!codeBlock) return;
+    const json = codeBlock.code?.rich_text?.[0]?.plain_text || '';
+    if (json) {
+      const saved = JSON.parse(json);
+      // Merge with defaults so new keys are always present
+      Object.keys(PERMISSION_DEFAULTS).forEach(k => {
+        if (saved[k]) permissionsCache[k] = { ...PERMISSION_DEFAULTS[k], ...saved[k] };
+      });
+      console.log('Permissions loaded from Notion');
+    }
+  } catch (e) { console.error('loadPermissions error:', e.message); }
+}
+
+async function savePermissions(perms) {
+  if (!NOTION_CONFIG_PAGE_ID) return;
+  try {
+    const json = JSON.stringify(perms, null, 2);
+    const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
+    const codeBlock = blocks.results?.find(b => b.type === 'code');
+    if (codeBlock) {
+      await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
+        method: 'PATCH', headers: notionHeaders(),
+        body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } }),
+      });
+    } else {
+      await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, {
+        method: 'PATCH', headers: notionHeaders(),
+        body: JSON.stringify({ children: [{ object: 'block', type: 'code', code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } }] }),
+      });
+    }
+  } catch (e) { console.error('savePermissions error:', e.message); }
+}
+
+// GET /api/permissions — any authenticated user (client needs this on login)
+app.get('/api/permissions', requireAuth, (req, res) => {
+  res.json(permissionsCache);
+});
+
+// POST /api/permissions — admin only
+app.post('/api/permissions', requireRole('Admin'), async (req, res) => {
+  try {
+    const incoming = req.body;
+    Object.keys(PERMISSION_DEFAULTS).forEach(k => {
+      if (PERMISSION_DEFAULTS[k].locked) return; // Admin-locked features cannot be changed
+      if (incoming[k]?.roles) permissionsCache[k].roles = incoming[k].roles;
+    });
+    await savePermissions(permissionsCache);
+    res.json({ success: true, permissions: permissionsCache });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
 const NOTION_VERSION = '2022-06-28';
 
 const DB = {
@@ -996,6 +1071,7 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
+  loadPermissions().catch(e => console.error('Startup permissions load failed:', e.message));
   // Check immediately on startup, then every hour
   checkOverdueKeys().catch(e => console.error('Startup overdue check failed:', e.message));
   setInterval(() => checkOverdueKeys().catch(e => console.error('Overdue check failed:', e.message)), 60 * 60 * 1000);

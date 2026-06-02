@@ -824,6 +824,20 @@
       </div>
       <div id="users-list"><div class="spinner"></div></div>
     </div>
+
+    <!-- Permissions matrix -->
+    <div class="checkout-step" style="margin-top:0;border-top:2px solid var(--gray-100);padding-top:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="margin:0">🔐 Role Permissions</h3>
+        <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="savePermissions()">Save Changes</button>
+      </div>
+      <p style="font-size:.82rem;color:var(--gray-600);margin-bottom:16px">
+        Control which roles can access each feature. Admin always has full access.
+        <span id="perms-unsaved" style="display:none;color:var(--yellow);font-weight:600;margin-left:8px">● Unsaved changes</span>
+      </p>
+      <div id="permissions-matrix"><div class="spinner"></div></div>
+      <div id="perms-error" style="color:var(--red);font-size:.85rem;margin-top:8px;min-height:18px"></div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════ LOCKBOXES ══════════════════════════════ -->
@@ -1021,7 +1035,9 @@ async function doLogin() {
   } catch (e) { errEl.textContent = 'Connection error'; }
 }
 
-function onLoginSuccess() {
+let appPermissions = null;
+
+async function onLoginSuccess() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-pill').style.display = 'flex';
   document.getElementById('user-pill-name').textContent = currentUser.name.split(' ')[0];
@@ -1029,16 +1045,31 @@ function onLoginSuccess() {
   if (currentUser.role === 'Admin') {
     document.getElementById('manage-users-menu-item').style.display = 'block';
   }
+  try { appPermissions = await api('/api/permissions'); } catch(e) { appPermissions = null; }
   applyRoleUI();
   loadDashboard();
 }
 
+function hasPermission(featureKey) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'Admin') return true;
+  if (!appPermissions || !appPermissions[featureKey]) return false;
+  return appPermissions[featureKey].roles.includes(currentUser.role);
+}
+
 function applyRoleUI() {
-  const isManagerOrAbove = ['Admin', 'Manager'].includes(currentUser?.role);
+  // Legacy data-role-required attributes
   document.querySelectorAll('[data-role-required]').forEach(el => {
     const required = el.dataset.roleRequired.split(',');
     el.style.display = required.some(r => r.trim() === currentUser?.role) ? '' : 'none';
   });
+  // Permission-keyed elements
+  document.querySelectorAll('[data-permission]').forEach(el => {
+    el.style.display = hasPermission(el.dataset.permission) ? '' : 'none';
+  });
+  // Reports tab visibility
+  const reportsTab = document.querySelector('.tab-btn[data-tab="reports"]');
+  if (reportsTab) reportsTab.style.display = hasPermission('reports') ? '' : 'none';
 }
 
 async function doLogout() {
@@ -1277,7 +1308,7 @@ function showTab(tab) {
     tabLoaded[tab] = true;
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'checkin') loadCheckin();
-    if (tab === 'users') loadUsers();
+    if (tab === 'users') { loadUsers(); loadPermissionsMatrix(); }
     if (tab === 'reports') initReports();
   }
 }
@@ -1974,6 +2005,90 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     toast(e.message, true);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Permissions Matrix
+// ─────────────────────────────────────────────────────────────────────────────
+
+let permissionsData = null;
+
+async function loadPermissionsMatrix() {
+  const el = document.getElementById('permissions-matrix');
+  try {
+    permissionsData = await api('/api/permissions');
+    renderPermissionsMatrix();
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:.85rem">${e.message}</div>`;
+  }
+}
+
+function renderPermissionsMatrix() {
+  const el = document.getElementById('permissions-matrix');
+  const roles = ['Manager', 'Member'];
+
+  let html = `
+    <div style="overflow-x:auto">
+    <table class="users-table">
+      <thead><tr>
+        <th style="width:40%">Feature</th>
+        <th style="text-align:center">Admin</th>
+        ${roles.map(r => `<th style="text-align:center">${r}</th>`).join('')}
+      </tr></thead>
+      <tbody>`;
+
+  Object.entries(permissionsData).forEach(([key, feat]) => {
+    html += `<tr>
+      <td><strong>${feat.label}</strong></td>
+      <td style="text-align:center"><span style="color:var(--green);font-size:1rem">✓</span></td>`;
+    roles.forEach(role => {
+      if (feat.locked) {
+        html += `<td style="text-align:center"><span style="color:var(--gray-400);font-size:.8rem">—</span></td>`;
+      } else {
+        const checked = feat.roles.includes(role) ? 'checked' : '';
+        html += `<td style="text-align:center">
+          <input type="checkbox" data-perm-key="${key}" data-perm-role="${role}" ${checked}
+            style="width:18px;height:18px;cursor:pointer;accent-color:var(--green)"
+            onchange="markPermsUnsaved()" />
+        </td>`;
+      }
+    });
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+  document.getElementById('perms-unsaved').style.display = 'none';
+}
+
+function markPermsUnsaved() {
+  document.getElementById('perms-unsaved').style.display = 'inline';
+}
+
+async function savePermissions() {
+  const errEl = document.getElementById('perms-error');
+  errEl.textContent = '';
+  const updates = {};
+  document.querySelectorAll('[data-perm-key]').forEach(cb => {
+    const key = cb.dataset.permKey;
+    const role = cb.dataset.permRole;
+    if (!updates[key]) updates[key] = { roles: ['Admin'] };
+    if (cb.checked && !updates[key].roles.includes(role)) updates[key].roles.push(role);
+  });
+  try {
+    const result = await api('/api/permissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    permissionsData = result.permissions;
+    appPermissions = result.permissions;
+    applyRoleUI();
+    document.getElementById('perms-unsaved').style.display = 'none';
+    toast('Permissions saved ✓');
+  } catch(e) {
+    errEl.textContent = e.message;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reports
