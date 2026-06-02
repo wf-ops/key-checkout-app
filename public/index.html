@@ -1898,8 +1898,14 @@ async function openCheckinPanel(logId, logEntry) {
   document.getElementById('return-panel-sub').textContent =
     `${logEntry || 'Key'} — optionally add a photo or note before checking in.`;
   document.getElementById('return-note').value = '';
-  document.getElementById('return-photo-input').value = '';
-  document.getElementById('return-photo-preview').style.display = 'none';
+  // Replace file input to fully clear any cached file
+  const oldInput = document.getElementById('return-photo-input');
+  const newInput = oldInput.cloneNode(true);
+  oldInput.parentNode.replaceChild(newInput, oldInput);
+  newInput.addEventListener('change', function() { previewPhoto(this); });
+  const prev = document.getElementById('return-photo-preview');
+  prev.src = '';
+  prev.style.display = 'none';
   document.getElementById('return-photo-area').style.display = 'block';
   document.getElementById('return-confirm-btn').disabled = false;
   document.getElementById('return-confirm-btn').textContent = 'Confirm Check In';

@@ -569,8 +569,12 @@ app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) =
 
     const logProps = { 'Date Returned': { date: { start: today } } };
     if (photoFile) {
-      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
-      logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
+      try {
+        const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
+        logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
+      } catch (photoErr) {
+        console.error('Check-in photo upload failed (continuing):', photoErr.message);
+      }
     }
 
     const updates = [notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps })];
