@@ -70,28 +70,39 @@
       padding-left: 10px;
     }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex;
-      gap: 2px;
+    /* ── Nav dropdown ── */
+    .nav-wrap { display:flex; align-items:center; padding: 0 0 10px; gap:10px; }
+    .nav-menu-btn {
+      display:flex; flex-direction:column; justify-content:center; gap:5px;
+      background:none; border:none; cursor:pointer; padding:6px 4px; flex-shrink:0;
     }
+    .nav-menu-btn span {
+      display:block; width:22px; height:2px; background:rgba(255,255,255,.7); border-radius:2px;
+      transition: background .15s;
+    }
+    .nav-menu-btn:hover span { background:#fff; }
+    .nav-current-tab {
+      font-size:.9rem; font-weight:700; color:var(--green-light);
+      letter-spacing:.04em; text-transform:uppercase;
+    }
+    .nav-dropdown {
+      position:absolute; top:100%; left:0; width:220px;
+      background:var(--charcoal); border-radius:0 0 12px 12px;
+      box-shadow:0 8px 24px rgba(0,0,0,.35); z-index:200;
+      overflow:hidden; display:none;
+    }
+    .nav-dropdown.open { display:block; }
     .tab-btn {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: rgba(255,255,255,.55);
-      font-size: .85rem;
-      font-weight: 600;
-      padding: 10px 4px;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      transition: color .15s, border-color .15s;
+      display:block; width:100%; text-align:left;
+      background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.07);
+      color:rgba(255,255,255,.65); font-size:.95rem; font-weight:600;
+      padding:14px 20px; cursor:pointer; transition:background .12s, color .12s;
     }
-    .tab-btn:hover { color: rgba(255,255,255,.85); }
-    .tab-btn.active {
-      color: var(--green-light);
-      border-bottom-color: var(--green);
-    }
+    .tab-btn:last-child { border-bottom:none; }
+    .tab-btn:hover { background:rgba(255,255,255,.07); color:#fff; }
+    .tab-btn.active { color:var(--green-light); background:rgba(103,200,41,.08); }
+    /* hide tabs container visually — items still in DOM for showTab() */
+    .tabs { position:relative; }
 
     /* ── Main content ── */
     main { flex: 1; padding: 16px; max-width: 600px; width: 100%; margin: 0 auto; }
@@ -649,11 +660,19 @@
       <span class="user-role" id="user-pill-role"></span>
     </div>
   </div>
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="codes">Codes & Access</button>
-    <button class="tab-btn" data-tab="lockboxes">Lockboxes</button>
-    <button class="tab-btn" data-tab="reports">Reports</button>
+  <div class="nav-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" onclick="toggleNavDropdown()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="nav-current-tab" id="nav-current-tab">Dashboard</span>
+  </div>
+  <div class="tabs" id="nav-dropdown" style="position:relative">
+    <div class="nav-dropdown" id="nav-dropdown-menu">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="codes">Codes &amp; Access</button>
+      <button class="tab-btn" data-tab="lockboxes">Lockboxes</button>
+      <button class="tab-btn" data-tab="reports">Reports</button>
+    </div>
   </div>
 </header>
 
@@ -1313,6 +1332,21 @@ function toast(msg, isError = false) {
 
 const tabLoaded = {};
 
+const TAB_LABELS = {
+  dashboard: 'Dashboard', codes: 'Codes & Access', lockboxes: 'Lockboxes',
+  reports: 'Reports', checkout: 'Check Out', checkin: 'Check In', users: 'Users',
+};
+
+function toggleNavDropdown() {
+  document.getElementById('nav-dropdown-menu').classList.toggle('open');
+}
+function closeNavDropdown() {
+  document.getElementById('nav-dropdown-menu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#nav-menu-btn') && !e.target.closest('#nav-dropdown-menu')) closeNavDropdown();
+});
+
 function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -1321,6 +1355,9 @@ function showTab(tab) {
   const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   document.getElementById('user-menu').classList.remove('open');
+  closeNavDropdown();
+  const labelEl = document.getElementById('nav-current-tab');
+  if (labelEl && TAB_LABELS[tab]) labelEl.textContent = TAB_LABELS[tab];
   if (!tabLoaded[tab]) {
     tabLoaded[tab] = true;
     if (tab === 'dashboard') loadDashboard();
