@@ -596,7 +596,6 @@
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
     <button class="tab-btn" data-tab="checkout">Check Out</button>
     <button class="tab-btn" data-tab="checkin">Check In</button>
-    <button class="tab-btn" data-tab="rekey" data-role-required="Admin,Manager">Rekey</button>
   </div>
 </header>
 
@@ -606,6 +605,7 @@
     <div class="dash-actions">
       <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Add Key to Property</button>
       <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
+      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openRekeyPanel()"><span class="icon">🔄</span> Rekey Property</button>
     </div>
     <div id="dashboard-content"><div class="spinner"></div></div>
     <div id="missing-section" class="missing-section" style="display:none"></div>
@@ -775,26 +775,26 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════ REKEY ═══════════════════════════════ -->
-  <div id="tab-rekey" class="tab-panel" style="display:none">
-    <div class="checkout-step">
-      <h3>🔑 Change Kwikset Cut</h3>
-      <p style="color:var(--gray-600);font-size:.9rem;margin:8px 0 20px">Search for a property, then assign a new Kwikset cut. The current cut will be moved to Historical Assignment.</p>
+</main>
 
-      <!-- Property search -->
-      <div class="form-group">
+  <!-- Rekey Panel -->
+  <div id="rekey-overlay" class="panel-overlay" style="display:none" onclick="closeRekeyPanel(event)">
+    <div class="panel" onclick="event.stopPropagation()">
+      <button class="panel-close" onclick="closeRekeyPanel()">✕</button>
+      <h2>🔄 Rekey Property</h2>
+      <p class="panel-sub">Assign a new Kwikset cut to a property. The current cut will be moved to Historical Assignment.</p>
+
+      <div class="form-group search-wrapper">
         <label>Property</label>
         <input type="text" id="rekey-prop-search" placeholder="Search address or code…" autocomplete="off" oninput="rekeySearchProps(this.value)" />
         <div id="rekey-prop-results" class="search-results" style="display:none"></div>
       </div>
       <div id="rekey-prop-selected" style="display:none;margin-bottom:16px"></div>
 
-      <!-- Current cut display -->
       <div id="rekey-current" style="display:none;margin-bottom:16px;padding:12px 14px;background:var(--gray-100);border-radius:8px;font-size:.9rem">
         <strong>Current cut:</strong> <span id="rekey-current-label">—</span>
       </div>
 
-      <!-- New cut selector -->
       <div class="form-group" id="rekey-new-group" style="display:none">
         <label>New Kwikset Cut</label>
         <select id="rekey-new-cut">
@@ -806,7 +806,6 @@
       <div id="rekey-error" style="color:var(--red);font-size:.85rem;margin-top:10px;min-height:18px"></div>
     </div>
   </div>
-</main>
 
 <!-- Add/Edit User Modal -->
 <div class="pin-modal-overlay" id="user-modal-overlay">
@@ -1155,7 +1154,6 @@ function showTab(tab) {
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'checkin') loadCheckin();
     if (tab === 'users') loadUsers();
-    if (tab === 'rekey') loadKwiksetCuts();
   }
 }
 
@@ -1860,6 +1858,20 @@ let rekeySelectedProperty = null;
 let rekeySearchTimer = null;
 let allKwiksetCuts = [];
 
+function openRekeyPanel() {
+  rekeyDeselectProperty();
+  document.getElementById('rekey-prop-search').value = '';
+  document.getElementById('rekey-overlay').style.display = 'flex';
+  loadKwiksetCuts();
+}
+
+function closeRekeyPanel(e) {
+  if (e && e.target !== document.getElementById('rekey-overlay')) return;
+  document.getElementById('rekey-overlay').style.display = 'none';
+  rekeyDeselectProperty();
+  document.getElementById('rekey-prop-search').value = '';
+}
+
 async function loadKwiksetCuts() {
   if (allKwiksetCuts.length > 0) return;
   try {
@@ -1944,6 +1956,7 @@ async function submitRekey() {
       body: JSON.stringify({ propertyId: rekeySelectedProperty.id, newCutId }),
     });
     toast('Kwikset cut updated ✓');
+    document.getElementById('rekey-overlay').style.display = 'none';
     rekeyDeselectProperty();
     document.getElementById('rekey-prop-search').value = '';
   } catch (e) {
