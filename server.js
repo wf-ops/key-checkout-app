@@ -1,6 +1,5 @@
 require('dotenv').config();
 const PDFDocument = require('pdfkit');
-const nodemailer  = require('nodemailer');
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
 });
@@ -931,21 +930,44 @@ function buildInvoicePDF({ invoiceNumber, date, propertyCode, address, keysCount
 }
 
 async function sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total }) {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('EMAIL_USER/EMAIL_PASS not set — invoice email skipped');
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — invoice email skipped');
     return false;
   }
-  const transporter = nodemailer.createTransporter({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
-  await transporter.sendMail({
-    from: `"Keyrenter Boise" <${process.env.EMAIL_USER}>`,
+  const fromEmail = process.env.BILL_FROM_EMAIL || `wf@keyrenterboise.com`;
+  const body = {
+    from: `Keyrenter Boise <${fromEmail}>`,
     to: 'keyrenter078@invoices.appfolio.com',
-    subject: `Rekey Invoice ${invoiceNumber} — ${propertyCode}`,
-    text: `Please find attached invoice ${invoiceNumber} for rekey service at ${address}.\n\nTotal: $${total.toFixed(2)}\n\n— Keyrenter Boise Property Management`,
-    attachments: [{ filename: `${invoiceNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+    subject: `Rekey Invoice ${invoiceNumber} — ${address}`,
+    text: [
+      `Invoice: ${invoiceNumber}`,
+      `Date: ${new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise' })}`,
+      `Property: ${propertyCode} — ${address}`,
+      `Service: Rekey`,
+      `Amount Due: $${total.toFixed(2)}`,
+      '',
+      'Vendor: Keyrenter Boise Property Management',
+      'keyrenter078@invoices.appfolio.com',
+    ].join('\n'),
+    attachments: [{
+      filename: `${invoiceNumber}.pdf`,
+      content: pdfBuffer.toString('base64'),
+    }],
+  };
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
   });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend error: ${err}`);
+  }
   return true;
 }
 
