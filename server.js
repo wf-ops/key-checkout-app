@@ -573,10 +573,11 @@ app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) =
       logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
     }
 
-    await Promise.all([
-      notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps }),
-      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }),
-    ]);
+    const updates = [notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps })];
+    if (keyId && keyId !== 'undefined' && keyId !== 'null') {
+      updates.push(notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }));
+    }
+    await Promise.all(updates);
 
     res.json({ success: true });
   } catch (e) {

@@ -1934,12 +1934,16 @@ async function confirmReturn() {
     const note = document.getElementById('return-note').value;
     const photoFile = document.getElementById('return-photo-input').files[0];
     if (returnLogId) {
-      // Check In tab flow — send photo + note to /api/checkin
+      // Check In tab flow
       const fd = new FormData();
       fd.append('logId', returnLogId);
-      fd.append('keyId', returnKeyId);
+      fd.append('keyId', returnKeyId || '');
       if (photoFile) fd.append('photo', photoFile);
-      await fetch('/api/checkin', { method: 'POST', body: fd });
+      const ciRes = await fetch('/api/checkin', { method: 'POST', body: fd });
+      if (!ciRes.ok) {
+        const errData = await ciRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Check-in failed (${ciRes.status})`);
+      }
       document.getElementById('return-key-overlay').style.display = 'none';
       toast('Key checked in ✓');
       tabLoaded['dashboard'] = false;
@@ -1947,12 +1951,16 @@ async function confirmReturn() {
       loadDashboard();
       loadCheckin();
     } else {
-      // Missing key return — always call return-key (sets status to In Office + optional photo/note)
+      // Missing key return
       const fd = new FormData();
       fd.append('keyId', returnKeyId);
       fd.append('note', note);
       if (photoFile) fd.append('photo', photoFile);
-      await fetch('/api/return-key', { method: 'POST', body: fd });
+      const rkRes = await fetch('/api/return-key', { method: 'POST', body: fd });
+      if (!rkRes.ok) {
+        const errData = await rkRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Return failed (${rkRes.status})`);
+      }
       document.getElementById('return-key-overlay').style.display = 'none';
       toast(`Key #${returnKeySlot} marked as returned ✓`);
       loadMissingKeys();
@@ -2721,7 +2729,11 @@ async function submitRekey() {
           checkedOutBy:  currentUser?.name || '',
         }),
       });
-      toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} sent ✓`);
+      if (invoiceResult.emailSent) {
+        toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} emailed to Appfolio ✓`);
+      } else {
+        toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} generated (email not sent)`, true);
+      }
     } else {
       toast('Kwikset cut updated ✓');
     }
