@@ -864,65 +864,62 @@ function buildInvoicePDF({ invoiceNumber, date, propertyCode, address, keysCount
       const total    = flatFee + keysCount * perKeyFee;
 
       // Header bar
-      doc.rect(0, 0, 612, 90).fill(charcoal);
+      doc.rect(0, 0, 612, 100).fill(charcoal);
       doc.fillColor(green).fontSize(9).font('Helvetica-Bold')
-         .text('KEYRENTER BOISE PROPERTY MANAGEMENT', 60, 26, { characterSpacing: 1 });
+         .text('KEYRENTER BOISE PROPERTY MANAGEMENT', 60, 22, { characterSpacing: 1 });
       doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold')
-         .text('Invoice', 60, 42);
+         .text('Invoice', 60, 36);
+      doc.fillColor('rgba(255,255,255,0.6)').fontSize(8).font('Helvetica')
+         .text('999 W Main Street, Ste 100, Boise ID 83702', 60, 76);
       doc.fillColor('rgba(255,255,255,0.5)').fontSize(8).font('Helvetica')
          .text('Invoice #', 400, 34);
       doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold')
          .text(invoiceNumber, 400, 46);
 
-      // Meta row
+      // Meta row — Date and Property only
       doc.fillColor(gray).fontSize(9).font('Helvetica')
-         .text('Date:', 60, 110).text('Property:', 200, 110).text('Prepared by:', 400, 110);
+         .text('Date:', 60, 120).text('Property:', 250, 120);
       doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold')
-         .text(date, 60, 123)
-         .text(`${propertyCode}`, 200, 123)
-         .text(checkedOutBy || 'KRB Staff', 400, 123);
+         .text(date, 60, 133)
+         .text(`${propertyCode}`, 250, 133);
       doc.fillColor(gray).fontSize(9).font('Helvetica')
-         .text(address, 200, 136);
+         .text(address, 250, 146);
 
       // Divider
-      doc.moveTo(60, 162).lineTo(552, 162).strokeColor(lightGray).lineWidth(1).stroke();
+      doc.moveTo(60, 172).lineTo(552, 172).strokeColor(lightGray).lineWidth(1).stroke();
 
       // Line items header
       doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
-         .text('DESCRIPTION', 60, 178, { characterSpacing: 0.8 })
-         .text('AMOUNT', 480, 178, { align: 'right', width: 72 });
-      doc.moveTo(60, 192).lineTo(552, 192).strokeColor(lightGray).lineWidth(0.5).stroke();
+         .text('DESCRIPTION', 60, 188, { characterSpacing: 0.8 })
+         .text('AMOUNT', 480, 188, { align: 'right', width: 72 });
+      doc.moveTo(60, 202).lineTo(552, 202).strokeColor(lightGray).lineWidth(0.5).stroke();
 
       // Line items
       doc.fillColor(charcoal).fontSize(10).font('Helvetica')
-         .text('Rekey service — flat fee', 60, 204)
-         .text(`$${flatFee.toFixed(2)}`, 480, 204, { align: 'right', width: 72 });
-      doc.moveTo(60, 222).lineTo(552, 222).strokeColor(lightGray).lineWidth(0.5).stroke();
+         .text('Rekey service — flat fee', 60, 214)
+         .text(`$${flatFee.toFixed(2)}`, 480, 214, { align: 'right', width: 72 });
+      doc.moveTo(60, 232).lineTo(552, 232).strokeColor(lightGray).lineWidth(0.5).stroke();
 
       const keyLine = `Keys provided to resident (${keysCount} × $${perKeyFee.toFixed(2)})`;
       const keyAmt  = (keysCount * perKeyFee).toFixed(2);
       doc.fillColor(charcoal).fontSize(10).font('Helvetica')
-         .text(keyLine, 60, 232)
-         .text(`$${keyAmt}`, 480, 232, { align: 'right', width: 72 });
-      doc.moveTo(60, 250).lineTo(552, 250).strokeColor(charcoal).lineWidth(0.75).stroke();
+         .text(keyLine, 60, 242)
+         .text(`$${keyAmt}`, 480, 242, { align: 'right', width: 72 });
+      doc.moveTo(60, 260).lineTo(552, 260).strokeColor(charcoal).lineWidth(0.75).stroke();
 
       // Total
       doc.fillColor(charcoal).fontSize(12).font('Helvetica-Bold')
-         .text('Total due', 60, 262)
-         .text(`$${total.toFixed(2)}`, 480, 262, { align: 'right', width: 72 });
+         .text('Total due', 60, 272)
+         .text(`$${total.toFixed(2)}`, 480, 272, { align: 'right', width: 72 });
 
       // Notes box
       if (rekeyNote) {
-        doc.rect(60, 300, 492, 50).fillAndStroke('#f9fafb', lightGray);
+        doc.rect(60, 310, 492, 50).fillAndStroke('#f9fafb', lightGray);
         doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
-           .text('SERVICE NOTES', 72, 312, { characterSpacing: 0.8 });
+           .text('SERVICE NOTES', 72, 322, { characterSpacing: 0.8 });
         doc.fillColor(charcoal).fontSize(9).font('Helvetica')
-           .text(rekeyNote, 72, 324, { width: 468 });
+           .text(rekeyNote, 72, 334, { width: 468 });
       }
-
-      // Footer
-      doc.fillColor(gray).fontSize(8).font('Helvetica')
-         .text('Keyrenter Boise Property Management  ·  keyrenter078@invoices.appfolio.com', 60, 720, { align: 'center', width: 492 });
 
       doc.end();
     } catch (e) { reject(e); }
@@ -931,10 +928,9 @@ function buildInvoicePDF({ invoiceNumber, date, propertyCode, address, keysCount
 
 async function sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total }) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — invoice email skipped');
-    return false;
+    throw new Error('RESEND_API_KEY is not configured in Railway environment variables.');
   }
-  const fromEmail = process.env.BILL_FROM_EMAIL || `wf@keyrenterboise.com`;
+  const fromEmail = process.env.BILL_FROM_EMAIL || `bills@gokrb.com`;
   const body = {
     from: `Keyrenter Boise <${fromEmail}>`,
     to: 'keyrenter078@invoices.appfolio.com',
