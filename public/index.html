@@ -677,8 +677,8 @@
   <div id="add-key-overlay" class="panel-overlay" style="display:none" onclick="closeAddKeyPanel(event)">
     <div class="panel" onclick="event.stopPropagation()">
       <button class="panel-close" onclick="closeAddKeyPanel()">✕</button>
-      <h2>➕ Assign Property to Key Slot #</h2>
-      <p class="panel-sub">Search for a property to assign to a Key Slot #.</p>
+      <h2>➕ Assign Property to Key Tag #</h2>
+      <p class="panel-sub">Search for a property to assign to a Key Tag #.</p>
 
       <!-- Step 1: property search -->
       <div id="ak-step1">
@@ -698,17 +698,17 @@
             <label>What would you like to do?</label>
             <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
               <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="replace"> Remove existing slot &amp; assign new slot
+                <input type="radio" name="ak-action" value="replace"> Remove existing tag &amp; assign new tag
               </label>
               <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="add"> Add an additional key slot
+                <input type="radio" name="ak-action" value="add"> Add an additional key tag
               </label>
             </div>
           </div>
         </div>
         <div id="ak-new-slot-form" style="display:none">
           <div class="form-group">
-            <label for="ak-slot">New Key Slot #</label>
+            <label for="ak-slot">New Key Tag #</label>
             <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
           </div>
           <div class="form-group">
@@ -733,7 +733,7 @@
   <!-- Remove Key Confirmation Modal -->
   <div id="remove-key-modal" class="modal-overlay" style="display:none">
     <div class="modal">
-      <h2>🗑️ Remove Key from Slot?</h2>
+      <h2>🗑️ Remove Key from Tag?</h2>
       <p id="remove-key-modal-text"></p>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeRemoveKeyModal()">Cancel</button>
@@ -899,7 +899,7 @@
           </select>
         </div>
         <div class="form-group" style="margin:0;flex:1;min-width:120px">
-          <label style="font-size:.75rem">Key Slot #</label>
+          <label style="font-size:.75rem">Key Tag #</label>
           <input type="text" id="report-keyslot" placeholder="e.g. 5" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
         </div>
         <div class="form-group search-wrapper" style="margin:0;flex:2;min-width:200px">
@@ -1691,7 +1691,7 @@ async function akSelectProperty(id, label) {
     ).join('');
 
     info.innerHTML = `<div class="conflict-box" style="background:#fde8e8;border-color:#f8b4b4;margin-bottom:14px">
-      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Slot #' + akExistingKeys[0].slot : akExistingKeys.length + ' key slots'}</strong>
+      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Tag #' + akExistingKeys[0].slot : akExistingKeys.length + ' key tags'}</strong>
     </div>${slotList}`;
 
     document.getElementById('ak-action-choice').style.display = 'block';
@@ -1889,7 +1889,7 @@ function promptRemoveKey(keyId, slot, propertyName) {
   removeKeyId = keyId;
   removeKeySlot = slot;
   document.getElementById('remove-key-modal-text').innerHTML =
-    `This will <strong>remove Key #${slot}</strong> from its key slot and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
+    `This will <strong>remove Key #${slot}</strong> from its key tag and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
     The key tag will be unassigned and available for reassignment. This cannot be undone automatically.`;
   document.getElementById('remove-key-confirm-btn').disabled = false;
   document.getElementById('remove-key-confirm-btn').textContent = 'Yes, Remove';
@@ -1915,7 +1915,7 @@ async function confirmRemoveKey() {
     closeRemoveKeyModal();
     const card = document.getElementById('mk-' + removeKeyId);
     if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
-    toast(`Key #${removeKeySlot} removed from slot ✓`);
+    toast(`Key #${removeKeySlot} removed from tag ✓`);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = 'Yes, Remove';
@@ -2074,6 +2074,17 @@ function renderCodesGallery(rows) {
 
   rows.forEach(p => {
     const propJson = JSON.stringify(p).replace(/"/g,'&quot;');
+    // Key tags with status badges
+    const keyTagsHtml = p.keys && p.keys.length
+      ? p.keys.map(k => {
+          const statusColor = k.status === 'In Office' ? 'var(--green)' : k.status === 'Checked Out' ? 'var(--yellow)' : 'var(--red)';
+          return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--gray-100);border-radius:4px;padding:2px 7px;margin:1px">
+            <span style="font-family:monospace;font-weight:700;font-size:.85rem">#${k.tagNumber}</span>
+            <span style="font-size:.7rem;color:${statusColor}">${k.status||''}</span>
+          </span>`;
+        }).join('')
+      : `<span class="code-empty">—</span>`;
+
     html += `<div class="code-card">
       ${canEdit ? `<button class="code-card-edit btn-sm" onclick="openCodeEdit(${propJson})">Edit</button>` : ''}
       <div class="code-card-header">
@@ -2081,16 +2092,16 @@ function renderCodesGallery(rows) {
         <div class="code-card-address">${p.address}${p.city ? ', '+p.city : ''}</div>
       </div>
       <div class="code-card-fields">
-        ${row('Garage Keypad', p.garage)}
-        ${row('Front Door', p.frontDoor)}
-        ${row('Community Entry', p.communityEntry)}
-        ${row('Lockboxes', p.lockboxes)}
         <div class="code-field">
-          <span class="code-field-label">Keys</span>
-          ${p.keysCount > 0
-            ? `<span style="color:var(--green);font-weight:700;font-size:.85rem">${p.keysCount} key${p.keysCount!==1?'s':''}</span>`
-            : `<span class="code-empty">—</span>`}
+          <span class="code-field-label">Key Tag #</span>
+          <div style="text-align:right;max-width:60%">${keyTagsHtml}</div>
         </div>
+        ${row('Garage Keypad', p.garage)}
+        ${row('Front Door Code', p.frontDoor)}
+        ${row('Lockbox SN', p.lockboxSN)}
+        ${row('Kwikset Cut', p.kwikset ? `${p.kwikset.keyNumber} (${p.kwikset.keyCut})` : '')}
+        ${row('Mailbox #', p.mailbox)}
+        ${row('Community Entry', p.communityEntry)}
       </div>
     </div>`;
   });
@@ -2112,8 +2123,9 @@ function openCodeEdit(prop) {
       <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:20px">${prop.propertyCode} — ${prop.address}</p>
       ${field('Garage Keypad', 'edit-garage', prop.garage)}
       ${field('Front Door Code', 'edit-frontdoor', prop.frontDoor)}
+      ${field('Lockbox SN', 'edit-lockboxes', prop.lockboxSN)}
+      ${field('Mailbox #', 'edit-mailbox', prop.mailbox)}
       ${field('Community Entry Code', 'edit-entry', prop.communityEntry)}
-      ${field('Lockboxes #', 'edit-lockboxes', prop.lockboxes)}
       <div id="code-edit-error" style="color:var(--red);font-size:.85rem;min-height:18px;margin-bottom:10px"></div>
       <div style="display:flex;gap:10px">
         <button onclick="saveCodeEdit('${prop.id}')" class="btn btn-primary" style="margin:0;flex:1;padding:12px">Save</button>
@@ -2137,8 +2149,9 @@ async function saveCodeEdit(propId) {
   const body = {
     garage:         document.getElementById('edit-garage').value.trim(),
     frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
-    communityEntry: document.getElementById('edit-entry').value.trim(),
     lockboxes:      document.getElementById('edit-lockboxes').value.trim(),
+    mailbox:        document.getElementById('edit-mailbox').value.trim(),
+    communityEntry: document.getElementById('edit-entry').value.trim(),
   };
   try {
     await api(`/api/codes-and-access/${propId}`, {
@@ -2154,8 +2167,9 @@ async function saveCodeEdit(propId) {
       codesData[idx] = { ...codesData[idx],
         garage:         document.getElementById('edit-garage').value.trim(),
         frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
+        lockboxSN:      document.getElementById('edit-lockboxes').value.trim(),
+        mailbox:        document.getElementById('edit-mailbox').value.trim(),
         communityEntry: document.getElementById('edit-entry').value.trim(),
-        lockboxes:      document.getElementById('edit-lockboxes').value.trim(),
       };
     }
     renderCodesGallery(codesData);

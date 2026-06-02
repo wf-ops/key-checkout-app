@@ -60,7 +60,7 @@ const NOTION_CONFIG_PAGE_ID = process.env.NOTION_CONFIG_PAGE_ID;
 const PERMISSION_DEFAULTS = {
   checkout:       { label: 'Check Out Keys',               roles: ['Admin','Manager','Member'] },
   checkin:        { label: 'Check In Keys',                roles: ['Admin','Manager','Member'] },
-  assignProperty: { label: 'Assign Property to Key Slot',  roles: ['Admin','Manager'] },
+  assignProperty: { label: 'Assign Property to Key Tag',   roles: ['Admin','Manager'] },
   markMissing:    { label: 'Mark Key Missing',             roles: ['Admin','Manager'] },
   returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Manager'] },
   rekey:          { label: 'Rekey Property',               roles: ['Admin','Manager'] },
@@ -440,7 +440,7 @@ app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
         return {
           id: row.id,
           url: row.url,
-          slot: extractRichText(p['Key Slot #']),
+          slot: extractRichText(p['Key Tag #']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -612,7 +612,7 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
         const p = row.properties;
         return {
           id: row.id,
-          slot: extractRichText(p['Key Slot #']),
+          slot: extractRichText(p['Key Tag #']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -671,7 +671,7 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
 
     const keys = await Promise.all(rows.map(async row => {
       const p = row.properties;
-      const slot = extractRichText(p['Key Slot #']);
+      const slot = extractRichText(p['Key Tag #']);
       const keyTypes = extractMultiSelect(p['Key Types']);
       const rentalUrls = extractRelation(p['Rental Matrix']);
 
@@ -735,7 +735,7 @@ app.post('/api/return-key', requireRole('Admin', 'Manager'), upload.single('phot
 app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
-      property: 'Key Slot #',
+      property: 'Key Tag #',
       title: { equals: req.params.slot },
     });
     if (rows.length === 0) return res.json(null);
@@ -755,7 +755,7 @@ app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
     }
     res.json({
       id: row.id,
-      slot: extractRichText(p['Key Slot #']),
+      slot: extractRichText(p['Key Tag #']),
       status: extractSelect(p['Status']),
       keyTypes: extractMultiSelect(p['Key Types']),
       propertyName,
@@ -775,7 +775,7 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
     const { propertyId, slot, keyTypes, existingKeyId } = req.body;
 
     const properties = {
-      'Key Slot #': { title: [{ text: { content: String(slot) } }] },
+      'Key Tag #': { title: [{ text: { content: String(slot) } }] },
       'Status': { select: { name: 'In Office' } },
       'Key Types': { multi_select: keyTypes.map(name => ({ name })) },
       'Rental Matrix': { relation: [{ id: propertyId }] },
@@ -801,31 +801,66 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
 
 // ─── Codes & Access ───────────────────────────────────────────────────────────
 
-// GET /api/codes-and-access — all active properties with access code fields
+// GET /api/codes-and-access — all active properties with access code fields + key/kwikset data
 app.get('/api/codes-and-access', requireAuth, async (req, res) => {
   try {
-    const rows = await queryAll(DB.properties,
-      { property: 'Active Property', select: { equals: 'ACTIVE' } },
-      [{ property: 'Property Code', direction: 'ascending' }]
-    );
+    // Parallel: fetch properties, all keys, all kwikset cuts
+    const [propRows, keyRows, cutRows] = await Promise.all([
+      queryAll(DB.properties,
+        { property: 'Active Property', select: { equals: 'ACTIVE' } },
+        [{ property: 'Property Code', direction: 'ascending' }]
+      ),
+      queryAll(DB.keys, null),
+      queryAll(DB.kwiksetCuts, null),
+    ]);
 
-    const properties = rows.map(r => {
+    // Build propertyId → keys map
+    const keysByProp = {};
+    keyRows.forEach(r => {
       const p = r.properties;
-      const garage  = p['Garage Keypad']?.rich_text?.[0]?.plain_text || p['Garage Keypad']?.number || '';
-      const front   = p['Front Door Code']?.number ?? p['Front Door Code']?.rich_text?.[0]?.plain_text ?? '';
-      const entry   = p['Community Entry Code']?.rich_text?.[0]?.plain_text || '';
-      const lockboxes = p['Lockboxes']?.number ?? '';
-      const keys    = (p['KRB Keys & Access']?.relation || []).length;
+      const rentalUrls = extractRelation(p['Rental Matrix']);
+      rentalUrls.forEach(url => {
+        const rawId = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
+        const propId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
+        if (!keysByProp[propId]) keysByProp[propId] = [];
+        keysByProp[propId].push({
+          id: r.id,
+          tagNumber: extractRichText(p['Key Tag #']),
+          status: extractSelect(p['Status']),
+          keyTypes: extractMultiSelect(p['Key Types']),
+        });
+      });
+    });
+
+    // Build propertyId → kwikset cut map
+    const cutByProp = {};
+    cutRows.forEach(r => {
+      const p = r.properties;
+      const rentalUrls = extractRelation(p['Rental Matrix (Kwikset Cut)']);
+      rentalUrls.forEach(url => {
+        const rawId = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
+        const propId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
+        cutByProp[propId] = {
+          keyNumber: extractRichText(p['Kwikset Key #']),
+          keyCut: p['Key Cut']?.number ?? null,
+        };
+      });
+    });
+
+    const properties = propRows.map(r => {
+      const p = r.properties;
       return {
         id: r.id,
-        propertyCode:   extractRichText(p['Property Code']),
-        address:        extractRichText(p['Street Address - Property']),
-        city:           p['City']?.rich_text?.[0]?.plain_text || p['City']?.select?.name || '',
-        garage,
-        frontDoor: front,
-        communityEntry: entry,
-        lockboxes,
-        keysCount: keys,
+        propertyCode:    extractRichText(p['Property Code']),
+        address:         extractRichText(p['Street Address - Property']),
+        city:            p['City']?.rich_text?.[0]?.plain_text || p['City']?.select?.name || '',
+        garage:          p['Garage Keypad']?.rich_text?.[0]?.plain_text || '',
+        frontDoor:       p['Front Door Code']?.number ?? p['Front Door Code']?.rich_text?.[0]?.plain_text ?? '',
+        lockboxSN:       p['Lockboxes']?.number ?? p['Lockboxes']?.rich_text?.[0]?.plain_text ?? '',
+        mailbox:         p['Mailbox #']?.rich_text?.[0]?.plain_text || '',
+        communityEntry:  p['Community Entry Code']?.rich_text?.[0]?.plain_text || '',
+        keys:            keysByProp[r.id] || [],
+        kwikset:         cutByProp[r.id] || null,
       };
     });
 
@@ -839,12 +874,13 @@ app.get('/api/codes-and-access', requireAuth, async (req, res) => {
 // PATCH /api/codes-and-access/:propertyId — update access code fields
 app.patch('/api/codes-and-access/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
-    const { garage, frontDoor, communityEntry, lockboxes } = req.body;
+    const { garage, frontDoor, communityEntry, lockboxes, mailbox } = req.body;
     const props = {};
     if (garage       !== undefined) props['Garage Keypad']        = { rich_text: [{ text: { content: String(garage) } }] };
     if (frontDoor    !== undefined) props['Front Door Code']       = { number: frontDoor === '' ? null : Number(frontDoor) };
     if (communityEntry !== undefined) props['Community Entry Code'] = { rich_text: [{ text: { content: String(communityEntry) } }] };
     if (lockboxes    !== undefined) props['Lockboxes']             = { number: lockboxes === '' ? null : Number(lockboxes) };
+    if (mailbox      !== undefined) props['Mailbox #']             = { rich_text: [{ text: { content: String(mailbox) } }] };
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
     res.json({ success: true });
   } catch (e) {
@@ -1127,6 +1163,12 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
   loadPermissions().catch(e => console.error('Startup permissions load failed:', e.message));
+  // One-time migration: rename "Key Slot #" → "Key Tag #" in Notion
+  fetch(`https://api.notion.com/v1/databases/${DB.keys}`, {
+    method: 'PATCH', headers: notionHeaders(),
+    body: JSON.stringify({ properties: { 'Key Slot #': { name: 'Key Tag #' } } }),
+  }).then(r => r.ok ? console.log('Notion: Key Slot # renamed to Key Tag #') : null)
+    .catch(() => null); // Silent — may already be renamed
   // Check immediately on startup, then every hour
   checkOverdueKeys().catch(e => console.error('Startup overdue check failed:', e.message));
   setInterval(() => checkOverdueKeys().catch(e => console.error('Overdue check failed:', e.message)), 60 * 60 * 1000);
