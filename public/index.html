@@ -213,22 +213,22 @@
     }
     .key-btn {
       flex: 0 0 auto;
-      width: 90px;
+      min-width: 120px;
       background: var(--gray-50);
       border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      padding: 12px;
+      border-radius: 10px;
+      padding: 14px 16px;
       text-align: left;
       cursor: pointer;
       transition: all .15s;
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      gap: 4px;
     }
     .key-btn:hover { border-color: var(--green); background: var(--green-bg); }
     .key-btn.selected { border-color: var(--green-dark); background: var(--green); color: #fff; }
-    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; }
-    .key-btn .key-type { font-size: .75rem; color: inherit; opacity: .75; }
+    .key-btn .key-num { font-size: 1.2rem; font-weight: 700; display: block; }
+    .key-btn .key-type { font-size: .78rem; color: inherit; opacity: .8; display: block; line-height: 1.3; }
     .key-missing-btn {
       background: #fde8e8;
       border: 1.5px solid #f8b4b4;
