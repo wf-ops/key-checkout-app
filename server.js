@@ -1,4 +1,6 @@
 require('dotenv').config();
+const PDFDocument = require('pdfkit');
+const nodemailer  = require('nodemailer');
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
 });
@@ -70,8 +72,9 @@ const PERMISSION_DEFAULTS = {
 };
 
 let permissionsCache = JSON.parse(JSON.stringify(PERMISSION_DEFAULTS));
+let invoiceConfig = { flatFee: 25.00, perKeyFee: 5.25 };
 
-async function loadPermissions() {
+async function loadAppConfig() {
   if (!NOTION_CONFIG_PAGE_ID) return;
   try {
     const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
@@ -80,33 +83,43 @@ async function loadPermissions() {
     const json = codeBlock.code?.rich_text?.[0]?.plain_text || '';
     if (json) {
       const saved = JSON.parse(json);
-      // Merge with defaults so new keys are always present
+      // Permissions
+      const perms = saved.permissions || saved; // backward-compat
       Object.keys(PERMISSION_DEFAULTS).forEach(k => {
-        if (saved[k]) permissionsCache[k] = { ...PERMISSION_DEFAULTS[k], ...saved[k] };
+        if (perms[k]) permissionsCache[k] = { ...PERMISSION_DEFAULTS[k], ...perms[k] };
       });
-      console.log('Permissions loaded from Notion');
+      // Invoice config
+      if (saved.invoiceConfig) invoiceConfig = { ...invoiceConfig, ...saved.invoiceConfig };
+      console.log('App config loaded from Notion');
     }
-  } catch (e) { console.error('loadPermissions error:', e.message); }
+  } catch (e) { console.error('loadAppConfig error:', e.message); }
 }
 
-async function savePermissions(perms) {
+async function saveAppConfig() {
   if (!NOTION_CONFIG_PAGE_ID) return;
   try {
-    const json = JSON.stringify(perms, null, 2);
+    const payload = { permissions: permissionsCache, invoiceConfig };
+    const json = JSON.stringify(payload, null, 2);
     const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
     const codeBlock = blocks.results?.find(b => b.type === 'code');
+    const blockBody = { code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } };
     if (codeBlock) {
       await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
-        method: 'PATCH', headers: notionHeaders(),
-        body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } }),
+        method: 'PATCH', headers: notionHeaders(), body: JSON.stringify(blockBody),
       });
     } else {
       await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, {
         method: 'PATCH', headers: notionHeaders(),
-        body: JSON.stringify({ children: [{ object: 'block', type: 'code', code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } }] }),
+        body: JSON.stringify({ children: [{ object: 'block', type: 'code', ...blockBody }] }),
       });
     }
-  } catch (e) { console.error('savePermissions error:', e.message); }
+  } catch (e) { console.error('saveAppConfig error:', e.message); }
+}
+
+// Keep old name as alias so existing save-permissions call still works
+async function savePermissions(perms) {
+  permissionsCache = perms;
+  await saveAppConfig();
 }
 
 // GET /api/permissions — any authenticated user (client needs this on login)
@@ -813,6 +826,151 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
   }
 });
 
+// ─── Invoice Config & Sending ─────────────────────────────────────────────────
+
+app.get('/api/invoice-config', requireRole('Admin'), (req, res) => {
+  res.json(invoiceConfig);
+});
+
+app.patch('/api/invoice-config', requireRole('Admin'), async (req, res) => {
+  try {
+    const { flatFee, perKeyFee } = req.body;
+    if (flatFee   !== undefined) invoiceConfig.flatFee   = Number(flatFee);
+    if (perKeyFee !== undefined) invoiceConfig.perKeyFee = Number(perKeyFee);
+    await saveAppConfig();
+    res.json({ success: true, invoiceConfig });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+function generateInvoiceNumber() {
+  const date = new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise' }).replace(/\//g, '');
+  const [m, d, y] = date.split('');
+  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Boise' }).replace(/-/g, '');
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return `KRB-${dateStr}-${rand}`;
+}
+
+function buildInvoicePDF({ invoiceNumber, date, propertyCode, address, keysCount, flatFee, perKeyFee, rekeyNote, checkedOutBy }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'LETTER', margin: 60 });
+      const chunks = [];
+      doc.on('data', c => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+      const charcoal = '#333333';
+      const green    = '#67c829';
+      const gray     = '#515151';
+      const lightGray= '#e5e7eb';
+      const total    = flatFee + keysCount * perKeyFee;
+
+      // Header bar
+      doc.rect(0, 0, 612, 90).fill(charcoal);
+      doc.fillColor(green).fontSize(9).font('Helvetica-Bold')
+         .text('KEYRENTER BOISE PROPERTY MANAGEMENT', 60, 26, { characterSpacing: 1 });
+      doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold')
+         .text('Invoice', 60, 42);
+      doc.fillColor('rgba(255,255,255,0.5)').fontSize(8).font('Helvetica')
+         .text('Invoice #', 400, 34);
+      doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold')
+         .text(invoiceNumber, 400, 46);
+
+      // Meta row
+      doc.fillColor(gray).fontSize(9).font('Helvetica')
+         .text('Date:', 60, 110).text('Property:', 200, 110).text('Prepared by:', 400, 110);
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold')
+         .text(date, 60, 123)
+         .text(`${propertyCode}`, 200, 123)
+         .text(checkedOutBy || 'KRB Staff', 400, 123);
+      doc.fillColor(gray).fontSize(9).font('Helvetica')
+         .text(address, 200, 136);
+
+      // Divider
+      doc.moveTo(60, 162).lineTo(552, 162).strokeColor(lightGray).lineWidth(1).stroke();
+
+      // Line items header
+      doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
+         .text('DESCRIPTION', 60, 178, { characterSpacing: 0.8 })
+         .text('AMOUNT', 480, 178, { align: 'right', width: 72 });
+      doc.moveTo(60, 192).lineTo(552, 192).strokeColor(lightGray).lineWidth(0.5).stroke();
+
+      // Line items
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica')
+         .text('Rekey service — flat fee', 60, 204)
+         .text(`$${flatFee.toFixed(2)}`, 480, 204, { align: 'right', width: 72 });
+      doc.moveTo(60, 222).lineTo(552, 222).strokeColor(lightGray).lineWidth(0.5).stroke();
+
+      const keyLine = `Keys provided to resident (${keysCount} × $${perKeyFee.toFixed(2)})`;
+      const keyAmt  = (keysCount * perKeyFee).toFixed(2);
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica')
+         .text(keyLine, 60, 232)
+         .text(`$${keyAmt}`, 480, 232, { align: 'right', width: 72 });
+      doc.moveTo(60, 250).lineTo(552, 250).strokeColor(charcoal).lineWidth(0.75).stroke();
+
+      // Total
+      doc.fillColor(charcoal).fontSize(12).font('Helvetica-Bold')
+         .text('Total due', 60, 262)
+         .text(`$${total.toFixed(2)}`, 480, 262, { align: 'right', width: 72 });
+
+      // Notes box
+      if (rekeyNote) {
+        doc.rect(60, 300, 492, 50).fillAndStroke('#f9fafb', lightGray);
+        doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
+           .text('SERVICE NOTES', 72, 312, { characterSpacing: 0.8 });
+        doc.fillColor(charcoal).fontSize(9).font('Helvetica')
+           .text(rekeyNote, 72, 324, { width: 468 });
+      }
+
+      // Footer
+      doc.fillColor(gray).fontSize(8).font('Helvetica')
+         .text('Keyrenter Boise Property Management  ·  keyrenter078@invoices.appfolio.com', 60, 720, { align: 'center', width: 492 });
+
+      doc.end();
+    } catch (e) { reject(e); }
+  });
+}
+
+async function sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total }) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('EMAIL_USER/EMAIL_PASS not set — invoice email skipped');
+    return false;
+  }
+  const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+  await transporter.sendMail({
+    from: `"Keyrenter Boise" <${process.env.EMAIL_USER}>`,
+    to: 'keyrenter078@invoices.appfolio.com',
+    subject: `Rekey Invoice ${invoiceNumber} — ${propertyCode}`,
+    text: `Please find attached invoice ${invoiceNumber} for rekey service at ${address}.\n\nTotal: $${total.toFixed(2)}\n\n— Keyrenter Boise Property Management`,
+    attachments: [{ filename: `${invoiceNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+  });
+  return true;
+}
+
+// POST /api/send-rekey-invoice
+app.post('/api/send-rekey-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { propertyCode, address, keysCount, rekeyNote, checkedOutBy } = req.body;
+    const { flatFee, perKeyFee } = invoiceConfig;
+    const total = flatFee + Number(keysCount) * perKeyFee;
+    const invoiceNumber = generateInvoiceNumber();
+    const date = new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const pdfBuffer = await buildInvoicePDF({
+      invoiceNumber, date, propertyCode, address,
+      keysCount: Number(keysCount), flatFee, perKeyFee, rekeyNote, checkedOutBy,
+    });
+
+    const sent = await sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total });
+    res.json({ success: true, invoiceNumber, total, emailSent: sent });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Codes & Access ───────────────────────────────────────────────────────────
 
 // GET /api/codes-and-access — all active properties with access code fields + key/kwikset data
@@ -1176,7 +1334,7 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
-  loadPermissions().catch(e => console.error('Startup permissions load failed:', e.message));
+  loadAppConfig().catch(e => console.error('Startup config load failed:', e.message));
   // One-time migration: rename "Key Slot #" → "Key Tag #" in Notion
   fetch(`https://api.notion.com/v1/databases/${DB.keys}`, {
     method: 'PATCH', headers: notionHeaders(),

@@ -621,6 +621,7 @@
 <div class="user-menu" id="user-menu">
   <div class="user-menu-item" onclick="openChangePinModal()">🔑 Change PIN</div>
   <div class="user-menu-item" id="manage-users-menu-item" onclick="showTab('users')" style="display:none">👥 Manage Users</div>
+  <div class="user-menu-item" id="settings-menu-item" onclick="openSettings()" style="display:none">⚙️ Settings</div>
   <div class="user-menu-item danger" onclick="doLogout()">Sign Out</div>
 </div>
 
@@ -951,6 +952,30 @@
 
 </main>
 
+  <!-- Settings Modal -->
+  <div id="settings-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1500;display:none;align-items:center;justify-content:center" onclick="closeSettings(event)">
+    <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h3 style="margin:0">⚙️ Settings</h3>
+        <button onclick="closeSettings()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-600)">✕</button>
+      </div>
+      <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-600);margin:0 0 14px">Rekey Invoice Fees</h4>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="form-group" style="margin:0;flex:1">
+          <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Flat Fee ($)</label>
+          <input type="number" id="settings-flat-fee" step="0.01" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
+        </div>
+        <div class="form-group" style="margin:0;flex:1">
+          <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Per Key ($)</label>
+          <input type="number" id="settings-per-key" step="0.01" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
+        </div>
+      </div>
+      <div id="settings-fee-preview" style="background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--gray-600);margin-bottom:16px"></div>
+      <div id="settings-error" style="color:var(--red);font-size:.85rem;min-height:18px;margin-bottom:8px"></div>
+      <button onclick="saveSettings()" class="btn btn-primary" style="margin:0;width:100%;padding:12px">Save Settings</button>
+    </div>
+  </div>
+
   <!-- Rekey Panel -->
   <div id="rekey-overlay" class="panel-overlay" style="display:none" onclick="closeRekeyPanel(event)">
     <div class="panel" onclick="event.stopPropagation()">
@@ -974,6 +999,23 @@
         <select id="rekey-new-cut">
           <option value="">Loading cuts…</option>
         </select>
+      </div>
+
+      <!-- Keys to resident + charge owner -->
+      <div id="rekey-billing-group" style="display:none;margin-top:4px">
+        <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;flex:1;min-width:120px">
+            <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Keys to resident</label>
+            <input type="number" id="rekey-keys-count" min="0" value="1" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
+          </div>
+          <div style="padding-bottom:2px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;font-weight:600;color:var(--charcoal)">
+              <input type="checkbox" id="rekey-charge-owner" checked style="width:18px;height:18px;accent-color:var(--green)" />
+              Charge Owner
+            </label>
+          </div>
+        </div>
+        <div id="rekey-invoice-preview" style="background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;padding:12px 14px;font-size:.85rem;margin-bottom:12px"></div>
       </div>
 
       <button class="btn btn-primary" id="rekey-submit-btn" style="display:none;width:100%;padding:14px;margin-top:8px" onclick="submitRekey()">Assign New Cut</button>
@@ -1080,6 +1122,7 @@ async function onLoginSuccess() {
   document.getElementById('user-pill-role').textContent = currentUser.role;
   if (currentUser.role === 'Admin') {
     document.getElementById('manage-users-menu-item').style.display = 'block';
+    document.getElementById('settings-menu-item').style.display = 'block';
   }
   try { appPermissions = await api('/api/permissions'); } catch(e) { appPermissions = null; }
   applyRoleUI();
@@ -2218,6 +2261,59 @@ async function saveCodeEdit(propId) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function openSettings() {
+  document.getElementById('user-menu').classList.remove('open');
+  try {
+    const config = await api('/api/invoice-config');
+    cachedInvoiceConfig = config;
+    document.getElementById('settings-flat-fee').value = config.flatFee.toFixed(2);
+    document.getElementById('settings-per-key').value = config.perKeyFee.toFixed(2);
+    updateSettingsPreview();
+  } catch(e) {}
+  document.getElementById('settings-overlay').style.display = 'flex';
+}
+
+function closeSettings(e) {
+  if (e && e.target !== document.getElementById('settings-overlay')) return;
+  document.getElementById('settings-overlay').style.display = 'none';
+}
+
+function updateSettingsPreview() {
+  const flat   = parseFloat(document.getElementById('settings-flat-fee')?.value || 25);
+  const perKey = parseFloat(document.getElementById('settings-per-key')?.value || 5.25);
+  const el     = document.getElementById('settings-fee-preview');
+  if (el) el.textContent = `Example: 2 keys → $${(flat + 2 * perKey).toFixed(2)}   |   3 keys → $${(flat + 3 * perKey).toFixed(2)}`;
+}
+
+async function saveSettings() {
+  const errEl = document.getElementById('settings-error');
+  errEl.textContent = '';
+  const flatFee   = parseFloat(document.getElementById('settings-flat-fee').value);
+  const perKeyFee = parseFloat(document.getElementById('settings-per-key').value);
+  if (isNaN(flatFee) || isNaN(perKeyFee)) { errEl.textContent = 'Enter valid numbers'; return; }
+  try {
+    const result = await api('/api/invoice-config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flatFee, perKeyFee }),
+    });
+    cachedInvoiceConfig = result.invoiceConfig;
+    document.getElementById('settings-overlay').style.display = 'none';
+    toast('Settings saved ✓');
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const feeInputs = ['settings-flat-fee', 'settings-per-key'];
+  feeInputs.forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateSettingsPreview);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Permissions Matrix
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2487,11 +2583,30 @@ let rekeySelectedProperty = null;
 let rekeySearchTimer = null;
 let allKwiksetCuts = [];
 
+// Cached invoice config
+let cachedInvoiceConfig = { flatFee: 25.00, perKeyFee: 5.25 };
+
+async function fetchInvoiceConfig() {
+  try { cachedInvoiceConfig = await api('/api/invoice-config'); } catch(e) {}
+}
+
+function updateRekeyInvoicePreview() {
+  const keys = parseInt(document.getElementById('rekey-keys-count')?.value || 1);
+  const charge = document.getElementById('rekey-charge-owner')?.checked;
+  const el = document.getElementById('rekey-invoice-preview');
+  if (!el) return;
+  if (!charge) { el.innerHTML = '<span style="color:var(--gray-400)">No charge will be generated.</span>'; return; }
+  const { flatFee, perKeyFee } = cachedInvoiceConfig;
+  const total = flatFee + keys * perKeyFee;
+  el.innerHTML = `<strong>Invoice total: $${total.toFixed(2)}</strong> &nbsp;·&nbsp; Flat fee $${flatFee.toFixed(2)} + ${keys} key${keys!==1?'s':''} × $${perKeyFee.toFixed(2)} = $${(keys*perKeyFee).toFixed(2)}`;
+}
+
 function openRekeyPanel() {
   rekeyDeselectProperty();
   document.getElementById('rekey-prop-search').value = '';
   document.getElementById('rekey-overlay').style.display = 'flex';
   loadKwiksetCuts();
+  fetchInvoiceConfig().then(updateRekeyInvoicePreview);
 }
 
 function closeRekeyPanel(e) {
@@ -2556,7 +2671,11 @@ async function rekeySelectProperty(prop) {
 
   await loadKwiksetCuts();
   document.getElementById('rekey-new-group').style.display = 'block';
+  document.getElementById('rekey-billing-group').style.display = 'block';
   document.getElementById('rekey-submit-btn').style.display = 'block';
+  updateRekeyInvoicePreview();
+  document.getElementById('rekey-keys-count').oninput = updateRekeyInvoicePreview;
+  document.getElementById('rekey-charge-owner').onchange = updateRekeyInvoicePreview;
 }
 
 function rekeyDeselectProperty() {
@@ -2564,6 +2683,7 @@ function rekeyDeselectProperty() {
   document.getElementById('rekey-prop-selected').style.display = 'none';
   document.getElementById('rekey-current').style.display = 'none';
   document.getElementById('rekey-new-group').style.display = 'none';
+  document.getElementById('rekey-billing-group').style.display = 'none';
   document.getElementById('rekey-submit-btn').style.display = 'none';
   document.getElementById('rekey-error').textContent = '';
 }
@@ -2584,7 +2704,28 @@ async function submitRekey() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ propertyId: rekeySelectedProperty.id, newCutId }),
     });
-    toast('Kwikset cut updated ✓');
+
+    // Send invoice if charge owner is checked
+    const chargeOwner = document.getElementById('rekey-charge-owner')?.checked;
+    const keysCount   = parseInt(document.getElementById('rekey-keys-count')?.value || 0);
+    if (chargeOwner) {
+      btn.textContent = 'Sending invoice…';
+      const invoiceResult = await api('/api/send-rekey-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyCode:  rekeySelectedProperty.propertyCode || rekeySelectedProperty.label || '',
+          address:       rekeySelectedProperty.address || '',
+          keysCount,
+          rekeyNote:     `Kwikset cut changed · ${keysCount} key${keysCount!==1?'s':''} provided to resident`,
+          checkedOutBy:  currentUser?.name || '',
+        }),
+      });
+      toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} sent ✓`);
+    } else {
+      toast('Kwikset cut updated ✓');
+    }
+
     document.getElementById('rekey-overlay').style.display = 'none';
     rekeyDeselectProperty();
     document.getElementById('rekey-prop-search').value = '';
