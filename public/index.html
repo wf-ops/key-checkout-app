@@ -572,7 +572,7 @@
     .users-table tr:last-child td { border-bottom:none; }
     .role-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:600; }
     .role-badge.Admin { background:#fee2e2; color:#b91c1c; }
-    .role-badge.Manager { background:#dbeafe; color:#1d4ed8; }
+    .role-badge.Property-Manager { background:#dbeafe; color:#1d4ed8; }
     .role-badge.Member { background:#dcfce7; color:#166534; }
     .btn-sm { padding:4px 10px; font-size:.75rem; border-radius:6px; border:1px solid var(--gray-200); background:#fff; cursor:pointer; }
     .btn-sm:hover { background:var(--gray-100); }
@@ -685,9 +685,9 @@
       <button class="btn-dash-primary checkin"  onclick="showTab('checkin')"><span class="icon">✅</span> Check In</button>
     </div>
     <div class="dash-actions">
-      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Assign Property</button>
-      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
-      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openRekeyPanel()"><span class="icon">🔄</span> Rekey Property</button>
+      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Assign Property</button>
+      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
+      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="openRekeyPanel()"><span class="icon">🔄</span> Rekey Property</button>
     </div>
     <div id="dashboard-content"><div class="spinner"></div></div>
     <div id="missing-section" class="missing-section" style="display:none"></div>
@@ -1034,7 +1034,8 @@
     <div class="form-group"><label>Role</label>
       <select id="user-modal-role" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
         <option value="Member">Member</option>
-        <option value="Manager">Manager</option>
+        <option value="Field Manager">Field Manager</option>
+        <option value="Property Manager">Property Manager</option>
         <option value="Admin">Admin</option>
       </select>
     </div>
@@ -2346,7 +2347,7 @@ async function loadPermissionsMatrix() {
 
 function renderPermissionsMatrix() {
   const el = document.getElementById('permissions-matrix');
-  const roles = ['Manager', 'Member'];
+  const roles = ['Property Manager', 'Field Manager', 'Member'];
 
   let html = `
     <div style="overflow-x:auto">
