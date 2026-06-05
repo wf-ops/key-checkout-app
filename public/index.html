@@ -573,6 +573,7 @@
     .role-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:600; }
     .role-badge.Admin { background:#fee2e2; color:#b91c1c; }
     .role-badge.Property-Manager { background:#dbeafe; color:#1d4ed8; }
+    .role-badge.Field-Manager { background:#ede9fe; color:#6d28d9; }
     .role-badge.Member { background:#dcfce7; color:#166534; }
     .btn-sm { padding:4px 10px; font-size:.75rem; border-radius:6px; border:1px solid var(--gray-200); background:#fff; cursor:pointer; }
     .btn-sm:hover { background:var(--gray-100); }
@@ -1227,7 +1228,7 @@ async function loadUsers() {
         <tr>
           <td>${u.name}</td>
           <td style="color:var(--gray-400)">${u.username}</td>
-          <td><span class="role-badge ${u.role}">${u.role}</span></td>
+          <td><span class="role-badge ${u.role.replace(/ /g,'-')}">${u.role}</span></td>
           <td>${u.active ? '<span style="color:var(--green-dark);font-weight:600">Active</span>' : '<span style="color:var(--gray-400)">Inactive</span>'}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-sm" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit</button>
