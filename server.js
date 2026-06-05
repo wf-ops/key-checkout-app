@@ -59,14 +59,14 @@ const NOTION_CONFIG_PAGE_ID = process.env.NOTION_CONFIG_PAGE_ID;
 // ─── Permissions ─────────────────────────────────────────────────────────────
 
 const PERMISSION_DEFAULTS = {
-  checkout:       { label: 'Check Out Keys',               roles: ['Admin','Manager','Member'] },
-  checkin:        { label: 'Check In Keys',                roles: ['Admin','Manager','Member'] },
-  assignProperty: { label: 'Assign Property to Key Tag',   roles: ['Admin','Manager'] },
-  markMissing:    { label: 'Mark Key Missing',             roles: ['Admin','Manager'] },
-  returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Manager'] },
-  rekey:          { label: 'Rekey Property',               roles: ['Admin','Manager'] },
-  reports:        { label: 'View Reports',                 roles: ['Admin','Manager'] },
-  editRentalMatrix: { label: 'Edit Rental Matrix',         roles: ['Admin','Manager'] },
+  checkout:       { label: 'Check Out Keys',               roles: ['Admin','Property Manager','Field Manager','Member'] },
+  checkin:        { label: 'Check In Keys',                roles: ['Admin','Property Manager','Field Manager','Member'] },
+  assignProperty: { label: 'Assign Property to Key Tag',   roles: ['Admin','Property Manager','Field Manager'] },
+  markMissing:    { label: 'Mark Key Missing',             roles: ['Admin','Property Manager','Field Manager'] },
+  returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Property Manager','Field Manager'] },
+  rekey:          { label: 'Rekey Property',               roles: ['Admin','Property Manager'] },
+  reports:        { label: 'View Reports',                 roles: ['Admin','Property Manager'] },
+  editRentalMatrix: { label: 'Edit Rental Matrix',         roles: ['Admin','Property Manager'] },
   manageUsers:    { label: 'Manage Users',                 roles: ['Admin'], locked: true },
 };
 
@@ -319,7 +319,7 @@ app.post('/api/change-pin', requireAuth, async (req, res) => {
 // GET /api/users
 app.get('/api/users', requireRole('Admin'), async (req, res) => {
   try {
-    const rows = await queryAll(DB.staff, null);
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
     const users = rows.map(u => ({
       id: u.id,
       name: u.properties['Name']?.title?.[0]?.plain_text || '',
@@ -683,7 +683,7 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
 
 // POST /api/remove-key — clear property relation and mark key as unassigned
 // Body: { keyId }
-app.post('/api/remove-key', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/remove-key', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -701,7 +701,7 @@ app.post('/api/remove-key', requireRole('Admin', 'Manager'), async (req, res) =>
 
 // POST /api/mark-missing  — set key Status to "Missing"
 // Body: { keyId }
-app.post('/api/mark-missing', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/mark-missing', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -754,7 +754,7 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
 });
 
 // POST /api/return-key — mark key as back In Office, accepts optional photo + note
-app.post('/api/return-key', requireRole('Admin', 'Manager'), upload.single('photo'), async (req, res) => {
+app.post('/api/return-key', requireRole('Admin', 'Property Manager'), upload.single('photo'), async (req, res) => {
   try {
     const { keyId, note } = req.body;
     const photoFile = req.file;
@@ -825,7 +825,7 @@ app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
 // POST /api/add-key
 // Body: { propertyId, slot, keyTypes, existingKeyId? }
 // Creates a new key record or updates the existing one (when reassigning)
-app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/add-key', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { propertyId, slot, keyTypes, existingKeyId } = req.body;
 
@@ -997,7 +997,7 @@ async function sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, addres
 }
 
 // POST /api/send-rekey-invoice
-app.post('/api/send-rekey-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/send-rekey-invoice', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { propertyCode, address, keysCount, rekeyNote, checkedOutBy } = req.body;
     const { flatFee, perKeyFee } = invoiceConfig;
@@ -1091,7 +1091,7 @@ app.get('/api/codes-and-access', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/codes-and-access/:propertyId — update access code fields
-app.patch('/api/codes-and-access/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+app.patch('/api/codes-and-access/:propertyId', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { garage, frontDoor, communityEntry, lockboxes, mailbox } = req.body;
     const props = {};
@@ -1178,7 +1178,7 @@ app.get('/api/reports', requireAuth, async (req, res) => {
 // ─── Kwikset Cut Routes ───────────────────────────────────────────────────────
 
 // GET /api/kwikset-cuts — all cuts sorted by key number
-app.get('/api/kwikset-cuts', requireRole('Admin', 'Manager'), async (req, res) => {
+app.get('/api/kwikset-cuts', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
     const cuts = rows.map(r => {
@@ -1199,7 +1199,7 @@ app.get('/api/kwikset-cuts', requireRole('Admin', 'Manager'), async (req, res) =
 });
 
 // GET /api/kwikset-cut-for-property/:propertyId — find the cut currently assigned to this property
-app.get('/api/kwikset-cut-for-property/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+app.get('/api/kwikset-cut-for-property/:propertyId', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const rows = await queryAll(DB.kwiksetCuts, {
       property: 'Rental Matrix (Kwikset Cut)',
@@ -1224,7 +1224,7 @@ app.get('/api/kwikset-cut-for-property/:propertyId', requireRole('Admin', 'Manag
 // Body: { propertyId, newCutId }
 // 1. Remove property from old cut's "Rental Matrix (Kwikset Cut)", add to "Historical Assignment"
 // 2. Add property to new cut's "Rental Matrix (Kwikset Cut)"
-app.post('/api/change-kwikset-cut', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/change-kwikset-cut', requireRole('Admin', 'Property Manager'), async (req, res) => {
   try {
     const { propertyId, newCutId } = req.body;
     if (!propertyId || !newCutId) return res.status(400).json({ error: 'propertyId and newCutId required' });
