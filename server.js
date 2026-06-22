@@ -1,5 +1,4 @@
 require('dotenv').config();
-const PDFDocument = require('pdfkit');
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
 });
@@ -54,93 +53,6 @@ async function uploadToDrive(buffer, originalname, mimetype) {
 }
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const NOTION_CONFIG_PAGE_ID = process.env.NOTION_CONFIG_PAGE_ID;
-
-// ─── Permissions ─────────────────────────────────────────────────────────────
-
-const PERMISSION_DEFAULTS = {
-  checkout:       { label: 'Check Out Keys',               roles: ['Admin','Property Manager','Field Manager','Member'] },
-  checkin:        { label: 'Check In Keys',                roles: ['Admin','Property Manager','Field Manager','Member'] },
-  assignProperty: { label: 'Assign Property to Key Tag',   roles: ['Admin','Property Manager','Field Manager'] },
-  markMissing:    { label: 'Mark Key Missing',             roles: ['Admin','Property Manager','Field Manager'] },
-  returnKey:      { label: 'Return Missing Key',           roles: ['Admin','Property Manager','Field Manager'] },
-  rekey:          { label: 'Rekey Property',               roles: ['Admin','Property Manager'] },
-  reports:        { label: 'View Reports',                 roles: ['Admin','Property Manager'] },
-  editRentalMatrix: { label: 'Edit Rental Matrix',         roles: ['Admin','Property Manager'] },
-  manageUsers:    { label: 'Manage Users',                 roles: ['Admin'], locked: true },
-};
-
-let permissionsCache = JSON.parse(JSON.stringify(PERMISSION_DEFAULTS));
-let invoiceConfig = { flatFee: 25.00, perKeyFee: 5.25 };
-
-async function loadAppConfig() {
-  if (!NOTION_CONFIG_PAGE_ID) return;
-  try {
-    const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
-    const codeBlock = blocks.results?.find(b => b.type === 'code');
-    if (!codeBlock) return;
-    const json = codeBlock.code?.rich_text?.[0]?.plain_text || '';
-    if (json) {
-      const saved = JSON.parse(json);
-      // Permissions
-      const perms = saved.permissions || saved; // backward-compat
-      Object.keys(PERMISSION_DEFAULTS).forEach(k => {
-        if (perms[k]) permissionsCache[k] = { ...PERMISSION_DEFAULTS[k], ...perms[k] };
-      });
-      // Invoice config
-      if (saved.invoiceConfig) invoiceConfig = { ...invoiceConfig, ...saved.invoiceConfig };
-      console.log('App config loaded from Notion');
-    }
-  } catch (e) { console.error('loadAppConfig error:', e.message); }
-}
-
-async function saveAppConfig() {
-  if (!NOTION_CONFIG_PAGE_ID) return;
-  try {
-    const payload = { permissions: permissionsCache, invoiceConfig };
-    const json = JSON.stringify(payload, null, 2);
-    const blocks = await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, { headers: notionHeaders() }).then(r => r.json());
-    const codeBlock = blocks.results?.find(b => b.type === 'code');
-    const blockBody = { code: { rich_text: [{ type: 'text', text: { content: json } }], language: 'json' } };
-    if (codeBlock) {
-      await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
-        method: 'PATCH', headers: notionHeaders(), body: JSON.stringify(blockBody),
-      });
-    } else {
-      await fetch(`https://api.notion.com/v1/blocks/${NOTION_CONFIG_PAGE_ID}/children`, {
-        method: 'PATCH', headers: notionHeaders(),
-        body: JSON.stringify({ children: [{ object: 'block', type: 'code', ...blockBody }] }),
-      });
-    }
-  } catch (e) { console.error('saveAppConfig error:', e.message); }
-}
-
-// Keep old name as alias so existing save-permissions call still works
-async function savePermissions(perms) {
-  permissionsCache = perms;
-  await saveAppConfig();
-}
-
-// GET /api/permissions — any authenticated user (client needs this on login)
-app.get('/api/permissions', requireAuth, (req, res) => {
-  res.json(permissionsCache);
-});
-
-// POST /api/permissions — admin only
-app.post('/api/permissions', requireRole('Admin'), async (req, res) => {
-  try {
-    const incoming = req.body;
-    Object.keys(PERMISSION_DEFAULTS).forEach(k => {
-      if (PERMISSION_DEFAULTS[k].locked) return; // Admin-locked features cannot be changed
-      if (incoming[k]?.roles) permissionsCache[k].roles = incoming[k].roles;
-    });
-    await savePermissions(permissionsCache);
-    res.json({ success: true, permissions: permissionsCache });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
 const NOTION_VERSION = '2022-06-28';
 
 const DB = {
@@ -148,8 +60,29 @@ const DB = {
   log: '6493156c-9348-45a5-9632-0552edda23b5',
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
-  kwiksetCuts: '30a61a46-cdef-80b1-aa2b-e6cb42560512',
+  lockboxes: '30a61a46-cdef-80c1-a015-000b55945cbe',
 };
+
+// Codebox API
+const CODEBOX_BASE = 'https://api02.codeboxinc.com';
+let codeboxToken = null;
+let codeboxTokenExp = 0;
+
+async function getCodeboxToken() {
+  if (codeboxToken && Date.now() < codeboxTokenExp - 60000) return codeboxToken;
+  const res = await fetch(`${CODEBOX_BASE}/authentication`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ Username: process.env.CODEBOX_USERNAME, Password: process.env.CODEBOX_PASSWORD }),
+  });
+  if (!res.ok) throw new Error(`Codebox auth failed: ${res.status}`);
+  const token = await res.text();
+  const clean = token.replace(/^"|"$/g, '');
+  const payload = JSON.parse(Buffer.from(clean.split('.')[1], 'base64').toString());
+  codeboxToken = clean;
+  codeboxTokenExp = payload.exp * 1000;
+  return codeboxToken;
+}
 
 function notionHeaders() {
   return {
@@ -237,24 +170,6 @@ function extractPeople(prop) {
 
 // --- API Routes ---
 
-// GET /api/user-list — public endpoint, returns active staff for login dropdown
-app.get('/api/user-list', async (req, res) => {
-  try {
-    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
-    const users = rows
-      .map(u => ({
-        username: u.properties['Username']?.rich_text?.[0]?.plain_text || '',
-        name: u.properties['Name']?.title?.[0]?.plain_text || '',
-      }))
-      .filter(u => u.username)
-      .sort((a, b) => a.name.localeCompare(b.name));
-    res.json(users);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // POST /api/login
 app.post('/api/login', async (req, res) => {
   try {
@@ -316,10 +231,24 @@ app.post('/api/change-pin', requireAuth, async (req, res) => {
 
 // --- Admin: User Management ---
 
+// GET /api/user-list — public, returns only name+username for login dropdown
+app.get('/api/user-list', async (req, res) => {
+  try {
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
+    const users = rows.map(r => ({
+      username: extractRichText(r.properties['Username']),
+      name: extractRichText(r.properties['Name']),
+    })).filter(u => u.username);
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/users
 app.get('/api/users', requireRole('Admin'), async (req, res) => {
   try {
-    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
+    const rows = await queryAll(DB.staff, null);
     const users = rows.map(u => ({
       id: u.id,
       name: u.properties['Name']?.title?.[0]?.plain_text || '',
@@ -413,30 +342,6 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
       })
       .filter(e => e.logEntry && e.dateOut);
 
-    // Resolve property addresses for unique property IDs
-    const propIds = [...new Set(entries.flatMap(e => e.property).map(url => {
-      const raw = url.split('/').pop().replace(/-/g, '');
-      return `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}`;
-    }).filter(Boolean))];
-
-    const propMap = {};
-    await Promise.all(propIds.map(async id => {
-      try {
-        const page = await fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json());
-        propMap[id] = extractRichText(page.properties?.['Street Address - Property']) || '';
-      } catch (_) {}
-    }));
-
-    entries.forEach(e => {
-      const rawId = e.property[0]?.split('/').pop().replace(/-/g, '');
-      if (rawId) {
-        const fmtId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
-        e.propertyAddress = propMap[fmtId] || '';
-      } else {
-        e.propertyAddress = '';
-      }
-    });
-
     res.json(entries);
   } catch (e) {
     console.error(e);
@@ -445,10 +350,8 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
 });
 
 // GET /api/keys-for-property/:propertyId
-// Fetches the property page, reads its "Keys & Access" relation, returns those key pages
 app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
   try {
-    // 1. Fetch the property page to get its Keys & Access relation
     const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
       headers: notionHeaders(),
     }).then(r => r.json());
@@ -457,24 +360,16 @@ app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
       throw new Error(propPage.message);
     }
 
-    // Try property page relation first; fall back to querying Keys DB directly
-    let keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    let keyPages;
-
-    if (keyRelation.length > 0) {
-      keyPages = await Promise.all(
-        keyRelation.map(r =>
-          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-        )
-      );
-    } else {
-      // Fallback: query Keys DB for any key whose Rental Matrix points to this property
-      const fallbackRows = await queryAll(DB.keys, {
-        property: 'Rental Matrix',
-        relation: { contains: req.params.propertyId },
-      });
-      keyPages = fallbackRows;
+    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
+    if (keyRelation.length === 0) {
+      return res.json([]);
     }
+
+    const keyPages = await Promise.all(
+      keyRelation.map(r =>
+        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+      )
+    );
 
     const keys = keyPages
       .filter(row => row.object !== 'error')
@@ -483,7 +378,7 @@ app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
         return {
           id: row.id,
           url: row.url,
-          slot: extractRichText(p['Key Tag #']),
+          slot: extractRichText(p['Key Slot #']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -511,7 +406,6 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
 
     const results = data.results
       .filter(r => {
-        // Only pages that belong to the properties database
         return r.parent?.database_id?.replace(/-/g, '') === DB.properties.replace(/-/g, '');
       })
       .map(r => {
@@ -542,7 +436,6 @@ app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) 
 
     const logTitle = `Key #${keySlot} - ${mtTimestamp()}`;
 
-    // 1. Create log entry
     const logPage = await notionPost('https://api.notion.com/v1/pages', {
       parent: { database_id: DB.log },
       properties: {
@@ -554,7 +447,6 @@ app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) 
       },
     });
 
-    // 1b. Save checkout photo to Google Drive and store link in Notion
     if (photoFile) {
       const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
       await notionPatch(`https://api.notion.com/v1/pages/${logPage.id}`, {
@@ -564,7 +456,6 @@ app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) 
       });
     }
 
-    // 2. Update key: Status = Checked Out, append log entry to relation
     const updatedLogRelation = [...(existingLogRelation || []).map(url => {
       const id = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
       return { id: `${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}` };
@@ -593,19 +484,14 @@ app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) =
 
     const logProps = { 'Date Returned': { date: { start: today } } };
     if (photoFile) {
-      try {
-        const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
-        logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
-      } catch (photoErr) {
-        console.error('Check-in photo upload failed (continuing):', photoErr.message);
-      }
+      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
+      logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
     }
 
-    const updates = [notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps })];
-    if (keyId && keyId !== 'undefined' && keyId !== 'null') {
-      updates.push(notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }));
-    }
-    await Promise.all(updates);
+    await Promise.all([
+      notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps }),
+      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }),
+    ]);
 
     res.json({ success: true });
   } catch (e) {
@@ -614,16 +500,13 @@ app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) =
   }
 });
 
-// GET /api/key-by-log/:logId  — find key page associated with a log entry
+// GET /api/key-by-log/:logId
 app.get('/api/key-by-log/:logId', requireAuth, async (req, res) => {
   try {
     const logPage = await fetch(`https://api.notion.com/v1/pages/${req.params.logId}`, {
       headers: notionHeaders(),
     }).then(r => r.json());
 
-    // The log entry has a relation back to the key via "Key Check-In/ Check-Out Log"
-    // But we need to find the key that has this log in its relation.
-    // More direct: query Keys DB filtered by the log relation.
     const rows = await queryAll(DB.keys, {
       property: 'Key Check-In/ Check-Out Log',
       relation: { contains: req.params.logId },
@@ -637,7 +520,7 @@ app.get('/api/key-by-log/:logId', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/all-keys-for-property/:propertyId — all keys regardless of status
+// GET /api/all-keys-for-property/:propertyId
 app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) => {
   try {
     const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
@@ -645,21 +528,14 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
     }).then(r => r.json());
     if (propPage.object === 'error') throw new Error(propPage.message);
 
-    let keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    let keyPages;
+    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
+    if (keyRelation.length === 0) return res.json([]);
 
-    if (keyRelation.length > 0) {
-      keyPages = await Promise.all(
-        keyRelation.map(r =>
-          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-        )
-      );
-    } else {
-      keyPages = await queryAll(DB.keys, {
-        property: 'Rental Matrix',
-        relation: { contains: req.params.propertyId },
-      });
-    }
+    const keyPages = await Promise.all(
+      keyRelation.map(r =>
+        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+      )
+    );
 
     const keys = keyPages
       .filter(row => row.object !== 'error')
@@ -667,7 +543,7 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
         const p = row.properties;
         return {
           id: row.id,
-          slot: extractRichText(p['Key Tag #']),
+          slot: extractRichText(p['Key Slot #']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -681,9 +557,8 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
   }
 });
 
-// POST /api/remove-key — clear property relation and mark key as unassigned
-// Body: { keyId }
-app.post('/api/remove-key', requireRole('Admin', 'Property Manager'), async (req, res) => {
+// POST /api/remove-key
+app.post('/api/remove-key', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -699,9 +574,8 @@ app.post('/api/remove-key', requireRole('Admin', 'Property Manager'), async (req
   }
 });
 
-// POST /api/mark-missing  — set key Status to "Missing"
-// Body: { keyId }
-app.post('/api/mark-missing', requireRole('Admin', 'Property Manager'), async (req, res) => {
+// POST /api/mark-missing
+app.post('/api/mark-missing', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { keyId } = req.body;
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
@@ -716,7 +590,7 @@ app.post('/api/mark-missing', requireRole('Admin', 'Property Manager'), async (r
   }
 });
 
-// GET /api/missing-keys — all keys with Status = "Missing", with property name
+// GET /api/missing-keys
 app.get('/api/missing-keys', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
@@ -726,11 +600,10 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
 
     const keys = await Promise.all(rows.map(async row => {
       const p = row.properties;
-      const slot = extractRichText(p['Key Tag #']);
+      const slot = extractRichText(p['Key Slot #']);
       const keyTypes = extractMultiSelect(p['Key Types']);
       const rentalUrls = extractRelation(p['Rental Matrix']);
 
-      // Fetch property name for each related property
       let propertyName = '';
       if (rentalUrls.length > 0) {
         try {
@@ -753,8 +626,8 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/return-key — mark key as back In Office, accepts optional photo + note
-app.post('/api/return-key', requireRole('Admin', 'Property Manager'), upload.single('photo'), async (req, res) => {
+// POST /api/return-key
+app.post('/api/return-key', requireRole('Admin', 'Manager'), upload.single('photo'), async (req, res) => {
   try {
     const { keyId, note } = req.body;
     const photoFile = req.file;
@@ -766,7 +639,6 @@ app.post('/api/return-key', requireRole('Admin', 'Property Manager'), upload.sin
     }
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: keyProps });
 
-    // Append note as a page block if provided
     if (note) {
       const timestamp = mtTimestamp();
       await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
@@ -786,11 +658,11 @@ app.post('/api/return-key', requireRole('Admin', 'Property Manager'), upload.sin
   }
 });
 
-// GET /api/key-by-slot/:slot — find existing key record by slot number
+// GET /api/key-by-slot/:slot
 app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
-      property: 'Key Tag #',
+      property: 'Key Slot #',
       title: { equals: req.params.slot },
     });
     if (rows.length === 0) return res.json(null);
@@ -810,7 +682,7 @@ app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
     }
     res.json({
       id: row.id,
-      slot: extractRichText(p['Key Tag #']),
+      slot: extractRichText(p['Key Slot #']),
       status: extractSelect(p['Status']),
       keyTypes: extractMultiSelect(p['Key Types']),
       propertyName,
@@ -823,25 +695,21 @@ app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
 });
 
 // POST /api/add-key
-// Body: { propertyId, slot, keyTypes, existingKeyId? }
-// Creates a new key record or updates the existing one (when reassigning)
-app.post('/api/add-key', requireRole('Admin', 'Property Manager'), async (req, res) => {
+app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { propertyId, slot, keyTypes, existingKeyId } = req.body;
 
     const properties = {
-      'Key Tag #': { title: [{ text: { content: String(slot) } }] },
+      'Key Slot #': { title: [{ text: { content: String(slot) } }] },
       'Status': { select: { name: 'In Office' } },
       'Key Types': { multi_select: keyTypes.map(name => ({ name })) },
       'Rental Matrix': { relation: [{ id: propertyId }] },
     };
 
     if (existingKeyId) {
-      // Update existing record
       await notionPatch(`https://api.notion.com/v1/pages/${existingKeyId}`, { properties });
       res.json({ success: true, keyId: existingKeyId, created: false });
     } else {
-      // Create new record
       const page = await notionPost('https://api.notion.com/v1/pages', {
         parent: { database_id: DB.keys },
         properties,
@@ -854,444 +722,14 @@ app.post('/api/add-key', requireRole('Admin', 'Property Manager'), async (req, r
   }
 });
 
-// ─── Invoice Config & Sending ─────────────────────────────────────────────────
-
-app.get('/api/invoice-config', requireRole('Admin'), (req, res) => {
-  res.json(invoiceConfig);
-});
-
-app.patch('/api/invoice-config', requireRole('Admin'), async (req, res) => {
-  try {
-    const { flatFee, perKeyFee } = req.body;
-    if (flatFee   !== undefined) invoiceConfig.flatFee   = Number(flatFee);
-    if (perKeyFee !== undefined) invoiceConfig.perKeyFee = Number(perKeyFee);
-    await saveAppConfig();
-    res.json({ success: true, invoiceConfig });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-function generateInvoiceNumber() {
-  const date = new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise' }).replace(/\//g, '');
-  const [m, d, y] = date.split('');
-  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Boise' }).replace(/-/g, '');
-  const rand = String(Math.floor(1000 + Math.random() * 9000));
-  return `KRB-${dateStr}-${rand}`;
-}
-
-function buildInvoicePDF({ invoiceNumber, date, propertyCode, address, keysCount, flatFee, perKeyFee, rekeyNote, checkedOutBy }) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ size: 'LETTER', margin: 60 });
-      const chunks = [];
-      doc.on('data', c => chunks.push(c));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-
-      const charcoal = '#333333';
-      const green    = '#67c829';
-      const gray     = '#515151';
-      const lightGray= '#e5e7eb';
-      const total    = flatFee + keysCount * perKeyFee;
-
-      // Header bar
-      doc.rect(0, 0, 612, 100).fill(charcoal);
-      doc.fillColor(green).fontSize(9).font('Helvetica-Bold')
-         .text('KEYRENTER BOISE PROPERTY MANAGEMENT', 60, 22, { characterSpacing: 1 });
-      doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold')
-         .text('Invoice', 60, 36);
-      doc.fillColor('rgba(255,255,255,0.6)').fontSize(8).font('Helvetica')
-         .text('999 W Main Street, Ste 100, Boise ID 83702', 60, 76);
-      doc.fillColor('rgba(255,255,255,0.5)').fontSize(8).font('Helvetica')
-         .text('Invoice #', 400, 34);
-      doc.fillColor('#ffffff').fontSize(11).font('Helvetica-Bold')
-         .text(invoiceNumber, 400, 46);
-
-      // Meta row — Date and Property only
-      doc.fillColor(gray).fontSize(9).font('Helvetica')
-         .text('Date:', 60, 120).text('Property:', 250, 120);
-      doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold')
-         .text(date, 60, 133)
-         .text(`${propertyCode}`, 250, 133);
-      doc.fillColor(gray).fontSize(9).font('Helvetica')
-         .text(address, 250, 146);
-
-      // Divider
-      doc.moveTo(60, 172).lineTo(552, 172).strokeColor(lightGray).lineWidth(1).stroke();
-
-      // Line items header
-      doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
-         .text('DESCRIPTION', 60, 188, { characterSpacing: 0.8 })
-         .text('AMOUNT', 480, 188, { align: 'right', width: 72 });
-      doc.moveTo(60, 202).lineTo(552, 202).strokeColor(lightGray).lineWidth(0.5).stroke();
-
-      // Line items
-      doc.fillColor(charcoal).fontSize(10).font('Helvetica')
-         .text('Rekey service — flat fee', 60, 214)
-         .text(`$${flatFee.toFixed(2)}`, 480, 214, { align: 'right', width: 72 });
-      doc.moveTo(60, 232).lineTo(552, 232).strokeColor(lightGray).lineWidth(0.5).stroke();
-
-      const keyLine = `Keys provided to resident (${keysCount} × $${perKeyFee.toFixed(2)})`;
-      const keyAmt  = (keysCount * perKeyFee).toFixed(2);
-      doc.fillColor(charcoal).fontSize(10).font('Helvetica')
-         .text(keyLine, 60, 242)
-         .text(`$${keyAmt}`, 480, 242, { align: 'right', width: 72 });
-      doc.moveTo(60, 260).lineTo(552, 260).strokeColor(charcoal).lineWidth(0.75).stroke();
-
-      // Total
-      doc.fillColor(charcoal).fontSize(12).font('Helvetica-Bold')
-         .text('Total due', 60, 272)
-         .text(`$${total.toFixed(2)}`, 480, 272, { align: 'right', width: 72 });
-
-      // Notes box
-      if (rekeyNote) {
-        doc.rect(60, 310, 492, 50).fillAndStroke('#f9fafb', lightGray);
-        doc.fillColor(gray).fontSize(8).font('Helvetica-Bold')
-           .text('SERVICE NOTES', 72, 322, { characterSpacing: 0.8 });
-        doc.fillColor(charcoal).fontSize(9).font('Helvetica')
-           .text(rekeyNote, 72, 334, { width: 468 });
-      }
-
-      doc.end();
-    } catch (e) { reject(e); }
-  });
-}
-
-async function sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total }) {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is not configured in Railway environment variables.');
-  }
-  const fromEmail = process.env.BILL_FROM_EMAIL || `bills@gokrb.com`;
-  const body = {
-    from: `Keyrenter Boise <${fromEmail}>`,
-    to: 'keyrenter078@invoices.appfolio.com',
-    subject: `Rekey Invoice ${invoiceNumber} — ${address}`,
-    text: [
-      `Invoice: ${invoiceNumber}`,
-      `Date: ${new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise' })}`,
-      `Property: ${propertyCode} — ${address}`,
-      `Service: Rekey`,
-      `Amount Due: $${total.toFixed(2)}`,
-      '',
-      'Vendor: Keyrenter Boise Property Management',
-      'keyrenter078@invoices.appfolio.com',
-    ].join('\n'),
-    attachments: [{
-      filename: `${invoiceNumber}.pdf`,
-      content: pdfBuffer.toString('base64'),
-    }],
-  };
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Resend error: ${err}`);
-  }
-  return true;
-}
-
-// POST /api/send-rekey-invoice
-app.post('/api/send-rekey-invoice', requireRole('Admin', 'Property Manager'), async (req, res) => {
-  try {
-    const { propertyCode, address, keysCount, rekeyNote, checkedOutBy } = req.body;
-    const { flatFee, perKeyFee } = invoiceConfig;
-    const total = flatFee + Number(keysCount) * perKeyFee;
-    const invoiceNumber = generateInvoiceNumber();
-    const date = new Date().toLocaleDateString('en-US', { timeZone: 'America/Boise', year: 'numeric', month: 'long', day: 'numeric' });
-
-    const pdfBuffer = await buildInvoicePDF({
-      invoiceNumber, date, propertyCode, address,
-      keysCount: Number(keysCount), flatFee, perKeyFee, rekeyNote, checkedOutBy,
-    });
-
-    const sent = await sendInvoiceEmail({ pdfBuffer, invoiceNumber, propertyCode, address, total });
-    res.json({ success: true, invoiceNumber, total, emailSent: sent });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ─── Codes & Access ───────────────────────────────────────────────────────────
-
-// GET /api/codes-and-access — all active properties with access code fields + key/kwikset data
-app.get('/api/codes-and-access', requireAuth, async (req, res) => {
-  try {
-    // Parallel: fetch properties, all keys, all kwikset cuts
-    const [propRows, keyRows, cutRows] = await Promise.all([
-      queryAll(DB.properties,
-        { property: 'Active Property', select: { equals: 'ACTIVE' } },
-        [{ property: 'Property Code', direction: 'ascending' }]
-      ),
-      queryAll(DB.keys, null),
-      queryAll(DB.kwiksetCuts, null),
-    ]);
-
-    // Build propertyId → keys map
-    const keysByProp = {};
-    keyRows.forEach(r => {
-      const p = r.properties;
-      const rentalUrls = extractRelation(p['Rental Matrix']);
-      rentalUrls.forEach(url => {
-        const rawId = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
-        const propId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
-        if (!keysByProp[propId]) keysByProp[propId] = [];
-        keysByProp[propId].push({
-          id: r.id,
-          tagNumber: extractRichText(p['Key Tag #']),
-          status: extractSelect(p['Status']),
-          keyTypes: extractMultiSelect(p['Key Types']),
-        });
-      });
-    });
-
-    // Build propertyId → kwikset cut map
-    const cutByProp = {};
-    cutRows.forEach(r => {
-      const p = r.properties;
-      const rentalUrls = extractRelation(p['Rental Matrix (Kwikset Cut)']);
-      rentalUrls.forEach(url => {
-        const rawId = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
-        const propId = `${rawId.slice(0,8)}-${rawId.slice(8,12)}-${rawId.slice(12,16)}-${rawId.slice(16,20)}-${rawId.slice(20)}`;
-        cutByProp[propId] = {
-          keyNumber: extractRichText(p['Kwikset Key #']),
-          keyCut: p['Key Cut']?.number ?? null,
-        };
-      });
-    });
-
-    const properties = propRows.map(r => {
-      const p = r.properties;
-      return {
-        id: r.id,
-        propertyCode:    extractRichText(p['Property Code']),
-        address:         extractRichText(p['Street Address - Property']),
-        city:            p['City']?.rich_text?.[0]?.plain_text || p['City']?.select?.name || '',
-        garage:          p['Garage Keypad']?.rich_text?.[0]?.plain_text || '',
-        frontDoor:       p['Front Door Code']?.number ?? p['Front Door Code']?.rich_text?.[0]?.plain_text ?? '',
-        lockboxSN:       p['Lockboxes']?.number ?? p['Lockboxes']?.rich_text?.[0]?.plain_text ?? '',
-        mailbox:         p['Mailbox #']?.rich_text?.[0]?.plain_text || '',
-        communityEntry:  p['Community Entry Code']?.rich_text?.[0]?.plain_text || '',
-        keys:            keysByProp[r.id] || [],
-        kwikset:         cutByProp[r.id] || null,
-      };
-    });
-
-    res.json(properties);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// PATCH /api/codes-and-access/:propertyId — update access code fields
-app.patch('/api/codes-and-access/:propertyId', requireRole('Admin', 'Property Manager'), async (req, res) => {
-  try {
-    const { garage, frontDoor, communityEntry, lockboxes, mailbox } = req.body;
-    const props = {};
-    if (garage       !== undefined) props['Garage Keypad']        = { rich_text: [{ text: { content: String(garage) } }] };
-    if (frontDoor    !== undefined) props['Front Door Code']       = { number: frontDoor === '' ? null : Number(frontDoor) };
-    if (communityEntry !== undefined) props['Community Entry Code'] = { rich_text: [{ text: { content: String(communityEntry) } }] };
-    if (lockboxes    !== undefined) props['Lockboxes']             = { number: lockboxes === '' ? null : Number(lockboxes) };
-    if (mailbox      !== undefined) props['Mailbox #']             = { rich_text: [{ text: { content: String(mailbox) } }] };
-    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ─── Reports ─────────────────────────────────────────────────────────────────
-
-// GET /api/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&staffId=&keySlot=&propertyId=
-app.get('/api/reports', requireAuth, async (req, res) => {
-  try {
-    const { from, to, staffId, keySlot, propertyId } = req.query;
-
-    const filters = [];
-    if (from) filters.push({ property: 'Date Out', date: { on_or_after: from } });
-    if (to)   filters.push({ property: 'Date Out', date: { on_or_before: to } });
-    if (staffId)    filters.push({ property: 'Checked Out By', people: { contains: staffId } });
-    if (propertyId) filters.push({ property: 'Property', relation: { contains: propertyId } });
-    if (keySlot)    filters.push({ property: 'Log Entry', title: { contains: `Key #${keySlot}` } });
-
-    const filter = filters.length === 0 ? undefined
-      : filters.length === 1 ? filters[0]
-      : { and: filters };
-
-    const rows = await queryAll(DB.log, filter, [{ property: 'Date Out', direction: 'descending' }]);
-
-    // Collect unique property IDs to resolve names
-    const propIds = [...new Set(
-      rows.flatMap(r => (r.properties['Property']?.relation || []).map(rel => rel.id))
-    )];
-    const propMap = {};
-    await Promise.all(propIds.map(async id => {
-      try {
-        const page = await fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json());
-        propMap[id] = extractRichText(page.properties?.['Street Address - Property'])
-          || extractRichText(page.properties?.['Property Code']) || id;
-      } catch (_) { propMap[id] = id; }
-    }));
-
-    const entries = rows.map(row => {
-      const p = row.properties;
-      const dateOut = extractDate(p['Date Out'], 'start');
-      const dateDue = extractDate(p['Date Out'], 'end');
-      const dateReturned = extractDate(p['Date Returned'], 'start');
-      const propRelation = p['Property']?.relation || [];
-      const propId = propRelation[0]?.id || null;
-
-      let durationDays = null;
-      if (dateOut && dateReturned) {
-        durationDays = Math.round((new Date(dateReturned) - new Date(dateOut)) / 86400000);
-      }
-
-      return {
-        id: row.id,
-        logEntry: extractRichText(p['Log Entry']),
-        checkedOutBy: (p['Checked Out By']?.people || []).map(u => ({ id: u.id, name: u.name || '' })),
-        dateOut,
-        dateDue,
-        dateReturned,
-        purpose: extractSelect(p['Purpose']),
-        propertyId: propId,
-        propertyName: propId ? (propMap[propId] || '') : '',
-        durationDays,
-      };
-    });
-
-    res.json(entries);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ─── Kwikset Cut Routes ───────────────────────────────────────────────────────
-
-// GET /api/kwikset-cuts — all cuts sorted by key number
-app.get('/api/kwikset-cuts', requireRole('Admin', 'Property Manager'), async (req, res) => {
-  try {
-    const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
-    const cuts = rows.map(r => {
-      const p = r.properties;
-      return {
-        id: r.id,
-        keyNumber: extractRichText(p['Kwikset Key #']),
-        keyCut: p['Key Cut']?.number ?? null,
-        keyBox: p['KRB Key Box #']?.rich_text?.[0]?.plain_text || '',
-        currentProperties: extractRelation(p['Rental Matrix (Kwikset Cut)']),
-      };
-    });
-    res.json(cuts);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// GET /api/kwikset-cut-for-property/:propertyId — find the cut currently assigned to this property
-app.get('/api/kwikset-cut-for-property/:propertyId', requireRole('Admin', 'Property Manager'), async (req, res) => {
-  try {
-    const rows = await queryAll(DB.kwiksetCuts, {
-      property: 'Rental Matrix (Kwikset Cut)',
-      relation: { contains: req.params.propertyId },
-    });
-    if (rows.length === 0) return res.json(null);
-    const r = rows[0];
-    const p = r.properties;
-    res.json({
-      id: r.id,
-      keyNumber: extractRichText(p['Kwikset Key #']),
-      keyCut: p['Key Cut']?.number ?? null,
-      keyBox: p['KRB Key Box #']?.rich_text?.[0]?.plain_text || '',
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/change-kwikset-cut
-// Body: { propertyId, newCutId }
-// 1. Remove property from old cut's "Rental Matrix (Kwikset Cut)", add to "Historical Assignment"
-// 2. Add property to new cut's "Rental Matrix (Kwikset Cut)"
-app.post('/api/change-kwikset-cut', requireRole('Admin', 'Property Manager'), async (req, res) => {
-  try {
-    const { propertyId, newCutId } = req.body;
-    if (!propertyId || !newCutId) return res.status(400).json({ error: 'propertyId and newCutId required' });
-
-    const propIdFormatted = propertyId.replace(/-/g, '');
-    const propUrl = `https://www.notion.so/${propIdFormatted}`;
-
-    // Find current cut for this property
-    const currentRows = await queryAll(DB.kwiksetCuts, {
-      property: 'Rental Matrix (Kwikset Cut)',
-      relation: { contains: propertyId },
-    });
-
-    // Helper: convert relation URLs to Notion relation array
-    function urlsToRelation(urls) {
-      return urls.map(url => {
-        const raw = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
-        return { id: `${raw.slice(0,8)}-${raw.slice(8,12)}-${raw.slice(12,16)}-${raw.slice(16,20)}-${raw.slice(20)}` };
-      });
-    }
-
-    if (currentRows.length > 0) {
-      const oldCut = currentRows[0];
-      const oldP = oldCut.properties;
-
-      // Remove property from old cut's Rental Matrix
-      const oldRental = extractRelation(oldP['Rental Matrix (Kwikset Cut)'])
-        .filter(u => !u.includes(propIdFormatted));
-      // Add property to old cut's Historical Assignment
-      const oldHistory = extractRelation(oldP['Historical Assignment']);
-      if (!oldHistory.some(u => u.includes(propIdFormatted))) oldHistory.push(propUrl);
-
-      await notionPatch(`https://api.notion.com/v1/pages/${oldCut.id}`, {
-        properties: {
-          'Rental Matrix (Kwikset Cut)': { relation: urlsToRelation(oldRental) },
-          'Historical Assignment': { relation: urlsToRelation(oldHistory) },
-        },
-      });
-    }
-
-    // Add property to new cut's Rental Matrix
-    const newCutPage = await fetch(`https://api.notion.com/v1/pages/${newCutId}`, { headers: notionHeaders() }).then(r => r.json());
-    const newRental = extractRelation(newCutPage.properties?.['Rental Matrix (Kwikset Cut)'] || { type: 'relation', relation: [] });
-    if (!newRental.some(u => u.includes(propIdFormatted))) newRental.push(propUrl);
-
-    await notionPatch(`https://api.notion.com/v1/pages/${newCutId}`, {
-      properties: {
-        'Rental Matrix (Kwikset Cut)': { relation: urlsToRelation(newRental) },
-      },
-    });
-
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
-// Track which log entries we've already alerted about today to avoid repeat pings
 const notifiedToday = new Set();
 
 const MT_TZ = 'America/Boise';
 
 function mtDateStr(date = new Date()) {
-  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); // en-CA gives YYYY-MM-DD
+  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ });
 }
 
 function mtTimestamp(date = new Date()) {
@@ -1299,11 +737,9 @@ function mtTimestamp(date = new Date()) {
 }
 
 function clearNotifiedAtMidnight() {
-  // Schedule reset at Mountain Time midnight
   const now = new Date();
   const tomorrowMT = new Date(now.toLocaleDateString('en-CA', { timeZone: MT_TZ }) + 'T00:00:00');
   tomorrowMT.setDate(tomorrowMT.getDate() + 1);
-  const msMT = new Date(tomorrowMT.toLocaleString('en-US', { timeZone: MT_TZ }));
   const msUntilMidnight = tomorrowMT - now;
   setTimeout(() => {
     notifiedToday.clear();
@@ -1368,7 +804,7 @@ async function checkOverdueKeys() {
   }
 }
 
-// POST /api/test-slack — manual trigger for testing
+// POST /api/test-slack
 app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
   try {
     await sendSlackAlert('✅ KRB Key App Slack connection test — working!');
@@ -1378,17 +814,74 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
   }
 });
 
+// ── Lockboxes ──────────────────────────────────────────────────────────────
+
+// GET /api/lockboxes
+app.get('/api/lockboxes', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.lockboxes, null, [{ property: 'Lockbox SN', direction: 'ascending' }]);
+    const boxes = rows.map(r => {
+      const p = r.properties;
+      const propRel = p['Last Known Property']?.relation || [];
+      return {
+        id: r.id,
+        sn: extractRichText(p['Lockbox SN']),
+        krbBox: p['KRB Key Box #']?.number || null,
+        status: p['Status']?.select?.name || 'Unassigned',
+        propertyId: propRel[0]?.id || null,
+        propertyName: extractRichText(p['Merge']) || null,
+        notes: extractRichText(p['Notes']),
+      };
+    }).filter(b => b.sn);
+    res.json(boxes);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/lockboxes/:id
+app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { status, propertyId } = req.body;
+    const props = {};
+    if (status) props['Status'] = { select: { name: status } };
+    if (propertyId !== undefined) {
+      props['Last Known Property'] = propertyId
+        ? { relation: [{ id: propertyId }] }
+        : { relation: [] };
+    }
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: props });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/lockboxes/generate-code
+app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { serialNumber, date } = req.body;
+    if (!serialNumber || !date) return res.status(400).json({ error: 'serialNumber and date required' });
+    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) {
+      return res.status(503).json({ error: 'Codebox credentials not configured' });
+    }
+    const token = await getCodeboxToken();
+    const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+      body: JSON.stringify({ SerialNumber: parseInt(serialNumber), DateOfShowing: date }),
+    });
+    const data = await cbRes.json();
+    if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
-  loadAppConfig().catch(e => console.error('Startup config load failed:', e.message));
-  // One-time migration: rename "Key Slot #" → "Key Tag #" in Notion
-  fetch(`https://api.notion.com/v1/databases/${DB.keys}`, {
-    method: 'PATCH', headers: notionHeaders(),
-    body: JSON.stringify({ properties: { 'Key Slot #': { name: 'Key Tag #' } } }),
-  }).then(r => r.ok ? console.log('Notion: Key Slot # renamed to Key Tag #') : null)
-    .catch(() => null); // Silent — may already be renamed
-  // Check immediately on startup, then every hour
   checkOverdueKeys().catch(e => console.error('Startup overdue check failed:', e.message));
   setInterval(() => checkOverdueKeys().catch(e => console.error('Overdue check failed:', e.message)), 60 * 60 * 1000);
   if (!SLACK_WEBHOOK_URL) console.warn('⚠️  SLACK_WEBHOOK_URL not set — Slack alerts disabled');
