@@ -70,39 +70,28 @@
       padding-left: 10px;
     }
 
-    /* ── Nav dropdown ── */
-    .nav-wrap { display:flex; align-items:center; padding: 0 0 10px; gap:10px; }
-    .nav-menu-btn {
-      display:flex; flex-direction:column; justify-content:center; gap:5px;
-      background:none; border:none; cursor:pointer; padding:6px 4px; flex-shrink:0;
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 2px;
     }
-    .nav-menu-btn span {
-      display:block; width:22px; height:2px; background:rgba(255,255,255,.7); border-radius:2px;
-      transition: background .15s;
-    }
-    .nav-menu-btn:hover span { background:#fff; }
-    .nav-current-tab {
-      font-size:.9rem; font-weight:700; color:var(--green-light);
-      letter-spacing:.04em; text-transform:uppercase;
-    }
-    .nav-dropdown {
-      position:absolute; top:100%; left:0; width:220px;
-      background:var(--charcoal); border-radius:0 0 12px 12px;
-      box-shadow:0 8px 24px rgba(0,0,0,.35); z-index:200;
-      overflow:hidden; display:none;
-    }
-    .nav-dropdown.open { display:block; }
     .tab-btn {
-      display:block; width:100%; text-align:left;
-      background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.07);
-      color:rgba(255,255,255,.65); font-size:.95rem; font-weight:600;
-      padding:14px 20px; cursor:pointer; transition:background .12s, color .12s;
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.55);
+      font-size: .85rem;
+      font-weight: 600;
+      padding: 10px 4px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
     }
-    .tab-btn:last-child { border-bottom:none; }
-    .tab-btn:hover { background:rgba(255,255,255,.07); color:#fff; }
-    .tab-btn.active { color:var(--green-light); background:rgba(103,200,41,.08); }
-    /* hide tabs container visually — items still in DOM for showTab() */
-    .tabs { position:relative; }
+    .tab-btn:hover { color: rgba(255,255,255,.85); }
+    .tab-btn.active {
+      color: var(--green-light);
+      border-bottom-color: var(--green);
+    }
 
     /* ── Main content ── */
     main { flex: 1; padding: 16px; max-width: 600px; width: 100%; margin: 0 auto; }
@@ -213,22 +202,22 @@
     }
     .key-btn {
       flex: 0 0 auto;
-      min-width: 120px;
+      width: 90px;
       background: var(--gray-50);
       border: 1.5px solid var(--gray-200);
-      border-radius: 10px;
-      padding: 14px 16px;
+      border-radius: 8px;
+      padding: 12px;
       text-align: left;
       cursor: pointer;
       transition: all .15s;
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 10px;
     }
     .key-btn:hover { border-color: var(--green); background: var(--green-bg); }
     .key-btn.selected { border-color: var(--green-dark); background: var(--green); color: #fff; }
-    .key-btn .key-num { font-size: 1.2rem; font-weight: 700; display: block; }
-    .key-btn .key-type { font-size: .78rem; color: inherit; opacity: .8; display: block; line-height: 1.3; }
+    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; }
+    .key-btn .key-type { font-size: .75rem; color: inherit; opacity: .75; }
     .key-missing-btn {
       background: #fde8e8;
       border: 1.5px solid #f8b4b4;
@@ -348,63 +337,6 @@
     }
     .btn-dash-action:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
     .btn-dash-action .icon { font-size: 1rem; }
-    .dash-primary-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .btn-dash-primary {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 20px 10px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: opacity .15s, transform .1s;
-    }
-    .btn-dash-primary:hover { opacity: .88; transform: translateY(-1px); }
-    .btn-dash-primary:active { transform: translateY(0); }
-    .btn-dash-primary .icon { font-size: 1.6rem; }
-    .btn-dash-primary.checkout { background: var(--green); color: var(--charcoal); }
-    .btn-dash-primary.checkin  { background: var(--charcoal); color: #fff; }
-    .report-preset {
-      padding: 6px 14px; border: 1.5px solid var(--gray-200); border-radius: 20px;
-      background: #fff; font-size: .8rem; font-weight: 600; color: var(--gray-600);
-      cursor: pointer; transition: all .15s;
-    }
-    .report-preset:hover { border-color: var(--green); color: var(--green-dark); }
-    .report-preset.active { background: var(--green); border-color: var(--green); color: #fff; }
-    .report-stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
-    .report-stat { flex:1; min-width:100px; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:10px; padding:12px 14px; text-align:center; }
-    .report-stat .stat-val { font-size:1.5rem; font-weight:700; color:var(--charcoal); }
-    .report-stat .stat-lbl { font-size:.72rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
-    .report-table { width:100%; border-collapse:collapse; font-size:.82rem; }
-    .report-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--gray-200); color:var(--gray-600); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
-    .report-table td { padding:9px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
-    .report-table tr:last-child td { border-bottom:none; }
-    .report-table tr:hover td { background:var(--gray-50); }
-    .report-overdue { color:var(--red); font-weight:600; }
-    .report-export { float:right; padding:5px 14px; border:1.5px solid var(--gray-200); border-radius:6px; background:#fff; font-size:.78rem; font-weight:600; color:var(--gray-600); cursor:pointer; }
-    .report-export:hover { border-color:var(--green); color:var(--green-dark); }
-    .codes-gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
-    .code-card { background:#fff; border:1.5px solid var(--gray-200); border-radius:12px; padding:16px; position:relative; transition:box-shadow .15s; }
-    .code-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); border-color:var(--gray-400); }
-    .code-card-header { margin-bottom:12px; }
-    .code-card-code { font-size:.95rem; font-weight:800; color:var(--charcoal); }
-    .code-card-address { font-size:.78rem; color:var(--gray-600); margin-top:2px; }
-    .code-card-fields { display:flex; flex-direction:column; gap:7px; }
-    .code-field { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .code-field-label { font-size:.72rem; color:var(--gray-600); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
-    .code-val { font-family:monospace; font-size:.88rem; font-weight:700; color:var(--charcoal); background:var(--gray-100); padding:2px 8px; border-radius:4px; }
-    .code-empty { color:var(--gray-400); font-size:.8rem; }
-    .code-card-edit { position:absolute; top:12px; right:12px; opacity:0; transition:opacity .15s; }
-    .code-card:hover .code-card-edit { opacity:1; }
 
     /* ── Missing keys section ── */
     .missing-section { margin-top: 18px; }
@@ -546,8 +478,9 @@
     .login-box h2 { text-align:center; font-size:1.2rem; color:var(--charcoal); margin-bottom:24px; }
     .login-box .form-group { margin-bottom:16px; }
     .login-box label { display:block; font-size:.8rem; font-weight:600; color:var(--gray-600); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
-    .login-box input { width:100%; padding:12px 14px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; }
-    .login-box input:focus { outline:none; border-color:var(--green); }
+    .login-box input, .login-box select { width:100%; padding:12px 14px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; background:#fff; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+    .login-box input { background-image:none; }
+    .login-box input:focus, .login-box select:focus { outline:none; border-color:var(--green); }
     .login-btn { width:100%; padding:14px; background:var(--green); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer; margin-top:8px; }
     .login-btn:hover { background:var(--green-dark); }
     .login-error { color:var(--red); font-size:.85rem; text-align:center; margin-top:10px; min-height:20px; }
@@ -572,8 +505,7 @@
     .users-table tr:last-child td { border-bottom:none; }
     .role-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:600; }
     .role-badge.Admin { background:#fee2e2; color:#b91c1c; }
-    .role-badge.Property-Manager { background:#dbeafe; color:#1d4ed8; }
-    .role-badge.Field-Manager { background:#ede9fe; color:#6d28d9; }
+    .role-badge.Manager { background:#dbeafe; color:#1d4ed8; }
     .role-badge.Member { background:#dcfce7; color:#166534; }
     .btn-sm { padding:4px 10px; font-size:.75rem; border-radius:6px; border:1px solid var(--gray-200); background:#fff; cursor:pointer; }
     .btn-sm:hover { background:var(--gray-100); }
@@ -604,10 +536,8 @@
     </div>
     <h2>KEY MANAGER</h2>
     <div class="form-group">
-      <label>Who are you?</label>
-      <select id="login-username" style="width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem;background:#fff;color:var(--gray-900)">
-        <option value="">Loading...</option>
-      </select>
+      <label>Username</label>
+      <select id="login-username"><option value="">Loading...</option></select>
     </div>
     <div class="form-group">
       <label>PIN</label>
@@ -622,7 +552,6 @@
 <div class="user-menu" id="user-menu">
   <div class="user-menu-item" onclick="openChangePinModal()">🔑 Change PIN</div>
   <div class="user-menu-item" id="manage-users-menu-item" onclick="showTab('users')" style="display:none">👥 Manage Users</div>
-  <div class="user-menu-item" id="settings-menu-item" onclick="openSettings()" style="display:none">⚙️ Settings</div>
   <div class="user-menu-item danger" onclick="doLogout()">Sign Out</div>
 </div>
 
@@ -662,33 +591,20 @@
       <span class="user-role" id="user-pill-role"></span>
     </div>
   </div>
-  <div class="nav-wrap">
-    <button class="nav-menu-btn" id="nav-menu-btn" onclick="toggleNavDropdown()" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
-    <span class="nav-current-tab" id="nav-current-tab">Dashboard</span>
-  </div>
-  <div class="tabs" id="nav-dropdown" style="position:relative">
-    <div class="nav-dropdown" id="nav-dropdown-menu">
-      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="tab-btn" data-tab="codes">Codes &amp; Access</button>
-      <button class="tab-btn" data-tab="lockboxes">Lockboxes</button>
-      <button class="tab-btn" data-tab="reports">Reports</button>
-    </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="checkout">Check Out</button>
+    <button class="tab-btn" data-tab="checkin">Check In</button>
+    <button class="tab-btn" data-tab="lockboxes" data-role-required="Admin,Manager">Lockboxes</button>
   </div>
 </header>
 
 <main>
   <!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
   <div id="tab-dashboard" class="tab-panel active">
-    <div class="dash-primary-actions">
-      <button class="btn-dash-primary checkout" onclick="showTab('checkout')"><span class="icon">🔑</span> Check Out</button>
-      <button class="btn-dash-primary checkin"  onclick="showTab('checkin')"><span class="icon">✅</span> Check In</button>
-    </div>
     <div class="dash-actions">
-      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Assign Property</button>
-      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
-      <button class="btn-dash-action" data-role-required="Admin,Property Manager,Field Manager" onclick="openRekeyPanel()"><span class="icon">🔄</span> Rekey Property</button>
+      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Add Key to Property</button>
+      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
     </div>
     <div id="dashboard-content"><div class="spinner"></div></div>
     <div id="missing-section" class="missing-section" style="display:none"></div>
@@ -698,8 +614,8 @@
   <div id="add-key-overlay" class="panel-overlay" style="display:none" onclick="closeAddKeyPanel(event)">
     <div class="panel" onclick="event.stopPropagation()">
       <button class="panel-close" onclick="closeAddKeyPanel()">✕</button>
-      <h2>➕ Assign Property to Key Tag #</h2>
-      <p class="panel-sub">Search for a property to assign to a Key Tag #.</p>
+      <h2>➕ Add Key to Property</h2>
+      <p class="panel-sub">Search for a property to see its current key assignments.</p>
 
       <!-- Step 1: property search -->
       <div id="ak-step1">
@@ -719,17 +635,17 @@
             <label>What would you like to do?</label>
             <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
               <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="replace"> Remove existing tag &amp; assign new tag
+                <input type="radio" name="ak-action" value="replace"> Remove existing slot &amp; assign new slot
               </label>
               <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="add"> Add an additional key tag
+                <input type="radio" name="ak-action" value="add"> Add an additional key slot
               </label>
             </div>
           </div>
         </div>
         <div id="ak-new-slot-form" style="display:none">
           <div class="form-group">
-            <label for="ak-slot">New Key Tag #</label>
+            <label for="ak-slot">New Key Slot #</label>
             <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
           </div>
           <div class="form-group">
@@ -754,7 +670,7 @@
   <!-- Remove Key Confirmation Modal -->
   <div id="remove-key-modal" class="modal-overlay" style="display:none">
     <div class="modal">
-      <h2>🗑️ Remove Key from Tag?</h2>
+      <h2>🗑️ Remove Key from Slot?</h2>
       <p id="remove-key-modal-text"></p>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeRemoveKeyModal()">Cancel</button>
@@ -787,7 +703,6 @@
 
   <!-- ═══════════════════════════════ CHECK OUT ═══════════════════════════════ -->
   <div id="tab-checkout" class="tab-panel">
-    <div style="padding:10px 16px 0"><button onclick="showTab('dashboard')" style="background:none;border:none;color:var(--gray-600);font-size:.85rem;cursor:pointer;padding:0">← Dashboard</button></div>
 
     <!-- Step 1: Property search -->
     <div class="checkout-step">
@@ -822,6 +737,23 @@
     <div class="checkout-step" id="step-details" style="display:none">
       <h3>4 — Details</h3>
       <div class="form-group">
+        <label for="sel-staff">Checked out by</label>
+        <select id="sel-staff">
+          <option value="">— Select staff —</option>
+          <option value="12fd872b-594c-8173-b8bb-0002a0d4fade">Chapin Hemphill</option>
+          <option value="1f9d872b-594c-8105-9a1d-0002838f22b5">Esau Vazquez</option>
+          <option value="32ed872b-594c-8147-9671-0002c935e2c2">Keen Glocel</option>
+          <option value="1add872b-594c-8162-b415-000286b954b1">Kyle F</option>
+          <option value="1fad872b-594c-812a-8d29-0002e16fc2a4">Michael Carpenedo</option>
+          <option value="1fad872b-594c-8154-9bc5-0002cc8e59a8">Nadja Prophete</option>
+          <option value="19dd872b-594c-816a-a92b-0002558f0d66">Pamela Palada</option>
+          <option value="1add872b-594c-811f-98d5-0002558b0b26">Rochelle Pausa</option>
+          <option value="1add872b-594c-81ba-962b-00024136b32b">Stefani Hemphill</option>
+          <option value="1add872b-594c-8183-834e-0002995b4763">Veb Torre</option>
+          <option value="1fad872b-594c-813d-8588-000265b1646c">Zandra Jean Madera</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="sel-purpose">Purpose</label>
         <select id="sel-purpose">
           <option value="">— Select purpose —</option>
@@ -845,8 +777,68 @@
 
   <!-- ═══════════════════════════════ CHECK IN ═══════════════════════════════ -->
   <div id="tab-checkin" class="tab-panel">
-    <div style="padding:10px 16px 0"><button onclick="showTab('dashboard')" style="background:none;border:none;color:var(--gray-600);font-size:.85rem;cursor:pointer;padding:0">← Dashboard</button></div>
     <div id="checkin-content"><div class="spinner"></div></div>
+  </div>
+
+  <!-- ══════════════════════════ LOCKBOXES (Manager+) ══════════════════════ -->
+  <div id="tab-lockboxes" class="tab-panel" style="display:none">
+    <div class="checkout-step">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="margin:0">Lockboxes</h3>
+        <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openGenerateCodeModal()">+ Generate Code</button>
+      </div>
+      <div id="lockbox-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Generate Code Modal -->
+  <div id="gen-code-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeGenCodeModal()">
+    <div class="modal-box">
+      <div class="modal-header"><span>Generate Day Code</span><button class="modal-close" onclick="closeGenCodeModal()">✕</button></div>
+      <div style="margin-bottom:14px">
+        <label class="form-label">Lockbox</label>
+        <select id="gen-code-sn" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem"></select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="form-label">Date</label>
+        <input type="date" id="gen-code-date" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
+      </div>
+      <div id="gen-code-result" style="display:none;background:var(--green-bg);border:1.5px solid var(--green);border-radius:8px;padding:14px;text-align:center;margin-bottom:14px">
+        <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:4px">Day Code</div>
+        <div id="gen-code-value" style="font-size:2rem;font-weight:700;letter-spacing:.2em;color:var(--green-dark)"></div>
+      </div>
+      <div id="gen-code-error" class="login-error"></div>
+      <button class="btn btn-primary" id="gen-code-btn" onclick="generateCode()">Generate</button>
+    </div>
+  </div>
+
+  <!-- Update Location Modal -->
+  <div id="lockbox-location-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeLockboxLocationModal()">
+    <div class="modal-box">
+      <div class="modal-header"><span>Update Lockbox Location</span><button class="modal-close" onclick="closeLockboxLocationModal()">✕</button></div>
+      <input type="hidden" id="lockbox-edit-id" />
+      <div style="margin-bottom:14px">
+        <label class="form-label">Serial Number</label>
+        <div id="lockbox-edit-sn" style="font-weight:600;font-size:1.1rem;padding:8px 0"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="form-label">Status</label>
+        <select id="lockbox-edit-status" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
+          <option value="At Property">At Property</option>
+          <option value="In Office">In Office</option>
+          <option value="Unassigned">Unassigned</option>
+        </select>
+      </div>
+      <div id="lockbox-property-row" style="margin-bottom:14px">
+        <label class="form-label">Property</label>
+        <input type="text" id="lockbox-property-search" placeholder="Search address..." oninput="searchLockboxProperty()" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
+        <div id="lockbox-property-results" style="border:1px solid var(--gray-200);border-radius:8px;max-height:180px;overflow-y:auto;display:none;margin-top:4px"></div>
+        <div id="lockbox-selected-property" style="margin-top:6px;font-size:.9rem;color:var(--green-dark);font-weight:500"></div>
+        <input type="hidden" id="lockbox-property-id" />
+      </div>
+      <div id="lockbox-location-error" class="login-error"></div>
+      <button class="btn btn-primary" onclick="saveLockboxLocation()">Save</button>
+    </div>
   </div>
 
   <!-- ════════════════════════════ USERS (Admin) ════════════════════════════ -->
@@ -858,171 +850,8 @@
       </div>
       <div id="users-list"><div class="spinner"></div></div>
     </div>
-
-    <!-- Permissions matrix -->
-    <div class="checkout-step" style="margin-top:0;border-top:2px solid var(--gray-100);padding-top:24px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <h3 style="margin:0">🔐 Role Permissions</h3>
-        <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="savePermissions()">Save Changes</button>
-      </div>
-      <p style="font-size:.82rem;color:var(--gray-600);margin-bottom:16px">
-        Control which roles can access each feature. Admin always has full access.
-        <span id="perms-unsaved" style="display:none;color:var(--yellow);font-weight:600;margin-left:8px">● Unsaved changes</span>
-      </p>
-      <div id="permissions-matrix"><div class="spinner"></div></div>
-      <div id="perms-error" style="color:var(--red);font-size:.85rem;margin-top:8px;min-height:18px"></div>
-    </div>
   </div>
-
-  <!-- ══════════════════════════════ LOCKBOXES ══════════════════════════════ -->
-  <div id="tab-lockboxes" class="tab-panel" style="display:none">
-    <div class="checkout-step" style="text-align:center;padding:48px 24px;color:var(--gray-400)">
-      <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
-      <h3 style="color:var(--gray-600);margin-bottom:8px">Lockboxes</h3>
-      <p style="font-size:.9rem">Coming soon</p>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════ REPORTS ══════════════════════════════ -->
-  <div id="tab-reports" class="tab-panel" style="display:none">
-    <div class="checkout-step">
-      <h3 style="margin-bottom:16px">📊 Usage Report</h3>
-
-      <!-- Date presets -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="report-presets">
-        <button class="report-preset active" data-days="7">Last 7 days</button>
-        <button class="report-preset" data-days="30">Last 30 days</button>
-        <button class="report-preset" data-days="90">Last 90 days</button>
-        <button class="report-preset" data-days="365">Last year</button>
-        <button class="report-preset" data-days="0">Custom</button>
-      </div>
-
-      <!-- Custom date range -->
-      <div id="report-custom-dates" style="display:none;gap:10px;margin-bottom:12px;display:none">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <div class="form-group" style="margin:0;flex:1;min-width:140px">
-            <label style="font-size:.75rem">From</label>
-            <input type="date" id="report-from" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
-          </div>
-          <div class="form-group" style="margin:0;flex:1;min-width:140px">
-            <label style="font-size:.75rem">To</label>
-            <input type="date" id="report-to" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Filters row -->
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <div class="form-group" style="margin:0;flex:1;min-width:160px">
-          <label style="font-size:.75rem">Team Member</label>
-          <select id="report-staff" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;background:#fff">
-            <option value="">All staff</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:0;flex:1;min-width:120px">
-          <label style="font-size:.75rem">Key Tag #</label>
-          <input type="text" id="report-keyslot" placeholder="e.g. 5" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
-        </div>
-        <div class="form-group search-wrapper" style="margin:0;flex:2;min-width:200px">
-          <label style="font-size:.75rem">Property</label>
-          <input type="text" id="report-prop-search" placeholder="Search address or code…" autocomplete="off" oninput="reportSearchProps(this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem" />
-          <div id="report-prop-results" class="search-results" style="display:none"></div>
-        </div>
-      </div>
-      <div id="report-prop-selected" style="margin-bottom:10px;display:none"></div>
-
-      <button onclick="runReport()" style="padding:10px 24px;background:var(--green);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;margin-bottom:18px">Run Report</button>
-
-      <!-- Results -->
-      <div id="report-results"></div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════ CODES & ACCESS ══════════════════════════ -->
-  <div id="tab-codes" class="tab-panel" style="display:none">
-    <div class="checkout-step">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <h3 style="margin:0;flex:1">🔐 Codes & Access</h3>
-        <input type="text" id="codes-search" placeholder="Search property code or address…"
-          oninput="filterCodesTable(this.value)"
-          style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.9rem;width:260px" />
-      </div>
-      <div id="codes-content"><div class="spinner"></div></div>
-    </div>
-  </div>
-
 </main>
-
-  <!-- Settings Modal -->
-  <div id="settings-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1500;display:none;align-items:center;justify-content:center" onclick="closeSettings(event)">
-    <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-        <h3 style="margin:0">⚙️ Settings</h3>
-        <button onclick="closeSettings()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--gray-600)">✕</button>
-      </div>
-      <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-600);margin:0 0 14px">Rekey Invoice Fees</h4>
-      <div style="display:flex;gap:12px;margin-bottom:16px">
-        <div class="form-group" style="margin:0;flex:1">
-          <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Flat Fee ($)</label>
-          <input type="number" id="settings-flat-fee" step="0.01" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
-        </div>
-        <div class="form-group" style="margin:0;flex:1">
-          <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Per Key ($)</label>
-          <input type="number" id="settings-per-key" step="0.01" min="0" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
-        </div>
-      </div>
-      <div id="settings-fee-preview" style="background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--gray-600);margin-bottom:16px"></div>
-      <div id="settings-error" style="color:var(--red);font-size:.85rem;min-height:18px;margin-bottom:8px"></div>
-      <button onclick="saveSettings()" class="btn btn-primary" style="margin:0;width:100%;padding:12px">Save Settings</button>
-    </div>
-  </div>
-
-  <!-- Rekey Panel -->
-  <div id="rekey-overlay" class="panel-overlay" style="display:none" onclick="closeRekeyPanel(event)">
-    <div class="panel" onclick="event.stopPropagation()">
-      <button class="panel-close" onclick="closeRekeyPanel()">✕</button>
-      <h2>🔄 Rekey Property</h2>
-      <p class="panel-sub">Assign a new Kwikset cut to a property. The current cut will be moved to Historical Assignment.</p>
-
-      <div class="form-group search-wrapper">
-        <label>Property</label>
-        <input type="text" id="rekey-prop-search" placeholder="Search address or code…" autocomplete="off" oninput="rekeySearchProps(this.value)" />
-        <div id="rekey-prop-results" class="search-results" style="display:none"></div>
-      </div>
-      <div id="rekey-prop-selected" style="display:none;margin-bottom:16px"></div>
-
-      <div id="rekey-current" style="display:none;margin-bottom:16px;padding:12px 14px;background:var(--gray-100);border-radius:8px;font-size:.9rem">
-        <strong>Current cut:</strong> <span id="rekey-current-label">—</span>
-      </div>
-
-      <div class="form-group" id="rekey-new-group" style="display:none">
-        <label>New Kwikset Cut</label>
-        <select id="rekey-new-cut">
-          <option value="">Loading cuts…</option>
-        </select>
-      </div>
-
-      <!-- Keys to resident + charge owner -->
-      <div id="rekey-billing-group" style="display:none;margin-top:4px">
-        <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
-          <div class="form-group" style="margin:0;flex:0 0 auto">
-            <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">Keys to resident</label>
-            <input type="number" id="rekey-keys-count" min="0" value="1" style="width:80px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
-          </div>
-          <div style="padding-bottom:2px">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;font-weight:600;color:var(--charcoal)">
-              <input type="checkbox" id="rekey-charge-owner" checked style="width:18px;height:18px;accent-color:var(--green)" />
-              Charge Owner
-            </label>
-          </div>
-        </div>
-        <div id="rekey-invoice-preview" style="background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;padding:12px 14px;font-size:.85rem;margin-bottom:12px"></div>
-      </div>
-
-      <button class="btn btn-primary" id="rekey-submit-btn" style="display:none;width:100%;padding:14px;margin-top:8px" onclick="submitRekey()">Assign New Cut</button>
-      <div id="rekey-error" style="color:var(--red);font-size:.85rem;margin-top:10px;min-height:18px"></div>
-    </div>
-  </div>
 
 <!-- Add/Edit User Modal -->
 <div class="pin-modal-overlay" id="user-modal-overlay">
@@ -1035,8 +864,7 @@
     <div class="form-group"><label>Role</label>
       <select id="user-modal-role" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
         <option value="Member">Member</option>
-        <option value="Field Manager">Field Manager</option>
-        <option value="Property Manager">Property Manager</option>
+        <option value="Manager">Manager</option>
         <option value="Admin">Admin</option>
       </select>
     </div>
@@ -1070,33 +898,39 @@
 let currentUser = null;
 
 async function initAuth() {
+  await loadLoginUserDropdown();
   try {
     const res = await fetch('/api/me');
     if (res.ok) {
       currentUser = await res.json();
       onLoginSuccess();
     }
-    // else stay on login screen
   } catch (e) { /* stay on login screen */ }
 }
 
-async function loadUserList() {
+async function loadLoginUserDropdown() {
   const sel = document.getElementById('login-username');
   try {
     const res = await fetch('/api/user-list');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const users = await res.json();
-    sel.innerHTML = users.length
-      ? '<option value="">Select your name…</option>' + users.map(u => `<option value="${u.username}">${u.name}</option>`).join('')
-      : '<option value="">No staff found</option>';
+    if (!Array.isArray(users) || users.length === 0) throw new Error('No users returned');
+    sel.innerHTML = '<option value="">Select your name...</option>' +
+      users.filter(u => u.active !== false)
+           .sort((a, b) => a.name.localeCompare(b.name))
+           .map(u => `<option value="${u.username}">${u.name}</option>`)
+           .join('');
   } catch (e) {
-    sel.innerHTML = '<option value="">Failed to load — type username below</option>';
-    // Fallback: swap to text input
+    console.error('Failed to load user list:', e);
+    sel.innerHTML = '<option value="">— type username below —</option>';
+    // Fall back to text input
     const input = document.createElement('input');
-    input.type = 'text'; input.id = 'login-username'; input.autocapitalize = 'none';
+    input.type = 'text';
+    input.id = 'login-username';
+    input.autocapitalize = 'none';
     input.placeholder = 'e.g. chapin';
-    input.style.cssText = 'width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem';
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
     sel.replaceWith(input);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
   }
 }
 
@@ -1105,7 +939,7 @@ async function doLogin() {
   const pin = document.getElementById('login-pin').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  if (!username || !pin) { errEl.textContent = 'Select your name and enter PIN'; return; }
+  if (!username || !pin) { errEl.textContent = 'Select your name and enter your PIN'; return; }
   try {
     const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, pin }) });
     const data = await res.json();
@@ -1115,42 +949,31 @@ async function doLogin() {
   } catch (e) { errEl.textContent = 'Connection error'; }
 }
 
-let appPermissions = null;
-
-async function onLoginSuccess() {
+function onLoginSuccess() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('user-pill').style.display = 'flex';
   document.getElementById('user-pill-name').textContent = currentUser.name.split(' ')[0];
   document.getElementById('user-pill-role').textContent = currentUser.role;
   if (currentUser.role === 'Admin') {
     document.getElementById('manage-users-menu-item').style.display = 'block';
-    document.getElementById('settings-menu-item').style.display = 'block';
   }
-  try { appPermissions = await api('/api/permissions'); } catch(e) { appPermissions = null; }
   applyRoleUI();
+  // Pre-select logged-in user in checkout staff dropdown
+  const staffSel = document.getElementById('sel-staff');
+  if (staffSel && currentUser.notionPersonId) {
+    for (const opt of staffSel.options) {
+      if (opt.value === currentUser.notionPersonId) { opt.selected = true; break; }
+    }
+  }
   loadDashboard();
 }
 
-function hasPermission(featureKey) {
-  if (!currentUser) return false;
-  if (currentUser.role === 'Admin') return true;
-  if (!appPermissions || !appPermissions[featureKey]) return false;
-  return appPermissions[featureKey].roles.includes(currentUser.role);
-}
-
 function applyRoleUI() {
-  // Legacy data-role-required attributes
+  const isManagerOrAbove = ['Admin', 'Manager'].includes(currentUser?.role);
   document.querySelectorAll('[data-role-required]').forEach(el => {
     const required = el.dataset.roleRequired.split(',');
     el.style.display = required.some(r => r.trim() === currentUser?.role) ? '' : 'none';
   });
-  // Permission-keyed elements
-  document.querySelectorAll('[data-permission]').forEach(el => {
-    el.style.display = hasPermission(el.dataset.permission) ? '' : 'none';
-  });
-  // Reports tab visibility
-  const reportsTab = document.querySelector('.tab-btn[data-tab="reports"]');
-  if (reportsTab) reportsTab.style.display = hasPermission('reports') ? '' : 'none';
 }
 
 async function doLogout() {
@@ -1159,8 +982,7 @@ async function doLogout() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('user-pill').style.display = 'none';
   document.getElementById('user-menu').classList.remove('open');
-  const unEl = document.getElementById('login-username');
-  if (unEl) { if (unEl.tagName === 'SELECT') unEl.selectedIndex = 0; else unEl.value = ''; }
+  document.getElementById('login-username').selectedIndex = 0;
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').textContent = '';
 }
@@ -1177,7 +999,7 @@ document.addEventListener('click', e => {
 // Allow Enter key on login
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  loadUserList();
+  document.getElementById('login-username').addEventListener('change', () => document.getElementById('login-pin').focus());
   initAuth();
 });
 
@@ -1228,7 +1050,7 @@ async function loadUsers() {
         <tr>
           <td>${u.name}</td>
           <td style="color:var(--gray-400)">${u.username}</td>
-          <td><span class="role-badge ${u.role.replace(/ /g,'-')}">${u.role}</span></td>
+          <td><span class="role-badge ${u.role}">${u.role}</span></td>
           <td>${u.active ? '<span style="color:var(--green-dark);font-weight:600">Active</span>' : '<span style="color:var(--gray-400)">Inactive</span>'}</td>
           <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn-sm" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit</button>
@@ -1377,21 +1199,6 @@ function toast(msg, isError = false) {
 
 const tabLoaded = {};
 
-const TAB_LABELS = {
-  dashboard: 'Dashboard', codes: 'Codes & Access', lockboxes: 'Lockboxes',
-  reports: 'Reports', checkout: 'Check Out', checkin: 'Check In', users: 'Users',
-};
-
-function toggleNavDropdown() {
-  document.getElementById('nav-dropdown-menu').classList.toggle('open');
-}
-function closeNavDropdown() {
-  document.getElementById('nav-dropdown-menu').classList.remove('open');
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('#nav-menu-btn') && !e.target.closest('#nav-dropdown-menu')) closeNavDropdown();
-});
-
 function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -1400,22 +1207,151 @@ function showTab(tab) {
   const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   document.getElementById('user-menu').classList.remove('open');
-  closeNavDropdown();
-  const labelEl = document.getElementById('nav-current-tab');
-  if (labelEl && TAB_LABELS[tab]) labelEl.textContent = TAB_LABELS[tab];
   if (!tabLoaded[tab]) {
     tabLoaded[tab] = true;
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'checkin') loadCheckin();
-    if (tab === 'users') { loadUsers(); loadPermissionsMatrix(); }
-    if (tab === 'reports') initReports();
-    if (tab === 'codes') loadCodesAndAccess();
+    if (tab === 'users') loadUsers();
+    if (tab === 'lockboxes') loadLockboxes();
   }
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
 });
+
+// ── Lockboxes ──────────────────────────────────────────────────────────────
+
+let lockboxData = [];
+
+const STATUS_COLOR = { 'At Property': 'var(--green)', 'In Office': '#2563eb', 'Unassigned': 'var(--gray-400)' };
+
+async function loadLockboxes() {
+  const el = document.getElementById('lockbox-list');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await fetch('/api/lockboxes');
+    lockboxData = await res.json();
+    renderLockboxes();
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+  }
+}
+
+function renderLockboxes() {
+  const el = document.getElementById('lockbox-list');
+  if (!lockboxData.length) { el.innerHTML = '<p style="color:var(--gray-400)">No lockboxes found.</p>'; return; }
+  el.innerHTML = `<table class="users-table">
+    <thead><tr><th>SN</th><th>KRB #</th><th>Status</th><th>Property</th><th></th></tr></thead>
+    <tbody>${lockboxData.map(b => `
+      <tr>
+        <td style="font-family:monospace;font-weight:600">${b.sn}</td>
+        <td>${b.krbBox || '—'}</td>
+        <td><span style="color:${STATUS_COLOR[b.status]||'var(--gray-400)'};font-weight:600">${b.status}</span></td>
+        <td style="font-size:.85rem">${b.propertyName || '—'}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn-sm" onclick="openLockboxLocationModal('${b.id}','${b.sn}','${b.status}','${b.propertyId||''}','${(b.propertyName||'').replace(/'/g,"\\'")}'))">Edit</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function openGenerateCodeModal() {
+  const sel = document.getElementById('gen-code-sn');
+  sel.innerHTML = lockboxData.map(b => `<option value="${b.sn}">${b.sn}${b.krbBox ? ' (KRB #'+b.krbBox+')' : ''}${b.propertyName ? ' — '+b.propertyName : ''}</option>`).join('');
+  document.getElementById('gen-code-date').value = todayMT();
+  document.getElementById('gen-code-result').style.display = 'none';
+  document.getElementById('gen-code-error').textContent = '';
+  document.getElementById('gen-code-modal').style.display = 'flex';
+}
+function closeGenCodeModal() { document.getElementById('gen-code-modal').style.display = 'none'; }
+
+async function generateCode() {
+  const sn = document.getElementById('gen-code-sn').value;
+  const date = document.getElementById('gen-code-date').value;
+  const errEl = document.getElementById('gen-code-error');
+  const btn = document.getElementById('gen-code-btn');
+  errEl.textContent = '';
+  document.getElementById('gen-code-result').style.display = 'none';
+  if (!date) { errEl.textContent = 'Select a date'; return; }
+  btn.disabled = true; btn.textContent = 'Generating...';
+  try {
+    const res = await fetch('/api/lockboxes/generate-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serialNumber: sn, date }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Failed to generate code'; return; }
+    const code = data?.Code || data?.DayCode || data?.code || JSON.stringify(data);
+    document.getElementById('gen-code-value').textContent = code;
+    document.getElementById('gen-code-result').style.display = 'block';
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Generate';
+  }
+}
+
+let lockboxPropertyTimeout;
+function openLockboxLocationModal(id, sn, status, propertyId, propertyName) {
+  document.getElementById('lockbox-edit-id').value = id;
+  document.getElementById('lockbox-edit-sn').textContent = sn;
+  document.getElementById('lockbox-edit-status').value = status;
+  document.getElementById('lockbox-property-id').value = propertyId;
+  document.getElementById('lockbox-selected-property').textContent = propertyName || '';
+  document.getElementById('lockbox-property-search').value = '';
+  document.getElementById('lockbox-property-results').style.display = 'none';
+  document.getElementById('lockbox-location-error').textContent = '';
+  document.getElementById('lockbox-location-modal').style.display = 'flex';
+}
+function closeLockboxLocationModal() { document.getElementById('lockbox-location-modal').style.display = 'none'; }
+
+async function searchLockboxProperty() {
+  const q = document.getElementById('lockbox-property-search').value.trim();
+  const resultsEl = document.getElementById('lockbox-property-results');
+  if (q.length < 2) { resultsEl.style.display = 'none'; return; }
+  clearTimeout(lockboxPropertyTimeout);
+  lockboxPropertyTimeout = setTimeout(async () => {
+    const res = await fetch(`/api/search-properties?q=${encodeURIComponent(q)}`);
+    const props = await res.json();
+    if (!props.length) { resultsEl.style.display = 'none'; return; }
+    resultsEl.innerHTML = props.map(p => {
+      const label = [p.address, p.city, p.state].filter(Boolean).join(', ');
+      return `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
+        onmousedown="selectLockboxProperty('${p.id}','${label.replace(/'/g,"\\'")}')">
+        ${label}
+      </div>`;
+    }).join('');
+    resultsEl.style.display = 'block';
+  }, 300);
+}
+function selectLockboxProperty(id, label) {
+  document.getElementById('lockbox-property-id').value = id;
+  document.getElementById('lockbox-selected-property').textContent = label;
+  document.getElementById('lockbox-property-search').value = '';
+  document.getElementById('lockbox-property-results').style.display = 'none';
+}
+
+async function saveLockboxLocation() {
+  const id = document.getElementById('lockbox-edit-id').value;
+  const status = document.getElementById('lockbox-edit-status').value;
+  const propertyId = document.getElementById('lockbox-property-id').value || null;
+  const errEl = document.getElementById('lockbox-location-error');
+  errEl.textContent = '';
+  try {
+    const res = await fetch(`/api/lockboxes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, propertyId }),
+    });
+    if (!res.ok) { const d = await res.json(); errEl.textContent = d.error || 'Save failed'; return; }
+    closeLockboxLocationModal();
+    tabLoaded.lockboxes = false;
+    loadLockboxes();
+  } catch (e) { errEl.textContent = e.message; }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboard
@@ -1443,7 +1379,6 @@ async function loadDashboard() {
       html += `
         <div class="${cardClass}">
           <div class="card-title">${e.logEntry || '—'}</div>
-          ${e.propertyAddress ? `<div style="font-size:.82rem;color:var(--gray-600);margin-bottom:4px">🏠 ${e.propertyAddress}</div>` : ''}
           <div class="card-meta">
             <span>👤 ${who}</span>
             <span>📤 ${formatDate(e.dateOut)}</span>
@@ -1484,7 +1419,6 @@ async function loadCheckin() {
           <div class="checkin-card">
             <div class="checkin-info">
               <div class="card-title">${e.logEntry || '—'}</div>
-              ${e.propertyAddress ? `<div style="font-size:.82rem;color:var(--gray-600);margin-bottom:4px">🏠 ${e.propertyAddress}</div>` : ''}
               <div class="card-meta">
                 <span>👤 ${who}</span><br>
                 <span>📤 ${formatDate(e.dateOut)}</span>
@@ -1670,7 +1604,7 @@ function setDefaultDates() {
   document.getElementById('inp-datedue').value = mtDateStr(1);
 }
 
-['sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
+['sel-staff', 'sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
   document.getElementById(id).addEventListener('change', updateCheckoutBtn);
 });
 
@@ -1678,6 +1612,7 @@ function updateCheckoutBtn() {
   const btn = document.getElementById('btn-checkout');
   const hasPhoto = document.getElementById('checkout-photo-input').files.length > 0;
   const ready = selectedProperty && selectedKey && hasPhoto &&
+    document.getElementById('sel-staff').value &&
     document.getElementById('sel-purpose').value &&
     document.getElementById('inp-dateout').value &&
     document.getElementById('inp-datedue').value;
@@ -1775,7 +1710,7 @@ async function akSelectProperty(id, label) {
     ).join('');
 
     info.innerHTML = `<div class="conflict-box" style="background:#fde8e8;border-color:#f8b4b4;margin-bottom:14px">
-      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Tag #' + akExistingKeys[0].slot : akExistingKeys.length + ' key tags'}</strong>
+      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Slot #' + akExistingKeys[0].slot : akExistingKeys.length + ' key slots'}</strong>
     </div>${slotList}`;
 
     document.getElementById('ak-action-choice').style.display = 'block';
@@ -1902,14 +1837,8 @@ async function openCheckinPanel(logId, logEntry) {
   document.getElementById('return-panel-sub').textContent =
     `${logEntry || 'Key'} — optionally add a photo or note before checking in.`;
   document.getElementById('return-note').value = '';
-  // Replace file input to fully clear any cached file
-  const oldInput = document.getElementById('return-photo-input');
-  const newInput = oldInput.cloneNode(true);
-  oldInput.parentNode.replaceChild(newInput, oldInput);
-  newInput.addEventListener('change', function() { previewPhoto(this); });
-  const prev = document.getElementById('return-photo-preview');
-  prev.src = '';
-  prev.style.display = 'none';
+  document.getElementById('return-photo-input').value = '';
+  document.getElementById('return-photo-preview').style.display = 'none';
   document.getElementById('return-photo-area').style.display = 'block';
   document.getElementById('return-confirm-btn').disabled = false;
   document.getElementById('return-confirm-btn').textContent = 'Confirm Check In';
@@ -1940,36 +1869,27 @@ async function confirmReturn() {
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
+    if (!returnKeyId) throw new Error('Key ID not loaded yet, please try again.');
     const note = document.getElementById('return-note').value;
     const photoFile = document.getElementById('return-photo-input').files[0];
     if (returnLogId) {
-      // Check In tab flow
+      // Check In tab flow — send photo + note to /api/checkin
       const fd = new FormData();
       fd.append('logId', returnLogId);
-      fd.append('keyId', returnKeyId || '');
+      fd.append('keyId', returnKeyId);
       if (photoFile) fd.append('photo', photoFile);
-      const ciRes = await fetch('/api/checkin', { method: 'POST', body: fd });
-      if (!ciRes.ok) {
-        const errData = await ciRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Check-in failed (${ciRes.status})`);
-      }
+      await fetch('/api/checkin', { method: 'POST', body: fd });
       document.getElementById('return-key-overlay').style.display = 'none';
       toast('Key checked in ✓');
       tabLoaded['dashboard'] = false;
-      tabLoaded['checkin'] = false;
-      loadDashboard();
       loadCheckin();
     } else {
-      // Missing key return
+      // Missing key return — always call return-key (sets status to In Office + optional photo/note)
       const fd = new FormData();
       fd.append('keyId', returnKeyId);
       fd.append('note', note);
       if (photoFile) fd.append('photo', photoFile);
-      const rkRes = await fetch('/api/return-key', { method: 'POST', body: fd });
-      if (!rkRes.ok) {
-        const errData = await rkRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Return failed (${rkRes.status})`);
-      }
+      await fetch('/api/return-key', { method: 'POST', body: fd });
       document.getElementById('return-key-overlay').style.display = 'none';
       toast(`Key #${returnKeySlot} marked as returned ✓`);
       loadMissingKeys();
@@ -1988,7 +1908,7 @@ function promptRemoveKey(keyId, slot, propertyName) {
   removeKeyId = keyId;
   removeKeySlot = slot;
   document.getElementById('remove-key-modal-text').innerHTML =
-    `This will <strong>remove Key #${slot}</strong> from its key tag and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
+    `This will <strong>remove Key #${slot}</strong> from its key slot and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
     The key tag will be unassigned and available for reassignment. This cannot be undone automatically.`;
   document.getElementById('remove-key-confirm-btn').disabled = false;
   document.getElementById('remove-key-confirm-btn').textContent = 'Yes, Remove';
@@ -2014,7 +1934,7 @@ async function confirmRemoveKey() {
     closeRemoveKeyModal();
     const card = document.getElementById('mk-' + removeKeyId);
     if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
-    toast(`Key #${removeKeySlot} removed from tag ✓`);
+    toast(`Key #${removeKeySlot} removed from slot ✓`);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = 'Yes, Remove';
@@ -2088,13 +2008,17 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Checking out…';
 
+  const staffEl = document.getElementById('sel-staff');
+  const staffId = staffEl.value;
+  const staffNameVal = staffEl.options[staffEl.selectedIndex].text;
+
   try {
     const formData = new FormData();
     formData.append('keyId', selectedKey.id);
     formData.append('keySlot', selectedKey.slot);
     formData.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
-    formData.append('staffId', currentUser.notionPersonId);
-    formData.append('staffName', currentUser.name);
+    formData.append('staffId', staffId);
+    formData.append('staffName', staffNameVal);
     formData.append('purpose', document.getElementById('sel-purpose').value);
     formData.append('dateOut', document.getElementById('inp-dateout').value);
     formData.append('dateDue', document.getElementById('inp-datedue').value);
@@ -2122,641 +2046,6 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     toast(e.message, true);
   }
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Codes & Access
-// ─────────────────────────────────────────────────────────────────────────────
-
-let codesData = [];
-
-async function loadCodesAndAccess() {
-  const el = document.getElementById('codes-content');
-  try {
-    codesData = await api('/api/codes-and-access');
-    renderCodesGallery(codesData);
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:.9rem">${e.message}</div>`;
-  }
-}
-
-function filterCodesTable(q) {
-  const term = q.toLowerCase();
-  const filtered = term.length < 1 ? codesData : codesData.filter(p =>
-    p.propertyCode.toLowerCase().includes(term) ||
-    p.address.toLowerCase().includes(term) ||
-    p.city.toLowerCase().includes(term)
-  );
-  renderCodesGallery(filtered);
-}
-
-function renderCodesGallery(rows) {
-  const el = document.getElementById('codes-content');
-  const canEdit = hasPermission('editRentalMatrix');
-
-  if (!rows.length) {
-    el.innerHTML = '<div class="empty">No properties found.</div>';
-    return;
-  }
-
-  const cell = (val) => val !== '' && val !== null && val !== undefined
-    ? `<span class="code-val">${val}</span>`
-    : `<span class="code-empty">—</span>`;
-
-  const row = (label, val) => `
-    <div class="code-field">
-      <span class="code-field-label">${label}</span>
-      ${cell(val)}
-    </div>`;
-
-  let html = `<div style="font-size:.8rem;color:var(--gray-600);margin-bottom:12px">${rows.length} propert${rows.length!==1?'ies':'y'}</div>
-    <div class="codes-gallery">`;
-
-  rows.forEach(p => {
-    const propJson = JSON.stringify(p).replace(/"/g,'&quot;');
-    // Key tags with status badges
-    const keyTagsHtml = p.keys && p.keys.length
-      ? p.keys.map(k => {
-          const statusColor = k.status === 'In Office' ? 'var(--green)' : k.status === 'Checked Out' ? 'var(--yellow)' : 'var(--red)';
-          return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--gray-100);border-radius:4px;padding:2px 7px;margin:1px">
-            <span style="font-family:monospace;font-weight:700;font-size:.85rem">#${k.tagNumber}</span>
-            <span style="font-size:.7rem;color:${statusColor}">${k.status||''}</span>
-          </span>`;
-        }).join('')
-      : `<span class="code-empty">—</span>`;
-
-    html += `<div class="code-card">
-      ${canEdit ? `<button class="code-card-edit btn-sm" onclick="openCodeEdit(${propJson})">Edit</button>` : ''}
-      <div class="code-card-header">
-        <div class="code-card-code">${p.propertyCode}</div>
-        <div class="code-card-address">${p.address}${p.city ? ', '+p.city : ''}</div>
-      </div>
-      <div class="code-card-fields">
-        <div class="code-field">
-          <span class="code-field-label">Key Tag #</span>
-          <div style="text-align:right;max-width:60%">${keyTagsHtml}</div>
-        </div>
-        ${row('Garage Keypad', p.garage)}
-        ${row('Front Door Code', p.frontDoor)}
-        ${row('Lockbox SN', p.lockboxSN)}
-        ${row('Kwikset Cut', p.kwikset ? `${p.kwikset.keyNumber} (${p.kwikset.keyCut})` : '')}
-        ${row('Mailbox #', p.mailbox)}
-        ${row('Community Entry', p.communityEntry)}
-      </div>
-    </div>`;
-  });
-
-  html += `</div>`;
-  el.innerHTML = html;
-}
-
-function openCodeEdit(prop) {
-  const existing = document.getElementById('code-edit-modal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'code-edit-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:2000';
-  modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-      <h3 style="margin-bottom:4px">Edit Access Codes</h3>
-      <p style="font-size:.85rem;color:var(--gray-600);margin-bottom:20px">${prop.propertyCode} — ${prop.address}</p>
-      ${field('Garage Keypad', 'edit-garage', prop.garage)}
-      ${field('Front Door Code', 'edit-frontdoor', prop.frontDoor)}
-      ${field('Lockbox SN', 'edit-lockboxes', prop.lockboxSN)}
-      ${field('Mailbox #', 'edit-mailbox', prop.mailbox)}
-      ${field('Community Entry Code', 'edit-entry', prop.communityEntry)}
-      <div id="code-edit-error" style="color:var(--red);font-size:.85rem;min-height:18px;margin-bottom:10px"></div>
-      <div style="display:flex;gap:10px">
-        <button onclick="saveCodeEdit('${prop.id}')" class="btn btn-primary" style="margin:0;flex:1;padding:12px">Save</button>
-        <button onclick="document.getElementById('code-edit-modal').remove()" style="flex:1;padding:12px;border:1.5px solid var(--gray-200);border-radius:8px;background:#fff;cursor:pointer;font-weight:600">Cancel</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-
-  function field(label, id, val) {
-    return `<div class="form-group" style="margin-bottom:14px">
-      <label style="font-size:.75rem;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px">${label}</label>
-      <input id="${id}" type="text" value="${val ?? ''}" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:.95rem" />
-    </div>`;
-  }
-}
-
-async function saveCodeEdit(propId) {
-  const errEl = document.getElementById('code-edit-error');
-  errEl.textContent = '';
-  const body = {
-    garage:         document.getElementById('edit-garage').value.trim(),
-    frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
-    lockboxes:      document.getElementById('edit-lockboxes').value.trim(),
-    mailbox:        document.getElementById('edit-mailbox').value.trim(),
-    communityEntry: document.getElementById('edit-entry').value.trim(),
-  };
-  try {
-    await api(`/api/codes-and-access/${propId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    document.getElementById('code-edit-modal').remove();
-    toast('Access codes updated ✓');
-    // Update local cache and re-render without full reload
-    const idx = codesData.findIndex(p => p.id === propId);
-    if (idx > -1) {
-      codesData[idx] = { ...codesData[idx],
-        garage:         document.getElementById('edit-garage').value.trim(),
-        frontDoor:      document.getElementById('edit-frontdoor').value.trim(),
-        lockboxSN:      document.getElementById('edit-lockboxes').value.trim(),
-        mailbox:        document.getElementById('edit-mailbox').value.trim(),
-        communityEntry: document.getElementById('edit-entry').value.trim(),
-      };
-    }
-    renderCodesGallery(codesData);
-  } catch(e) {
-    errEl.textContent = e.message;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Settings
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function openSettings() {
-  document.getElementById('user-menu').classList.remove('open');
-  try {
-    const config = await api('/api/invoice-config');
-    cachedInvoiceConfig = config;
-    document.getElementById('settings-flat-fee').value = config.flatFee.toFixed(2);
-    document.getElementById('settings-per-key').value = config.perKeyFee.toFixed(2);
-    updateSettingsPreview();
-  } catch(e) {}
-  document.getElementById('settings-overlay').style.display = 'flex';
-}
-
-function closeSettings(e) {
-  if (e && e.target !== document.getElementById('settings-overlay')) return;
-  document.getElementById('settings-overlay').style.display = 'none';
-}
-
-function updateSettingsPreview() {
-  const flat   = parseFloat(document.getElementById('settings-flat-fee')?.value || 25);
-  const perKey = parseFloat(document.getElementById('settings-per-key')?.value || 5.25);
-  const el     = document.getElementById('settings-fee-preview');
-  if (el) el.textContent = `Example: 2 keys → $${(flat + 2 * perKey).toFixed(2)}   |   3 keys → $${(flat + 3 * perKey).toFixed(2)}`;
-}
-
-async function saveSettings() {
-  const errEl = document.getElementById('settings-error');
-  errEl.textContent = '';
-  const flatFee   = parseFloat(document.getElementById('settings-flat-fee').value);
-  const perKeyFee = parseFloat(document.getElementById('settings-per-key').value);
-  if (isNaN(flatFee) || isNaN(perKeyFee)) { errEl.textContent = 'Enter valid numbers'; return; }
-  try {
-    const result = await api('/api/invoice-config', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ flatFee, perKeyFee }),
-    });
-    cachedInvoiceConfig = result.invoiceConfig;
-    document.getElementById('settings-overlay').style.display = 'none';
-    toast('Settings saved ✓');
-  } catch(e) { errEl.textContent = e.message; }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const feeInputs = ['settings-flat-fee', 'settings-per-key'];
-  feeInputs.forEach(id => {
-    document.getElementById(id)?.addEventListener('input', updateSettingsPreview);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Permissions Matrix
-// ─────────────────────────────────────────────────────────────────────────────
-
-let permissionsData = null;
-
-async function loadPermissionsMatrix() {
-  const el = document.getElementById('permissions-matrix');
-  try {
-    permissionsData = await api('/api/permissions');
-    renderPermissionsMatrix();
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:.85rem">${e.message}</div>`;
-  }
-}
-
-function renderPermissionsMatrix() {
-  const el = document.getElementById('permissions-matrix');
-  const roles = ['Property Manager', 'Field Manager', 'Member'];
-
-  let html = `
-    <div style="overflow-x:auto">
-    <table class="users-table">
-      <thead><tr>
-        <th style="width:40%">Feature</th>
-        <th style="text-align:center">Admin</th>
-        ${roles.map(r => `<th style="text-align:center">${r}</th>`).join('')}
-      </tr></thead>
-      <tbody>`;
-
-  Object.entries(permissionsData).forEach(([key, feat]) => {
-    html += `<tr>
-      <td><strong>${feat.label}</strong></td>
-      <td style="text-align:center"><span style="color:var(--green);font-size:1rem">✓</span></td>`;
-    roles.forEach(role => {
-      if (feat.locked) {
-        html += `<td style="text-align:center"><span style="color:var(--gray-400);font-size:.8rem">—</span></td>`;
-      } else {
-        const checked = feat.roles.includes(role) ? 'checked' : '';
-        html += `<td style="text-align:center">
-          <input type="checkbox" data-perm-key="${key}" data-perm-role="${role}" ${checked}
-            style="width:18px;height:18px;cursor:pointer;accent-color:var(--green)"
-            onchange="markPermsUnsaved()" />
-        </td>`;
-      }
-    });
-    html += `</tr>`;
-  });
-
-  html += `</tbody></table></div>`;
-  el.innerHTML = html;
-  document.getElementById('perms-unsaved').style.display = 'none';
-}
-
-function markPermsUnsaved() {
-  document.getElementById('perms-unsaved').style.display = 'inline';
-}
-
-async function savePermissions() {
-  const errEl = document.getElementById('perms-error');
-  errEl.textContent = '';
-  const updates = {};
-  document.querySelectorAll('[data-perm-key]').forEach(cb => {
-    const key = cb.dataset.permKey;
-    const role = cb.dataset.permRole;
-    if (!updates[key]) updates[key] = { roles: ['Admin'] };
-    if (cb.checked && !updates[key].roles.includes(role)) updates[key].roles.push(role);
-  });
-  try {
-    const result = await api('/api/permissions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    permissionsData = result.permissions;
-    appPermissions = result.permissions;
-    applyRoleUI();
-    document.getElementById('perms-unsaved').style.display = 'none';
-    toast('Permissions saved ✓');
-  } catch(e) {
-    errEl.textContent = e.message;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Reports
-// ─────────────────────────────────────────────────────────────────────────────
-
-let reportSelectedProperty = null;
-let reportPropSearchTimer = null;
-
-function initReports() {
-  // Populate staff dropdown from STAFF_MAP
-  const sel = document.getElementById('report-staff');
-  if (sel && sel.options.length === 1) {
-    Object.entries(STAFF_MAP).sort((a,b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
-      const opt = document.createElement('option');
-      opt.value = id; opt.textContent = name;
-      sel.appendChild(opt);
-    });
-  }
-
-  // Wire up preset buttons
-  document.querySelectorAll('.report-preset').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.report-preset').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const days = parseInt(btn.dataset.days);
-      const customDiv = document.getElementById('report-custom-dates');
-      if (days === 0) {
-        customDiv.style.display = 'flex';
-        customDiv.style.flexDirection = 'column';
-      } else {
-        customDiv.style.display = 'none';
-        const to = new Date();
-        const from = new Date(); from.setDate(from.getDate() - days);
-        document.getElementById('report-from').value = from.toISOString().slice(0,10);
-        document.getElementById('report-to').value = to.toISOString().slice(0,10);
-      }
-    });
-  });
-
-  // Set default: last 30 days
-  document.querySelector('.report-preset[data-days="30"]').click();
-  document.querySelector('.report-preset[data-days="30"]').classList.add('active');
-  document.querySelector('.report-preset[data-days="7"]').classList.remove('active');
-}
-
-function reportSearchProps(q) {
-  clearTimeout(reportPropSearchTimer);
-  const results = document.getElementById('report-prop-results');
-  if (q.length < 2) { results.style.display = 'none'; return; }
-  reportPropSearchTimer = setTimeout(async () => {
-    try {
-      const props = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-      if (!props.length) { results.style.display = 'none'; return; }
-      results.innerHTML = props.map(p =>
-        `<div class="search-result-item" onclick='reportSelectProp(${JSON.stringify(p).replace(/'/g,"&#39;")})'>
-          <strong>${p.propertyCode||''}</strong> ${p.address||''}, ${p.city||''}
-        </div>`
-      ).join('');
-      results.style.display = 'block';
-    } catch(e) { results.style.display = 'none'; }
-  }, 300);
-}
-
-function reportSelectProp(prop) {
-  reportSelectedProperty = prop;
-  document.getElementById('report-prop-search').value = '';
-  document.getElementById('report-prop-results').style.display = 'none';
-  const div = document.getElementById('report-prop-selected');
-  div.style.display = 'block';
-  div.innerHTML = `<div class="selected-prop"><strong>${prop.propertyCode||''}</strong> ${prop.address||''}, ${prop.city||''} <button onclick="reportClearProp()">✕</button></div>`;
-}
-
-function reportClearProp() {
-  reportSelectedProperty = null;
-  document.getElementById('report-prop-selected').style.display = 'none';
-  document.getElementById('report-prop-search').value = '';
-}
-
-async function runReport() {
-  const el = document.getElementById('report-results');
-  el.innerHTML = '<div class="spinner"></div>';
-
-  const from = document.getElementById('report-from').value;
-  const to   = document.getElementById('report-to').value;
-  const staffId  = document.getElementById('report-staff').value;
-  const keySlot  = document.getElementById('report-keyslot').value.trim();
-  const propertyId = reportSelectedProperty?.id || '';
-
-  const params = new URLSearchParams();
-  if (from) params.set('from', from);
-  if (to)   params.set('to', to);
-  if (staffId)    params.set('staffId', staffId);
-  if (keySlot)    params.set('keySlot', keySlot);
-  if (propertyId) params.set('propertyId', propertyId);
-
-  try {
-    const entries = await api(`/api/reports?${params}`);
-
-    if (!entries.length) {
-      el.innerHTML = '<div class="empty">No results for the selected filters.</div>';
-      return;
-    }
-
-    const returned = entries.filter(e => e.dateReturned);
-    const avgDur = returned.length
-      ? (returned.reduce((s,e) => s + (e.durationDays||0), 0) / returned.length).toFixed(1)
-      : '—';
-    const uniqueProps = new Set(entries.map(e => e.propertyId).filter(Boolean)).size;
-
-    const today = new Date().toISOString().slice(0,10);
-
-    let html = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <strong style="font-size:.9rem">${entries.length} result${entries.length!==1?'s':''}</strong>
-        <button class="report-export" onclick="exportReportCSV()">⬇ Export CSV</button>
-      </div>
-      <div class="report-stats">
-        <div class="report-stat"><div class="stat-val">${entries.length}</div><div class="stat-lbl">Checkouts</div></div>
-        <div class="report-stat"><div class="stat-val">${entries.filter(e=>e.dateReturned).length}</div><div class="stat-lbl">Returned</div></div>
-        <div class="report-stat"><div class="stat-val">${entries.filter(e=>!e.dateReturned).length}</div><div class="stat-lbl">Still Out</div></div>
-        <div class="report-stat"><div class="stat-val">${uniqueProps}</div><div class="stat-lbl">Properties</div></div>
-        <div class="report-stat"><div class="stat-val">${avgDur}</div><div class="stat-lbl">Avg Days</div></div>
-      </div>
-      <div style="overflow-x:auto">
-      <table class="report-table">
-        <thead><tr>
-          <th>Key</th><th>Property</th><th>Checked Out By</th>
-          <th>Date Out</th><th>Due</th><th>Returned</th>
-          <th>Duration</th><th>Purpose</th>
-        </tr></thead>
-        <tbody>`;
-
-    entries.forEach(e => {
-      const keyLabel = e.logEntry.split(' - ')[0] || e.logEntry;
-      const who = e.checkedOutBy.map(u => u.name || staffName(u.id)).join(', ') || '—';
-      const overdue = !e.dateReturned && e.dateDue && e.dateDue < today;
-      const dur = e.durationDays !== null ? `${e.durationDays}d` : (e.dateReturned ? '—' : '<span style="color:var(--yellow)">Out</span>');
-      html += `<tr>
-        <td><strong>${keyLabel}</strong></td>
-        <td>${e.propertyName || '—'}</td>
-        <td>${who}</td>
-        <td>${formatDate(e.dateOut)}</td>
-        <td class="${overdue?'report-overdue':''}">${formatDate(e.dateDue)||'—'}</td>
-        <td>${e.dateReturned ? formatDate(e.dateReturned) : '<span style="color:var(--gray-400)">Not returned</span>'}</td>
-        <td>${dur}</td>
-        <td>${e.purpose||'—'}</td>
-      </tr>`;
-    });
-
-    html += '</tbody></table></div>';
-    el.innerHTML = html;
-
-    // Cache entries for CSV export
-    window._reportEntries = entries;
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:.9rem">${e.message}</div>`;
-  }
-}
-
-function exportReportCSV() {
-  const entries = window._reportEntries || [];
-  const rows = [['Key','Property','Checked Out By','Date Out','Due','Returned','Duration (days)','Purpose']];
-  entries.forEach(e => {
-    rows.push([
-      e.logEntry.split(' - ')[0],
-      e.propertyName||'',
-      e.checkedOutBy.map(u => u.name||staffName(u.id)).join('; '),
-      e.dateOut||'', e.dateDue||'', e.dateReturned||'',
-      e.durationDays !== null ? e.durationDays : '',
-      e.purpose||''
-    ]);
-  });
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `krb-key-report-${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Rekey
-// ─────────────────────────────────────────────────────────────────────────────
-
-let rekeySelectedProperty = null;
-let rekeySearchTimer = null;
-let allKwiksetCuts = [];
-
-// Cached invoice config
-let cachedInvoiceConfig = { flatFee: 25.00, perKeyFee: 5.25 };
-
-async function fetchInvoiceConfig() {
-  try { cachedInvoiceConfig = await api('/api/invoice-config'); } catch(e) {}
-}
-
-function updateRekeyInvoicePreview() {
-  const keys = parseInt(document.getElementById('rekey-keys-count')?.value || 1);
-  const charge = document.getElementById('rekey-charge-owner')?.checked;
-  const el = document.getElementById('rekey-invoice-preview');
-  if (!el) return;
-  if (!charge) { el.innerHTML = '<span style="color:var(--gray-400)">No charge will be generated.</span>'; return; }
-  const { flatFee, perKeyFee } = cachedInvoiceConfig;
-  const total = flatFee + keys * perKeyFee;
-  el.innerHTML = `<strong>Invoice total: $${total.toFixed(2)}</strong> &nbsp;·&nbsp; Flat fee $${flatFee.toFixed(2)} + ${keys} key${keys!==1?'s':''} × $${perKeyFee.toFixed(2)} = $${(keys*perKeyFee).toFixed(2)}`;
-}
-
-function openRekeyPanel() {
-  rekeyDeselectProperty();
-  document.getElementById('rekey-prop-search').value = '';
-  document.getElementById('rekey-overlay').style.display = 'flex';
-  loadKwiksetCuts();
-  fetchInvoiceConfig().then(updateRekeyInvoicePreview);
-}
-
-function closeRekeyPanel(e) {
-  if (e && e.target !== document.getElementById('rekey-overlay')) return;
-  document.getElementById('rekey-overlay').style.display = 'none';
-  rekeyDeselectProperty();
-  document.getElementById('rekey-prop-search').value = '';
-}
-
-async function loadKwiksetCuts() {
-  if (allKwiksetCuts.length > 0) return;
-  try {
-    allKwiksetCuts = await api('/api/kwikset-cuts');
-    const sel = document.getElementById('rekey-new-cut');
-    sel.innerHTML = '<option value="">— Select new cut —</option>' +
-      allKwiksetCuts.map(c => `<option value="${c.id}">Key #${c.keyNumber} — Cut ${c.keyCut ?? '?'}${c.keyBox ? ` (Box ${c.keyBox})` : ''}</option>`).join('');
-  } catch (e) {
-    document.getElementById('rekey-new-cut').innerHTML = '<option value="">Failed to load cuts</option>';
-  }
-}
-
-function rekeySearchProps(q) {
-  clearTimeout(rekeySearchTimer);
-  const results = document.getElementById('rekey-prop-results');
-  if (q.length < 2) { results.style.display = 'none'; return; }
-  rekeySearchTimer = setTimeout(async () => {
-    try {
-      const props = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-      if (!props.length) { results.style.display = 'none'; return; }
-      results.innerHTML = props.map(p =>
-        `<div class="search-result-item" onclick="rekeySelectProperty(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-          <strong>${p.propertyCode || ''}</strong> ${p.address || ''}, ${p.city || ''}
-        </div>`
-      ).join('');
-      results.style.display = 'block';
-    } catch (e) { results.style.display = 'none'; }
-  }, 300);
-}
-
-async function rekeySelectProperty(prop) {
-  rekeySelectedProperty = prop;
-  document.getElementById('rekey-prop-search').value = '';
-  document.getElementById('rekey-prop-results').style.display = 'none';
-  document.getElementById('rekey-error').textContent = '';
-
-  const selectedDiv = document.getElementById('rekey-prop-selected');
-  selectedDiv.style.display = 'block';
-  selectedDiv.innerHTML = `<div class="selected-prop"><strong>${prop.propertyCode || ''}</strong> ${prop.address || ''}, ${prop.city || ''} <button onclick="rekeyDeselectProperty()">✕</button></div>`;
-
-  // Load current cut
-  const currentDiv = document.getElementById('rekey-current');
-  currentDiv.style.display = 'block';
-  document.getElementById('rekey-current-label').textContent = 'Loading…';
-  try {
-    const cut = await api(`/api/kwikset-cut-for-property/${prop.id}`);
-    document.getElementById('rekey-current-label').textContent = cut
-      ? `Key #${cut.keyNumber} — Cut ${cut.keyCut ?? '?'}${cut.keyBox ? ` (Box ${cut.keyBox})` : ''}`
-      : 'None assigned';
-  } catch (e) {
-    document.getElementById('rekey-current-label').textContent = 'Error loading';
-  }
-
-  await loadKwiksetCuts();
-  document.getElementById('rekey-new-group').style.display = 'block';
-  document.getElementById('rekey-billing-group').style.display = 'block';
-  document.getElementById('rekey-submit-btn').style.display = 'block';
-  updateRekeyInvoicePreview();
-  document.getElementById('rekey-keys-count').oninput = updateRekeyInvoicePreview;
-  document.getElementById('rekey-charge-owner').onchange = updateRekeyInvoicePreview;
-}
-
-function rekeyDeselectProperty() {
-  rekeySelectedProperty = null;
-  document.getElementById('rekey-prop-selected').style.display = 'none';
-  document.getElementById('rekey-current').style.display = 'none';
-  document.getElementById('rekey-new-group').style.display = 'none';
-  document.getElementById('rekey-billing-group').style.display = 'none';
-  document.getElementById('rekey-submit-btn').style.display = 'none';
-  document.getElementById('rekey-error').textContent = '';
-}
-
-async function submitRekey() {
-  const newCutId = document.getElementById('rekey-new-cut').value;
-  const errEl = document.getElementById('rekey-error');
-  errEl.textContent = '';
-  if (!rekeySelectedProperty) { errEl.textContent = 'Select a property first'; return; }
-  if (!newCutId) { errEl.textContent = 'Select a new cut'; return; }
-
-  const btn = document.getElementById('rekey-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    await api('/api/change-kwikset-cut', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ propertyId: rekeySelectedProperty.id, newCutId }),
-    });
-
-    // Send invoice if charge owner is checked
-    const chargeOwner = document.getElementById('rekey-charge-owner')?.checked;
-    const keysCount   = parseInt(document.getElementById('rekey-keys-count')?.value || 0);
-    if (chargeOwner) {
-      btn.textContent = 'Sending invoice…';
-      const invoiceResult = await api('/api/send-rekey-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          propertyCode:  rekeySelectedProperty.propertyCode || rekeySelectedProperty.label || '',
-          address:       rekeySelectedProperty.address || '',
-          keysCount,
-          rekeyNote:     `Kwikset cut changed · ${keysCount} key${keysCount!==1?'s':''} provided to resident`,
-          checkedOutBy:  currentUser?.name || '',
-        }),
-      });
-      if (invoiceResult.emailSent) {
-        toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} emailed to Appfolio ✓`);
-      } else {
-        toast(`Kwikset cut updated · Invoice ${invoiceResult.invoiceNumber} generated (email not sent)`, true);
-      }
-    } else {
-      toast('Kwikset cut updated ✓');
-    }
-
-    document.getElementById('rekey-overlay').style.display = 'none';
-    rekeyDeselectProperty();
-    document.getElementById('rekey-prop-search').value = '';
-  } catch (e) {
-    errEl.textContent = e.message || 'Error saving';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Assign New Cut';
-  }
-}
 </script>
 </body>
 </html>
