@@ -134,6 +134,7 @@ function extractRichText(prop) {
   if (!prop) return '';
   if (prop.type === 'rich_text') return prop.rich_text.map(r => r.plain_text).join('');
   if (prop.type === 'title') return prop.title.map(r => r.plain_text).join('');
+  if (prop.type === 'number') return prop.number != null ? String(prop.number) : '';
   return '';
 }
 
@@ -347,6 +348,7 @@ app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
           id: row.id,
           url: row.url,
           slot: extractRichText(p['Key Slot #']),
+          kwiksetCut: extractRichText(p['Kwikset Cut']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -383,6 +385,55 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
         };
       });
     res.json(results);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/property-codes/:propertyId — door codes, mailbox info, key tags + kwikset cuts
+app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
+  try {
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+      headers: notionHeaders(),
+    }).then(r => r.json());
+    if (propPage.object === 'error') throw new Error(propPage.message);
+    const p = propPage.properties;
+
+    const keyRelation = p?.['KRB Keys & Access']?.relation || [];
+    let keys = [];
+    if (keyRelation.length > 0) {
+      const keyPages = await Promise.all(
+        keyRelation.map(r =>
+          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
+        )
+      );
+      keys = keyPages
+        .filter(row => row.object !== 'error')
+        .map(row => {
+          const kp = row.properties;
+          return {
+            id: row.id,
+            slot: extractRichText(kp['Key Slot #']),
+            kwiksetCut: extractRichText(kp['Kwikset Cut']),
+            status: extractSelect(kp['Status']),
+            keyTypes: extractMultiSelect(kp['Key Types']),
+          };
+        });
+    }
+
+    res.json({
+      address: extractRichText(p['Street Address - Property']),
+      propertyCode: extractRichText(p['Property Code']),
+      frontDoorCode: extractRichText(p['Front Door Code']),
+      garageKeypad: extractRichText(p['Garage Keypad']),
+      communityEntryCode: extractRichText(p['Community Entry Code']),
+      mailboxNumber: extractRichText(p['Mailbox #']) || (p['Mailbox #']?.number != null ? String(p['Mailbox #'].number) : ''),
+      mailboxLocation: extractRichText(p['Mailbox Location']),
+      otherSystems: extractRichText(p['Other Property Systems']),
+      maintenanceNotes: extractRichText(p['Maintenance Notes']),
+      keys,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
@@ -486,6 +537,7 @@ app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) 
         return {
           id: row.id,
           slot: extractRichText(p['Key Slot #']),
+          kwiksetCut: extractRichText(p['Kwikset Cut']),
           status: extractSelect(p['Status']),
           keyTypes: extractMultiSelect(p['Key Types']),
           logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
@@ -604,6 +656,7 @@ app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
     res.json({
       id: row.id,
       slot: extractRichText(p['Key Slot #']),
+      kwiksetCut: extractRichText(p['Kwikset Cut']),
       status: extractSelect(p['Status']),
       keyTypes: extractMultiSelect(p['Key Types']),
       propertyName,
@@ -707,24 +760,19 @@ async function checkOverdueKeys() {
 }
 
 // Schedule one Slack alert per day at 8 AM Mountain Time.
-// On restart, calculates ms until the next 8 AM MT and waits — no immediate fire.
 function scheduleDailyOverdueCheck() {
   const now = new Date();
-  // Determine current hour/minute in MT by parsing toLocaleString
   const mtParts = new Intl.DateTimeFormat('en-US', {
     timeZone: MT_TZ, hour: 'numeric', minute: 'numeric', hour12: false,
   }).formatToParts(now);
   const mtHour = parseInt(mtParts.find(p => p.type === 'hour').value);
   const mtMin  = parseInt(mtParts.find(p => p.type === 'minute').value);
-
-  // Seconds until next 8:00 AM MT
   let secsUntil;
   if (mtHour < 8) {
     secsUntil = (8 - mtHour) * 3600 - mtMin * 60;
   } else {
     secsUntil = (24 - mtHour + 8) * 3600 - mtMin * 60;
   }
-
   console.log(`Daily overdue check scheduled in ${Math.round(secsUntil / 60)} min (next 8 AM MT)`);
   setTimeout(async () => {
     await checkOverdueKeys().catch(e => console.error('Daily overdue check failed:', e.message));
