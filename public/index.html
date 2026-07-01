@@ -1,8 +1,7 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>KRB Keys</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,6 +15,7 @@
       --gray-mid: #515151;
       --red: #e02424;
       --yellow: #c27803;
+      --blue: #2563eb;
       --gray-50: #f9fafb;
       --gray-100: #f3f4f6;
       --gray-200: #e5e7eb;
@@ -24,6 +24,7 @@
       --gray-700: #333333;
       --gray-900: #1a1a1a;
       --radius: 10px;
+      --nav-h: 64px;
     }
 
     body {
@@ -33,65 +34,61 @@
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
     }
 
     /* ── Header ── */
     header {
       background: var(--charcoal);
       color: #fff;
-      padding: 12px 16px 0;
+      padding: 12px 16px;
       position: sticky;
       top: 0;
       z-index: 100;
       box-shadow: 0 2px 8px rgba(0,0,0,.3);
-    }
-    header > .header-top { display:flex; align-items:center; justify-content:space-between; }
-    .header-logo {
       display: flex;
       align-items: center;
-      padding-bottom: 10px;
+      justify-content: space-between;
     }
-    .header-logo img {
-      height: 36px;
-      width: auto;
-      object-fit: contain;
-      background: #fff;
-      border-radius: 6px;
-      padding: 3px 8px;
-    }
-    .header-logo-text {
-      font-size: .78rem;
-      font-weight: 600;
-      color: var(--green-light);
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-left: 10px;
-      border-left: 1px solid rgba(255,255,255,.2);
-      padding-left: 10px;
-    }
+    .header-logo { display: flex; align-items: center; }
+    .header-logo img { height: 32px; width: auto; object-fit: contain; background: #fff; border-radius: 6px; padding: 2px 7px; }
+    .header-logo-text { font-size: .78rem; font-weight: 600; color: var(--green-light); letter-spacing: .08em; text-transform: uppercase; margin-left: 10px; border-left: 1px solid rgba(255,255,255,.2); padding-left: 10px; }
 
-    /* ── Tabs ── */
-    .tabs {
+    /* ── Bottom Nav ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--charcoal);
       display: flex;
-      gap: 2px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      z-index: 200;
     }
-    .tab-btn {
+    .nav-btn {
       flex: 1;
-      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: none;
       border: none;
-      color: rgba(255,255,255,.55);
-      font-size: .85rem;
+      color: rgba(255,255,255,.5);
+      font-size: .65rem;
       font-weight: 600;
-      padding: 10px 4px;
+      letter-spacing: .03em;
+      text-transform: uppercase;
       cursor: pointer;
-      border-bottom: 3px solid transparent;
-      transition: color .15s, border-color .15s;
+      padding: 8px 4px;
+      transition: color .15s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .tab-btn:hover { color: rgba(255,255,255,.85); }
-    .tab-btn.active {
-      color: var(--green-light);
-      border-bottom-color: var(--green);
-    }
+    .nav-btn .nav-icon { font-size: 1.35rem; line-height: 1; }
+    .nav-btn.active { color: var(--green-light); }
+    .nav-btn:active { opacity: .7; }
 
     /* ── Main content ── */
     main { flex: 1; padding: 16px; max-width: 600px; width: 100%; margin: 0 auto; }
@@ -100,430 +97,191 @@
     .tab-panel.active { display: block; }
 
     /* ── Cards ── */
-    .card {
-      background: #fff;
-      border-radius: var(--radius);
-      padding: 14px;
-      margin-bottom: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
-    }
-    .card-title { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
-    .card-meta { font-size: .8rem; color: var(--gray-600); line-height: 1.5; }
-    .card-meta span { display: inline-block; margin-right: 10px; }
-
-    .badge {
-      display: inline-block;
-      font-size: .72rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 99px;
-    }
-    .badge-red { background: #fde8e8; color: var(--red); }
-    .badge-yellow { background: #fdf6b2; color: var(--yellow); }
-    .badge-green { background: #def7ec; color: var(--green); }
-    .badge-blue { background: var(--green-bg); color: var(--green-dark); }
-    .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+    .card { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1.5px solid var(--gray-200); }
+    .card.overdue { border-color: #fca5a5; background: #fff5f5; }
+    .card.due-soon { border-color: #fcd34d; }
+    .card-title { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+    .card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: .8rem; color: var(--gray-600); }
 
     /* ── Buttons ── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 18px;
-      border: none;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity .15s, transform .1s;
-      text-decoration: none;
-    }
-    .btn:active { transform: scale(.97); }
-    .btn-primary { background: var(--green); color: #fff; width: 100%; margin-top: 12px; padding: 13px; font-size: 1rem; }
-    .btn-primary:hover { background: var(--green-dark); }
-    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-    .btn-success { background: var(--green); color: #fff; padding: 8px 14px; font-size: .85rem; }
-    .btn-success:hover { background: var(--green-dark); }
-    .btn-success:disabled { opacity: .45; cursor: not-allowed; }
-    .btn-sm { padding: 6px 12px; font-size: .8rem; }
+    .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: center; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--green); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+    .btn-success { background: var(--charcoal); color: #fff; padding: 10px 16px; width: auto; }
+    .btn-success:hover { background: #444; }
 
-    /* ── Form elements ── */
-    label { display: block; font-size: .82rem; font-weight: 600; color: var(--gray-700); margin-bottom: 4px; }
-    input, select {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      font-size: .95rem;
-      color: var(--gray-900);
-      background: #fff;
-      outline: none;
-      transition: border-color .15s;
-    }
-    input:focus, select:focus { border-color: var(--green); }
-    .form-group { margin-bottom: 14px; }
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 600; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-red { background: #fee2e2; color: #b91c1c; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-green { background: #dcfce7; color: #166534; }
 
-    /* ── Search results dropdown ── */
-    .search-wrapper { position: relative; }
-    .search-results {
-      position: absolute;
-      top: calc(100% + 2px);
-      left: 0; right: 0;
-      background: #fff;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      box-shadow: 0 8px 20px rgba(0,0,0,.12);
-      z-index: 200;
-      max-height: 240px;
-      overflow-y: auto;
-    }
-    .search-result-item {
-      padding: 11px 14px;
-      cursor: pointer;
-      border-bottom: 1px solid var(--gray-100);
-      font-size: .9rem;
-    }
-    .search-result-item:last-child { border-bottom: none; }
-    .search-result-item:hover, .search-result-item.focused { background: var(--green-bg); }
-    .search-result-item .result-code { font-size: .75rem; color: var(--gray-400); margin-top: 1px; }
-
-    /* ── Key selector ── */
-    .key-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .key-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .key-btn {
-      flex: 0 0 auto;
-      width: 90px;
-      background: var(--gray-50);
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      padding: 12px;
-      text-align: left;
-      cursor: pointer;
-      transition: all .15s;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .key-btn:hover { border-color: var(--green); background: var(--green-bg); }
-    .key-btn.selected { border-color: var(--green-dark); background: var(--green); color: #fff; }
-    .key-btn .key-num { font-size: 1.1rem; font-weight: 700; }
-    .key-btn .key-type { font-size: .75rem; color: inherit; opacity: .75; }
-    .key-missing-btn {
-      background: #fde8e8;
-      border: 1.5px solid #f8b4b4;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: .82rem;
-      font-weight: 700;
-      color: var(--red);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all .15s;
-      flex-shrink: 0;
-    }
-    .key-missing-btn:hover { background: var(--red); color: #fff; border-color: var(--red); }
-    .key-missing-btn.confirmed { background: #fde8e8; color: var(--gray-400); border-color: var(--gray-200); cursor: default; }
-
-    /* ── Missing modal ── */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.45);
-      z-index: 500;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-    }
-    .modal {
-      background: #fff;
-      border-radius: var(--radius);
-      padding: 24px;
-      max-width: 360px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    }
-    .modal h2 { font-size: 1.1rem; margin-bottom: 8px; }
-    .modal p { font-size: .88rem; color: var(--gray-600); line-height: 1.5; margin-bottom: 16px; }
-    .modal-actions { display: flex; gap: 8px; }
-    .modal-actions button { flex: 1; padding: 11px; border-radius: 8px; border: none; font-size: .9rem; font-weight: 600; cursor: pointer; }
-    .btn-cancel { background: var(--gray-100); color: var(--gray-700); }
-    .btn-confirm-missing { background: var(--red); color: #fff; }
-
-    /* ── Empty / loading states ── */
-    .empty { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: .9rem; }
-    .spinner {
-      width: 28px; height: 28px;
-      border: 3px solid var(--gray-200);
-      border-top-color: var(--green);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      margin: 30px auto;
-    }
+    /* ── Spinner ── */
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--gray-200); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; margin: 40px auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Checkin card layout ── */
-    .checkin-card {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .checkin-info { flex: 1; min-width: 0; }
-
-    /* ── Section header ── */
-    .section-header {
-      font-size: .75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--gray-400);
-      margin-bottom: 8px;
-      margin-top: 4px;
-    }
+    .empty { text-align: center; color: var(--gray-400); padding: 40px 20px; font-size: .95rem; }
+    .section-header { font-size: .8rem; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
 
     /* ── Toast ── */
-    #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--gray-900);
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 99px;
-      font-size: .9rem;
-      font-weight: 500;
-      box-shadow: 0 4px 16px rgba(0,0,0,.25);
-      transition: transform .25s ease;
-      z-index: 999;
-      white-space: nowrap;
-    }
-    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast { position: fixed; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--charcoal); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: .9rem; font-weight: 600; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; white-space: nowrap; z-index: 9999; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     #toast.error { background: var(--red); }
 
-    /* ── Overdue highlight ── */
-    .overdue { border-left: 4px solid var(--red); }
-    .due-soon { border-left: 4px solid var(--yellow); }
+    /* ── Forms ── */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; color: var(--gray-700); }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 1rem; background: #fff; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--green); }
+    select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
 
-    /* ── Dashboard action buttons ── */
-    .dash-actions {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-    .btn-dash-action {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 11px 10px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      background: #fff;
-      font-size: .82rem;
-      font-weight: 600;
-      color: var(--gray-700);
-      cursor: pointer;
-      transition: all .15s;
-    }
-    .btn-dash-action:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
-    .btn-dash-action .icon { font-size: 1rem; }
+    /* ── Login ── */
+    #login-screen { position: fixed; inset: 0; background: var(--gray-100); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 24px; }
+    .login-box { background: #fff; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,.1); }
+    .login-box .logo-wrap { text-align: center; margin-bottom: 16px; }
+    .login-box .logo-wrap img { height: 48px; }
+    .login-box h2 { text-align: center; font-size: 1.1rem; color: var(--gray-600); letter-spacing: .1em; margin-bottom: 24px; }
+    .login-btn { width: 100%; padding: 14px; background: var(--green); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .login-error { color: var(--red); font-size: .85rem; text-align: center; margin-top: 10px; min-height: 20px; }
 
-    /* ── Missing keys section ── */
-    .missing-section { margin-top: 18px; }
-    .missing-card { border-left: 4px solid var(--red); }
-    .missing-card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-    .btn-return { background: var(--green-bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 7px 12px; font-size: .8rem; font-weight: 700; color: var(--green-dark); cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0; }
-    .btn-return:hover { background: var(--green); color: #fff; }
-    .missing-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-    .btn-remove-key { background: #fde8e8; border: 1.5px solid #f8b4b4; border-radius: 8px; padding: 7px 12px; font-size: .8rem; font-weight: 700; color: var(--red); cursor: pointer; white-space: nowrap; transition: all .15s; }
-    .btn-remove-key:hover { background: var(--red); color: #fff; border-color: var(--red); }
+    /* ── User pill ── */
+    .user-pill { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.85); font-size: .8rem; cursor: pointer; }
+    .user-pill .user-name { font-weight: 600; }
+    .user-pill .user-role { background: rgba(255,255,255,.15); border-radius: 10px; padding: 2px 8px; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
 
-    /* ── Slide-in panel ── */
-    .panel-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.45);
-      z-index: 500;
-      display: flex; align-items: flex-end;
-      padding: 0;
-    }
-    .panel {
-      background: #fff;
-      border-radius: 16px 16px 0 0;
-      padding: 24px 20px 32px;
-      width: 100%;
-      max-height: 90dvh;
-      overflow-y: auto;
-      box-shadow: 0 -8px 40px rgba(0,0,0,.18);
-      animation: slideUp .25s ease;
-    }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .panel h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
-    .panel-sub { font-size: .82rem; color: var(--gray-600); margin-bottom: 16px; }
-    .panel-close { float: right; background: var(--gray-100); border: none; border-radius: 99px; width: 28px; height: 28px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    /* ── More / Bottom Sheet ── */
+    .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; display: none; }
+    .sheet-overlay.open { display: block; }
+    .bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 18px 18px 0 0; z-index: 301; transform: translateY(100%); transition: transform .25s; padding-bottom: env(safe-area-inset-bottom); }
+    .bottom-sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 36px; height: 4px; background: var(--gray-200); border-radius: 2px; margin: 12px auto 16px; }
+    .sheet-item { display: flex; align-items: center; gap: 14px; padding: 16px 20px; font-size: 1rem; font-weight: 500; border-bottom: 1px solid var(--gray-100); cursor: pointer; }
+    .sheet-item:last-child { border-bottom: none; }
+    .sheet-item:active { background: var(--gray-50); }
+    .sheet-item .sheet-icon { font-size: 1.3rem; width: 28px; text-align: center; }
+    .sheet-item.danger { color: var(--red); }
 
-    /* ── Conflict warning ── */
-    .conflict-box {
-      background: #fff8e1;
-      border: 1.5px solid #f6c90e;
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-bottom: 14px;
-      font-size: .85rem;
-      line-height: 1.5;
-    }
-    .conflict-box strong { display: block; margin-bottom: 4px; font-size: .9rem; }
+    /* ── Checkout ── */
+    .checkout-step { background: #fff; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .checkout-step h3 { font-size: .95rem; font-weight: 700; color: var(--gray-700); margin-bottom: 14px; }
+    .search-wrapper { position: relative; }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1.5px solid var(--gray-200); border-radius: 0 0 8px 8px; z-index: 50; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .search-result-item { padding: 12px 14px; cursor: pointer; border-bottom: 1px solid var(--gray-100); font-size: .9rem; }
+    .search-result-item:hover { background: var(--gray-50); }
+    .result-code { font-size: .75rem; color: var(--gray-400); margin-top: 2px; }
+    .selected-prop { display: flex; align-items: center; justify-content: space-between; background: var(--green-bg); border: 1.5px solid var(--green); border-radius: 8px; padding: 10px 14px; font-weight: 600; font-size: .95rem; }
+    .selected-prop button { background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--gray-600); line-height: 1; }
 
-    /* ── Key type checkboxes ── */
-    .key-types-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .key-type-check {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 11px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: .85rem;
-      transition: all .15s;
-    }
-    .key-type-check:has(input:checked) { border-color: var(--green); background: var(--green-bg); font-weight: 600; color: var(--green-dark); }
-    .key-type-check input { accent-color: var(--green); width: 16px; height: 16px; }
+    /* ── Key Grid ── */
+    .key-grid { display: flex; flex-direction: column; gap: 8px; }
+    .key-row { display: flex; align-items: center; gap: 8px; }
+    .key-btn { flex: 1; background: var(--gray-50); border: 2px solid var(--gray-200); border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .key-btn.selected { border-color: var(--green); background: var(--green-bg); }
+    .key-num { font-size: 1.1rem; font-weight: 800; color: var(--green-dark); display: block; }
+    .key-tag-label { font-size: .7rem; color: var(--gray-400); text-transform: uppercase; letter-spacing: .05em; }
+    .key-type { font-size: .8rem; color: var(--gray-600); display: block; margin-top: 2px; }
+    .key-cut { font-size: .75rem; color: var(--blue); font-weight: 600; display: block; margin-top: 3px; font-family: monospace; }
+    .key-missing-btn { background: none; border: 1.5px solid #fca5a5; color: var(--red); border-radius: 6px; padding: 8px 10px; font-size: .75rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .key-missing-btn:hover { background: #fee2e2; }
+    .no-keys-msg { color: var(--gray-400); text-align: center; padding: 24px; font-size: .9rem; }
 
     /* ── Photo upload ── */
-    .photo-upload-area {
-      border: 2px dashed var(--gray-200);
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: all .15s;
-      position: relative;
-      margin-bottom: 14px;
-    }
-    .photo-upload-area:hover { border-color: var(--green); background: var(--green-bg); }
-    .photo-upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .photo-upload-area .upload-label { font-size: .85rem; color: var(--gray-400); pointer-events: none; }
-    .photo-preview { width: 100%; border-radius: 8px; max-height: 200px; object-fit: cover; margin-bottom: 14px; display: none; }
-    textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1.5px solid var(--gray-200);
-      border-radius: 8px;
-      font-size: .9rem;
-      font-family: inherit;
-      resize: vertical;
-      min-height: 72px;
-      outline: none;
-    }
-    textarea:focus { border-color: var(--green); }
+    .photo-upload-area { border: 2px dashed var(--gray-200); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; position: relative; }
+    .photo-upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-label { color: var(--gray-400); font-size: .9rem; }
+    .photo-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; display: none; margin-bottom: 12px; }
 
-    /* ── Checkout form sections ── */
-    .checkout-step {
-      background: #fff;
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
-    }
-    .checkout-step h3 {
-      font-size: .8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--gray-400);
-      margin-bottom: 12px;
-    }
-    .selected-prop {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--green-bg);
-      border: 1.5px solid var(--green);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: .9rem;
-      font-weight: 600;
-      color: var(--charcoal);
-    }
-    .selected-prop button {
-      background: none;
-      border: none;
-      color: var(--gray-400);
-      cursor: pointer;
-      font-size: 1.1rem;
-      line-height: 1;
-      padding: 0 2px;
-    }
-    .no-keys-msg { font-size: .85rem; color: var(--gray-400); padding: 10px 0; text-align: center; }
-    /* ── Login Screen ── */
-    #login-screen { position:fixed; inset:0; background:var(--charcoal); display:flex; align-items:center; justify-content:center; z-index:1000; }
-    .login-box { background:#fff; border-radius:16px; padding:36px 28px; width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,.3); }
-    .login-box .logo-wrap { text-align:center; margin-bottom:24px; }
-    .login-box .logo-wrap img { height:48px; }
-    .login-box h2 { text-align:center; font-size:1.2rem; color:var(--charcoal); margin-bottom:24px; }
-    .login-box .form-group { margin-bottom:16px; }
-    .login-box label { display:block; font-size:.8rem; font-weight:600; color:var(--gray-600); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
-    .login-box input, .login-box select { width:100%; padding:12px 14px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; background:#fff; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
-    .login-box input { background-image:none; }
-    .login-box input:focus, .login-box select:focus { outline:none; border-color:var(--green); }
-    .login-btn { width:100%; padding:14px; background:var(--green); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer; margin-top:8px; }
-    .login-btn:hover { background:var(--green-dark); }
-    .login-error { color:var(--red); font-size:.85rem; text-align:center; margin-top:10px; min-height:20px; }
+    /* ── Check In ── */
+    .checkin-card { display: flex; align-items: center; gap: 12px; }
+    .checkin-info { flex: 1; }
 
-    /* ── User pill in header ── */
-    .user-pill { display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.85); font-size:.8rem; cursor:pointer; }
-    .user-pill .user-name { font-weight:600; }
-    .user-pill .user-role { background:rgba(255,255,255,.15); border-radius:10px; padding:2px 8px; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; }
+    /* ── Missing section ── */
+    .missing-section { margin-bottom: 16px; }
+    .missing-card { border-color: #fca5a5; }
+    .missing-card-row { display: flex; align-items: center; gap: 12px; }
+    .missing-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+    .btn-return { background: var(--green); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: .8rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-remove-key { background: none; border: 1.5px solid #fca5a5; color: var(--red); border-radius: 6px; padding: 7px 12px; font-size: .8rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
-    /* ── User menu dropdown ── */
-    .user-menu { position:absolute; right:16px; top:60px; background:#fff; border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,.15); min-width:180px; z-index:500; overflow:hidden; display:none; }
-    .user-menu.open { display:block; }
-    .user-menu-item { padding:12px 16px; font-size:.9rem; cursor:pointer; color:var(--charcoal); border-bottom:1px solid var(--gray-100); }
-    .user-menu-item:last-child { border-bottom:none; }
-    .user-menu-item:hover { background:var(--gray-100); }
-    .user-menu-item.danger { color:var(--red); }
+    /* ── Dashboard action buttons ── */
+    .dashboard-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+    .dashboard-actions .btn { padding: 16px; font-size: 1rem; }
+    .btn-charcoal { background: var(--charcoal); color: #fff; }
+    .btn-charcoal:hover { background: #444; }
 
-    /* ── Admin: User Management ── */
-    .users-table { width:100%; border-collapse:collapse; font-size:.85rem; margin-top:12px; }
-    .users-table th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--gray-200); color:var(--gray-600); font-size:.75rem; text-transform:uppercase; }
-    .users-table td { padding:10px 10px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
-    .users-table tr:last-child td { border-bottom:none; }
-    .role-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:600; }
-    .role-badge.Admin { background:#fee2e2; color:#b91c1c; }
-    .role-badge.Manager { background:#dbeafe; color:#1d4ed8; }
-    .role-badge.Member { background:#dcfce7; color:#166534; }
-    .btn-sm { padding:4px 10px; font-size:.75rem; border-radius:6px; border:1px solid var(--gray-200); background:#fff; cursor:pointer; }
-    .btn-sm:hover { background:var(--gray-100); }
-    .btn-sm.danger { color:var(--red); border-color:#fca5a5; }
-    .btn-sm.danger:hover { background:#fee2e2; }
+    /* ── Add Key Panel (overlay) ── */
+    .add-key-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: none; align-items: flex-end; justify-content: center; }
+    .add-key-panel { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+    .add-key-panel h3 { font-size: 1.1rem; margin-bottom: 16px; }
+    .key-type-check { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: 8px; margin-bottom: 8px; }
+    .key-type-check input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+    .conflict-box { background: #fde8e8; border: 1.5px solid #f8b4b4; border-radius: 8px; padding: 12px; font-size: .9rem; }
+    .action-choice { background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    .action-choice label { display: flex; align-items: center; gap: 10px; font-size: .9rem; font-weight: 500; cursor: pointer; padding: 6px 0; }
 
-    /* ── Change PIN modal ── */
-    .pin-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:600; }
-    .pin-modal-overlay.open { display:flex; }
-    .pin-modal { background:#fff; border-radius:14px; padding:28px 24px; width:100%; max-width:340px; }
-    .pin-modal h3 { margin-bottom:20px; font-size:1.1rem; }
-    .pin-modal .form-group { margin-bottom:14px; }
-    .pin-modal input { width:100%; padding:10px 12px; border:1.5px solid var(--gray-200); border-radius:8px; font-size:1rem; }
-    .pin-modal input:focus { outline:none; border-color:var(--green); }
-    .pin-modal-actions { display:flex; gap:10px; margin-top:20px; }
-    .pin-modal-actions button { flex:1; padding:10px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
-    .pin-save-btn { background:var(--green); color:#fff; }
-    .pin-cancel-btn { background:var(--gray-100); color:var(--charcoal); }
+    /* ── Return / Check In overlay ── */
+    .return-key-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: none; align-items: flex-end; justify-content: center; }
+    .return-key-panel { background: #fff; border-radius: 18px 18px 0 0; width: 100%; max-width: 600px; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+    .return-key-panel h3 { font-size: 1.1rem; margin-bottom: 6px; }
+    .return-key-panel p { font-size: .9rem; color: var(--gray-600); margin-bottom: 16px; }
+
+    /* ── Modal overlays ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+    .modal { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 360px; }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 10px; }
+    .modal p { font-size: .9rem; color: var(--gray-600); margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; font-size: .95rem; }
+    .btn-cancel { background: var(--gray-100); color: var(--charcoal); }
+    .btn-confirm-missing { background: var(--red); color: #fff; }
+
+    /* ── PIN modal ── */
+    .pin-modal { background: #fff; border-radius: 14px; padding: 28px 24px; width: 100%; max-width: 340px; }
+    .pin-modal h3 { margin-bottom: 20px; font-size: 1.1rem; }
+    .pin-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .pin-modal-actions button { flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+    .pin-save-btn { background: var(--green); color: #fff; }
+    .pin-cancel-btn { background: var(--gray-100); color: var(--charcoal); }
+
+    /* ── Users table ── */
+    .users-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 12px; }
+    .users-table th { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--gray-200); color: var(--gray-600); font-size: .75rem; text-transform: uppercase; }
+    .users-table td { padding: 10px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+    .users-table tr:last-child td { border-bottom: none; }
+    .role-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 600; }
+    .role-badge.Admin { background: #fee2e2; color: #b91c1c; }
+    .role-badge.Manager { background: #dbeafe; color: #1d4ed8; }
+    .role-badge.Member { background: #dcfce7; color: #166534; }
+    .btn-sm { padding: 4px 10px; font-size: .75rem; border-radius: 6px; border: 1.5px solid var(--gray-200); background: #fff; cursor: pointer; }
+    .btn-sm.danger { color: var(--red); border-color: #fca5a5; }
+
+    /* ── Lockboxes ── */
+    .gen-code-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+    .gen-code-panel { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 360px; }
+    .lockbox-location-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+    .lockbox-location-panel { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto; }
+
+    /* ── Codes & Access tab ── */
+    .codes-search { position: relative; margin-bottom: 16px; }
+    .codes-card { background: #fff; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1.5px solid var(--gray-200); }
+    .codes-card h4 { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-400); margin-bottom: 10px; }
+    .code-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--gray-100); }
+    .code-row:last-child { border-bottom: none; }
+    .code-label { font-size: .85rem; color: var(--gray-600); flex-shrink: 0; margin-right: 12px; }
+    .code-value { font-size: 1rem; font-weight: 700; font-family: monospace; color: var(--gray-900); text-align: right; }
+    .code-value.empty { color: var(--gray-400); font-weight: 400; font-family: inherit; font-size: .85rem; }
+    .key-tag-card { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
+    .key-tag-card:last-child { border-bottom: none; }
+    .key-tag-num { font-size: 1.2rem; font-weight: 800; color: var(--green-dark); min-width: 52px; }
+    .key-tag-info { flex: 1; }
+    .key-tag-types { font-size: .82rem; color: var(--gray-600); }
+    .key-tag-cut { font-size: .82rem; color: var(--blue); font-weight: 600; font-family: monospace; margin-top: 2px; }
+    .key-tag-status { font-size: .72rem; font-weight: 600; padding: 2px 7px; border-radius: 8px; }
+    .key-tag-status.in { background: #dcfce7; color: #166534; }
+    .key-tag-status.out { background: #fee2e2; color: #b91c1c; }
+    .key-tag-status.missing { background: #fef3c7; color: #92400e; }
   </style>
 </head>
 <body>
@@ -548,17 +306,10 @@
   </div>
 </div>
 
-<!-- User dropdown menu -->
-<div class="user-menu" id="user-menu">
-  <div class="user-menu-item" onclick="openChangePinModal()">🔑 Change PIN</div>
-  <div class="user-menu-item" id="manage-users-menu-item" onclick="showTab('users')" style="display:none">👥 Manage Users</div>
-  <div class="user-menu-item danger" onclick="doLogout()">Sign Out</div>
-</div>
-
 <!-- Change PIN modal -->
-<div class="pin-modal-overlay" id="pin-modal-overlay">
+<div class="modal-overlay" id="pin-modal-overlay" style="display:none">
   <div class="pin-modal">
-    <h3>🔑 Change PIN</h3>
+    <h3>Change PIN</h3>
     <div class="form-group">
       <label>Current PIN</label>
       <input type="password" id="pin-current" inputmode="numeric" placeholder="••••" />
@@ -579,132 +330,201 @@
   </div>
 </div>
 
-<header>
-  <div class="header-top">
-    <div class="header-logo">
-      <img src="/logo.png" alt="Keyrenter Boise" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-      <span class="header-logo-text" style="display:none">Keyrenter Boise</span>
-      <span class="header-logo-text">Key Manager</span>
+<!-- Add/Edit User Modal -->
+<div class="modal-overlay" id="user-modal-overlay" style="display:none">
+  <div class="pin-modal" style="max-width:400px">
+    <h3 id="user-modal-title">Add User</h3>
+    <input type="hidden" id="user-modal-id" />
+    <div class="form-group"><label>Full Name</label><input type="text" id="user-modal-name" placeholder="e.g. Jane Smith" /></div>
+    <div class="form-group"><label>Username</label><input type="text" id="user-modal-username" autocapitalize="none" placeholder="e.g. jane" /></div>
+    <div class="form-group" id="user-modal-pin-group"><label>PIN</label><input type="password" id="user-modal-pin" inputmode="numeric" placeholder="Min 4 digits" /></div>
+    <div class="form-group"><label>Role</label>
+      <select id="user-modal-role" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
+        <option value="Member">Member</option>
+        <option value="Manager">Manager</option>
+        <option value="Admin">Admin</option>
+      </select>
     </div>
-    <div class="user-pill" id="user-pill" onclick="toggleUserMenu()" style="display:none">
-      <span class="user-name" id="user-pill-name"></span>
-      <span class="user-role" id="user-pill-role"></span>
+    <div class="login-error" id="user-modal-error"></div>
+    <div class="pin-modal-actions">
+      <button class="pin-cancel-btn" onclick="closeUserModal()">Cancel</button>
+      <button class="pin-save-btn" id="user-modal-save-btn" onclick="saveUser()">Save</button>
     </div>
   </div>
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="checkout">Check Out</button>
-    <button class="tab-btn" data-tab="checkin">Check In</button>
-    <button class="tab-btn" data-tab="lockboxes" data-role-required="Admin,Manager">Lockboxes</button>
+</div>
+
+<!-- More bottom sheet -->
+<div class="sheet-overlay" id="more-overlay" onclick="closeMoreSheet()"></div>
+<div class="bottom-sheet" id="more-sheet">
+  <div class="sheet-handle"></div>
+  <div id="sheet-lockboxes" class="sheet-item" onclick="openFromSheet('lockboxes')" style="display:none">
+    <span class="sheet-icon">📦</span> Lockboxes
+  </div>
+  <div id="sheet-users" class="sheet-item" onclick="openFromSheet('users')" style="display:none">
+    <span class="sheet-icon">👥</span> Manage Users
+  </div>
+  <div class="sheet-item" onclick="openFromSheet('pin')">
+    <span class="sheet-icon">🔑</span> Change PIN
+  </div>
+  <div class="sheet-item danger" onclick="doLogout()">
+    <span class="sheet-icon">↩</span> Sign Out
+  </div>
+</div>
+
+<!-- Remove Key confirm modal -->
+<div id="remove-key-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>Remove Key?</h2>
+    <p id="remove-key-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRemoveKeyModal()">Cancel</button>
+      <button class="btn-confirm-missing" id="remove-key-confirm-btn" onclick="confirmRemoveKey()">Yes, Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Missing key confirm modal -->
+<div id="missing-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>⚠️ Mark Key as Missing?</h2>
+    <p id="missing-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMissingModal()">Cancel</button>
+      <button class="btn-confirm-missing" id="missing-confirm-btn" onclick="confirmMissing()">Mark Missing</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Key overlay -->
+<div class="add-key-overlay" id="add-key-overlay" onclick="closeAddKeyPanel(event)">
+  <div class="add-key-panel">
+    <h3>Assign Key Tag to Property</h3>
+    <div id="ak-step1">
+      <div class="form-group search-wrapper">
+        <label>Search property</label>
+        <input id="ak-prop-input" type="text" placeholder="Address or property code" autocomplete="off" />
+        <div id="ak-prop-results" class="search-results" style="display:none"></div>
+      </div>
+    </div>
+    <div id="ak-step2" style="display:none">
+      <div id="ak-prop-selected" style="margin-bottom:14px"></div>
+      <div id="ak-existing-info"></div>
+      <div id="ak-action-choice" class="action-choice" style="display:none">
+        <div style="font-size:.85rem;font-weight:600;margin-bottom:10px">What would you like to do?</div>
+        <label><input type="radio" name="ak-action" value="replace"> Remove existing key tag &amp; assign new one</label>
+        <label style="margin-top:6px"><input type="radio" name="ak-action" value="add"> Add an additional key tag</label>
+      </div>
+      <div id="ak-new-slot-form" style="display:none">
+        <div class="form-group">
+          <label>Key Tag #</label>
+          <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" inputmode="numeric" />
+        </div>
+        <div style="margin-bottom:12px;font-size:.85rem;font-weight:600;color:var(--gray-700)">Key Types</div>
+        <div class="key-type-check"><input type="checkbox" id="kt-door" value="Front Door Key"><label for="kt-door">Front Door Key</label></div>
+        <div class="key-type-check"><input type="checkbox" id="kt-mail" value="Mailbox Key"><label for="kt-mail">Mailbox Key</label></div>
+        <div class="key-type-check"><input type="checkbox" id="kt-garage" value="Garage Remote"><label for="kt-garage">Garage Remote</label></div>
+        <div class="key-type-check"><input type="checkbox" id="kt-pool" value="Pool Fob"><label for="kt-pool">Pool / Amenity Fob</label></div>
+        <button class="btn btn-primary" id="ak-save-btn" disabled onclick="doSaveKey()" style="margin-top:16px">Save Key Tag</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Return / Check In overlay -->
+<div class="return-key-overlay" id="return-key-overlay" onclick="closeReturnPanel(event)">
+  <div class="return-key-panel">
+    <h3 id="return-panel-title">Check In Key</h3>
+    <p id="return-panel-sub"></p>
+    <img id="return-photo-preview" class="photo-preview" alt="preview" />
+    <div class="photo-upload-area" id="return-photo-area" style="margin-bottom:14px">
+      <input type="file" id="return-photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)" />
+      <div class="upload-label">📷 Optional — tap to add a photo</div>
+    </div>
+    <div class="form-group">
+      <label>Note (optional)</label>
+      <textarea id="return-note" rows="2" style="resize:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:10px;width:100%;font-size:.9rem" placeholder="Any notes..."></textarea>
+    </div>
+    <button class="btn btn-primary" id="return-confirm-btn" onclick="confirmReturn()">Confirm</button>
+  </div>
+</div>
+
+<!-- Lockbox modals -->
+<div class="gen-code-modal" id="gen-code-modal">
+  <div class="gen-code-panel">
+    <h3 style="margin-bottom:16px">Generate Day Code</h3>
+    <div class="form-group"><label>Lockbox Serial #</label>
+      <select id="gen-code-sn" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem"></select>
+    </div>
+    <div class="form-group"><label>Date</label><input type="date" id="gen-code-date" /></div>
+    <div class="login-error" id="gen-code-error"></div>
+    <div id="gen-code-result" style="display:none;text-align:center;padding:16px;background:var(--green-bg);border-radius:8px;margin-bottom:14px">
+      <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:4px">Day Code</div>
+      <div id="gen-code-value" style="font-size:2rem;font-weight:800;font-family:monospace;color:var(--green-dark)"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" id="gen-code-btn" onclick="generateCode()">Generate</button>
+      <button style="flex:1;padding:14px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;cursor:pointer;font-weight:600" onclick="closeGenCodeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="lockbox-location-modal" id="lockbox-location-modal">
+  <div class="lockbox-location-panel">
+    <h3 style="margin-bottom:16px">Edit Lockbox — <span id="lockbox-edit-sn" style="font-family:monospace"></span></h3>
+    <input type="hidden" id="lockbox-edit-id" />
+    <div class="form-group"><label>Status</label>
+      <select id="lockbox-edit-status" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
+        <option>At Property</option>
+        <option>In Office</option>
+        <option>Unassigned</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Property</label>
+      <div id="lockbox-selected-property" style="font-size:.9rem;color:var(--gray-600);min-height:20px;margin-bottom:8px"></div>
+      <input type="hidden" id="lockbox-property-id" />
+      <div class="search-wrapper">
+        <input id="lockbox-property-search" type="text" placeholder="Search to change property..." oninput="searchLockboxProperty()" />
+        <div id="lockbox-property-results" class="search-results" style="display:none"></div>
+      </div>
+    </div>
+    <div class="login-error" id="lockbox-location-error"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveLockboxLocation()">Save</button>
+      <button style="flex:1;padding:14px;border-radius:8px;border:1.5px solid var(--gray-200);background:#fff;cursor:pointer;font-weight:600" onclick="closeLockboxLocationModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-logo">
+    <img src="/logo.png" alt="Keyrenter Boise" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
+    <span class="header-logo-text" style="display:none">Keyrenter Boise</span>
+    <span class="header-logo-text">Key Manager</span>
+  </div>
+  <div class="user-pill" id="user-pill" onclick="openMoreSheet()" style="display:none">
+    <span class="user-name" id="user-pill-name"></span>
+    <span class="user-role" id="user-pill-role"></span>
   </div>
 </header>
 
 <main>
-  <!-- ═══════════════════════════════ DASHBOARD ═══════════════════════════════ -->
+  <!-- DASHBOARD -->
   <div id="tab-dashboard" class="tab-panel active">
-    <div class="dash-actions">
-      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="openAddKeyPanel()"><span class="icon">➕</span> Add Key to Property</button>
-      <button class="btn-dash-action" data-role-required="Admin,Manager" onclick="loadMissingKeys()"><span class="icon">🔍</span> Missing Keys</button>
+    <div id="missing-section" class="missing-section" style="display:none"></div>
+    <div class="dashboard-actions" id="dash-actions" style="display:none">
+      <button class="btn btn-primary" onclick="showTab('checkout')" style="flex:1">📤 Check Out</button>
+      <button class="btn btn-charcoal" onclick="showTab('checkin')" style="flex:1">📥 Check In</button>
+    </div>
+    <div id="manager-actions" style="display:none;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <button class="btn-sm" onclick="openAddKeyPanel()">+ Assign Key Tag</button>
+      <button class="btn-sm" onclick="loadMissingKeys()">🔍 Missing Keys</button>
     </div>
     <div id="dashboard-content"><div class="spinner"></div></div>
-    <div id="missing-section" class="missing-section" style="display:none"></div>
   </div>
 
-  <!-- Add Key Panel -->
-  <div id="add-key-overlay" class="panel-overlay" style="display:none" onclick="closeAddKeyPanel(event)">
-    <div class="panel" onclick="event.stopPropagation()">
-      <button class="panel-close" onclick="closeAddKeyPanel()">✕</button>
-      <h2>➕ Add Key to Property</h2>
-      <p class="panel-sub">Search for a property to see its current key assignments.</p>
-
-      <!-- Step 1: property search -->
-      <div id="ak-step1">
-        <div class="form-group search-wrapper">
-          <label for="ak-prop-input">Property</label>
-          <input id="ak-prop-input" type="text" placeholder="Search address or property code" autocomplete="off" />
-          <div id="ak-prop-results" class="search-results" style="display:none"></div>
-        </div>
-      </div>
-
-      <!-- Step 2: existing assignments + action choice -->
-      <div id="ak-step2" style="display:none">
-        <div id="ak-prop-selected" style="margin-bottom:14px"></div>
-        <div id="ak-existing-info"></div>
-        <div id="ak-action-choice" style="display:none">
-          <div class="form-group">
-            <label>What would you like to do?</label>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-              <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="replace"> Remove existing slot &amp; assign new slot
-              </label>
-              <label class="key-type-check" style="grid-column:span 2">
-                <input type="radio" name="ak-action" value="add"> Add an additional key slot
-              </label>
-            </div>
-          </div>
-        </div>
-        <div id="ak-new-slot-form" style="display:none">
-          <div class="form-group">
-            <label for="ak-slot">New Key Slot #</label>
-            <input id="ak-slot" type="text" placeholder="e.g. 42" style="width:140px" />
-          </div>
-          <div class="form-group">
-            <label>Key Types</label>
-            <div class="key-types-grid">
-              <label class="key-type-check"><input type="checkbox" value="Front Door Key"> Front Door Key</label>
-              <label class="key-type-check"><input type="checkbox" value="Mailbox Key"> Mailbox Key</label>
-              <label class="key-type-check"><input type="checkbox" value="Garage Remote"> Garage Remote</label>
-              <label class="key-type-check"><input type="checkbox" value="Pool Fob"> Pool Fob</label>
-              <label class="key-type-check"><input type="checkbox" value="Shed Key"> Shed Key</label>
-              <label class="key-type-check"><input type="checkbox" value="Back Door Key"> Back Door Key</label>
-              <label class="key-type-check"><input type="checkbox" value="Gate Key"> Gate Key</label>
-              <label class="key-type-check"><input type="checkbox" value="Other"> Other</label>
-            </div>
-          </div>
-          <button class="btn btn-primary" id="ak-save-btn" onclick="doSaveKey()" disabled>Save</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Remove Key Confirmation Modal -->
-  <div id="remove-key-modal" class="modal-overlay" style="display:none">
-    <div class="modal">
-      <h2>🗑️ Remove Key from Slot?</h2>
-      <p id="remove-key-modal-text"></p>
-      <div class="modal-actions">
-        <button class="btn-cancel" onclick="closeRemoveKeyModal()">Cancel</button>
-        <button class="btn-confirm-missing" id="remove-key-confirm-btn" onclick="confirmRemoveKey()">Yes, Remove</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Return Key Panel -->
-  <div id="return-key-overlay" class="panel-overlay" style="display:none" onclick="closeReturnPanel(event)">
-    <div class="panel" onclick="event.stopPropagation()">
-      <button class="panel-close" onclick="closeReturnPanel()">✕</button>
-      <h2 id="return-panel-title">✅ Return Missing Key</h2>
-      <p id="return-panel-sub" class="panel-sub"></p>
-      <div class="form-group">
-        <label>Photo (optional)</label>
-        <img id="return-photo-preview" class="photo-preview" alt="preview" />
-        <div class="photo-upload-area" id="return-photo-area">
-          <input type="file" id="return-photo-input" accept="image/*" capture="environment" onchange="previewPhoto(this)" />
-          <div class="upload-label">📷 Tap to take or upload a photo</div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="return-note">Notes (optional)</label>
-        <textarea id="return-note" placeholder="e.g. Found in lockbox, replaced with new copy..."></textarea>
-      </div>
-      <button class="btn btn-primary" id="return-confirm-btn" onclick="confirmReturn()">Confirm Key Returned</button>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════ CHECK OUT ═══════════════════════════════ -->
+  <!-- CHECK OUT -->
   <div id="tab-checkout" class="tab-panel">
-
-    <!-- Step 1: Property search -->
     <div class="checkout-step">
       <h3>1 — Property</h3>
       <div id="prop-search-area">
@@ -716,14 +536,10 @@
       </div>
       <div id="prop-selected" style="display:none"></div>
     </div>
-
-    <!-- Step 2: Key selection -->
     <div class="checkout-step" id="step-key" style="display:none">
-      <h3>2 — Select Key</h3>
+      <h3>2 — Select Key Tag</h3>
       <div id="key-list"><div class="spinner"></div></div>
     </div>
-
-    <!-- Step 3: Photo (required) -->
     <div class="checkout-step" id="step-photo" style="display:none">
       <h3>3 — Photo of Key Ring <span style="color:var(--green-dark);font-size:.8em">(required)</span></h3>
       <img id="checkout-photo-preview" class="photo-preview" alt="preview" />
@@ -732,8 +548,6 @@
         <div class="upload-label">📷 Tap to take or upload a photo of the key ring</div>
       </div>
     </div>
-
-    <!-- Step 4: Details -->
     <div class="checkout-step" id="step-details" style="display:none">
       <h3>4 — Details</h3>
       <div class="form-group">
@@ -763,172 +577,96 @@
           <option>Showing</option>
         </select>
       </div>
-      <div class="form-group">
-        <label for="inp-dateout">Date out</label>
-        <input type="date" id="inp-dateout" />
-      </div>
-      <div class="form-group">
-        <label for="inp-datedue">Expected return</label>
-        <input type="date" id="inp-datedue" />
-      </div>
+      <div class="form-group"><label for="inp-dateout">Date out</label><input type="date" id="inp-dateout" /></div>
+      <div class="form-group"><label for="inp-datedue">Expected return</label><input type="date" id="inp-datedue" /></div>
       <button class="btn btn-primary" id="btn-checkout" disabled>Check Out Key</button>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════ CHECK IN ═══════════════════════════════ -->
+  <!-- CHECK IN -->
   <div id="tab-checkin" class="tab-panel">
     <div id="checkin-content"><div class="spinner"></div></div>
   </div>
 
-  <!-- ══════════════════════════ LOCKBOXES (Manager+) ══════════════════════ -->
+  <!-- CODES & ACCESS -->
+  <div id="tab-codes" class="tab-panel">
+    <div class="codes-search">
+      <div class="form-group search-wrapper">
+        <label for="codes-prop-input">Search property</label>
+        <input id="codes-prop-input" type="text" placeholder="Address or property code" autocomplete="off" />
+        <div id="codes-prop-results" class="search-results" style="display:none"></div>
+      </div>
+    </div>
+    <div id="codes-selected-prop" style="display:none;margin-bottom:14px"></div>
+    <div id="codes-content"></div>
+  </div>
+
+  <!-- LOCKBOXES -->
   <div id="tab-lockboxes" class="tab-panel" style="display:none">
-    <div class="checkout-step">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <h3 style="margin:0">Lockboxes</h3>
-        <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openGenerateCodeModal()">+ Generate Code</button>
-      </div>
-      <div id="lockbox-list"><div class="spinner"></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h3 style="font-size:1rem;margin:0">Lockboxes</h3>
+      <button class="btn-sm" onclick="openGenerateCodeModal()">+ Generate Code</button>
     </div>
+    <div id="lockbox-list"><div class="spinner"></div></div>
   </div>
 
-  <!-- Generate Code Modal -->
-  <div id="gen-code-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeGenCodeModal()">
-    <div class="modal-box">
-      <div class="modal-header"><span>Generate Day Code</span><button class="modal-close" onclick="closeGenCodeModal()">✕</button></div>
-      <div style="margin-bottom:14px">
-        <label class="form-label">Lockbox</label>
-        <select id="gen-code-sn" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem"></select>
-      </div>
-      <div style="margin-bottom:14px">
-        <label class="form-label">Date</label>
-        <input type="date" id="gen-code-date" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
-      </div>
-      <div id="gen-code-result" style="display:none;background:var(--green-bg);border:1.5px solid var(--green);border-radius:8px;padding:14px;text-align:center;margin-bottom:14px">
-        <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:4px">Day Code</div>
-        <div id="gen-code-value" style="font-size:2rem;font-weight:700;letter-spacing:.2em;color:var(--green-dark)"></div>
-      </div>
-      <div id="gen-code-error" class="login-error"></div>
-      <button class="btn btn-primary" id="gen-code-btn" onclick="generateCode()">Generate</button>
-    </div>
-  </div>
-
-  <!-- Update Location Modal -->
-  <div id="lockbox-location-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeLockboxLocationModal()">
-    <div class="modal-box">
-      <div class="modal-header"><span>Update Lockbox Location</span><button class="modal-close" onclick="closeLockboxLocationModal()">✕</button></div>
-      <input type="hidden" id="lockbox-edit-id" />
-      <div style="margin-bottom:14px">
-        <label class="form-label">Serial Number</label>
-        <div id="lockbox-edit-sn" style="font-weight:600;font-size:1.1rem;padding:8px 0"></div>
-      </div>
-      <div style="margin-bottom:14px">
-        <label class="form-label">Status</label>
-        <select id="lockbox-edit-status" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
-          <option value="At Property">At Property</option>
-          <option value="In Office">In Office</option>
-          <option value="Unassigned">Unassigned</option>
-        </select>
-      </div>
-      <div id="lockbox-property-row" style="margin-bottom:14px">
-        <label class="form-label">Property</label>
-        <input type="text" id="lockbox-property-search" placeholder="Search address..." oninput="searchLockboxProperty()" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem" />
-        <div id="lockbox-property-results" style="border:1px solid var(--gray-200);border-radius:8px;max-height:180px;overflow-y:auto;display:none;margin-top:4px"></div>
-        <div id="lockbox-selected-property" style="margin-top:6px;font-size:.9rem;color:var(--green-dark);font-weight:500"></div>
-        <input type="hidden" id="lockbox-property-id" />
-      </div>
-      <div id="lockbox-location-error" class="login-error"></div>
-      <button class="btn btn-primary" onclick="saveLockboxLocation()">Save</button>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ USERS (Admin) ════════════════════════════ -->
+  <!-- USERS -->
   <div id="tab-users" class="tab-panel" style="display:none">
-    <div class="checkout-step">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <h3 style="margin:0">👥 Manage Users</h3>
-        <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openAddUserModal()">+ Add User</button>
-      </div>
-      <div id="users-list"><div class="spinner"></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="margin:0;font-size:1rem">Manage Users</h3>
+      <button class="btn btn-primary" style="width:auto;padding:8px 16px" onclick="openAddUserModal()">+ Add User</button>
     </div>
+    <div id="users-list"><div class="spinner"></div></div>
   </div>
 </main>
 
-<!-- Add/Edit User Modal -->
-<div class="pin-modal-overlay" id="user-modal-overlay">
-  <div class="pin-modal" style="max-width:400px">
-    <h3 id="user-modal-title">Add User</h3>
-    <input type="hidden" id="user-modal-id" />
-    <div class="form-group"><label>Full Name</label><input type="text" id="user-modal-name" placeholder="e.g. Jane Smith" /></div>
-    <div class="form-group"><label>Username</label><input type="text" id="user-modal-username" autocapitalize="none" placeholder="e.g. jane" /></div>
-    <div class="form-group" id="user-modal-pin-group"><label>PIN</label><input type="password" id="user-modal-pin" inputmode="numeric" placeholder="Min 4 digits" /></div>
-    <div class="form-group"><label>Role</label>
-      <select id="user-modal-role" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:1rem">
-        <option value="Member">Member</option>
-        <option value="Manager">Manager</option>
-        <option value="Admin">Admin</option>
-      </select>
-    </div>
-    <div class="login-error" id="user-modal-error"></div>
-    <div class="pin-modal-actions">
-      <button class="pin-cancel-btn" onclick="closeUserModal()">Cancel</button>
-      <button class="pin-save-btn" id="user-modal-save-btn" onclick="saveUser()">Save</button>
-    </div>
-  </div>
-</div>
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">
+    <span class="nav-icon">🏠</span>Home
+  </button>
+  <button class="nav-btn" data-tab="checkout" onclick="showTab('checkout')">
+    <span class="nav-icon">📤</span>Out
+  </button>
+  <button class="nav-btn" data-tab="checkin" onclick="showTab('checkin')">
+    <span class="nav-icon">📥</span>In
+  </button>
+  <button class="nav-btn" data-tab="codes" onclick="showTab('codes')">
+    <span class="nav-icon">🔑</span>Codes
+  </button>
+  <button class="nav-btn" id="more-nav-btn" onclick="openMoreSheet()">
+    <span class="nav-icon">☰</span>More
+  </button>
+</nav>
 
 <div id="toast"></div>
 
-<!-- Missing key modal -->
-<div id="missing-modal" class="modal-overlay" style="display:none">
-  <div class="modal">
-    <h2>⚠️ Mark Key as Missing?</h2>
-    <p id="missing-modal-text"></p>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeMissingModal()">Cancel</button>
-      <button class="btn-confirm-missing" id="missing-confirm-btn" onclick="confirmMissing()">Mark Missing</button>
-    </div>
-  </div>
-</div>
-
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-// Auth
-// ─────────────────────────────────────────────────────────────────────────────
-
 let currentUser = null;
 
 async function initAuth() {
   await loadLoginUserDropdown();
   try {
     const res = await fetch('/api/me');
-    if (res.ok) {
-      currentUser = await res.json();
-      onLoginSuccess();
-    }
-  } catch (e) { /* stay on login screen */ }
+    if (res.ok) { currentUser = await res.json(); onLoginSuccess(); }
+  } catch (e) {}
 }
 
 async function loadLoginUserDropdown() {
   const sel = document.getElementById('login-username');
   try {
     const res = await fetch('/api/user-list');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error();
     const users = await res.json();
-    if (!Array.isArray(users) || users.length === 0) throw new Error('No users returned');
+    if (!Array.isArray(users) || users.length === 0) throw new Error();
     sel.innerHTML = '<option value="">Select your name...</option>' +
-      users.filter(u => u.active !== false)
-           .sort((a, b) => a.name.localeCompare(b.name))
+      users.sort((a, b) => a.name.localeCompare(b.name))
            .map(u => `<option value="${u.username}">${u.name}</option>`)
            .join('');
   } catch (e) {
-    console.error('Failed to load user list:', e);
     sel.innerHTML = '<option value="">— type username below —</option>';
-    // Fall back to text input
     const input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'login-username';
-    input.autocapitalize = 'none';
-    input.placeholder = 'e.g. chapin';
+    input.type = 'text'; input.id = 'login-username'; input.autocapitalize = 'none'; input.placeholder = 'e.g. chapin';
     sel.replaceWith(input);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pin').focus(); });
   }
@@ -954,69 +692,59 @@ function onLoginSuccess() {
   document.getElementById('user-pill').style.display = 'flex';
   document.getElementById('user-pill-name').textContent = currentUser.name.split(' ')[0];
   document.getElementById('user-pill-role').textContent = currentUser.role;
-  if (currentUser.role === 'Admin') {
-    document.getElementById('manage-users-menu-item').style.display = 'block';
+  const isManagerOrAbove = ['Admin', 'Manager'].includes(currentUser.role);
+  if (currentUser.role === 'Admin') document.getElementById('sheet-users').style.display = 'flex';
+  if (isManagerOrAbove) {
+    document.getElementById('sheet-lockboxes').style.display = 'flex';
+    document.getElementById('manager-actions').style.display = 'flex';
   }
-  applyRoleUI();
-  // Pre-select logged-in user in checkout staff dropdown
+  document.getElementById('dash-actions').style.display = 'flex';
   const staffSel = document.getElementById('sel-staff');
   if (staffSel && currentUser.notionPersonId) {
-    for (const opt of staffSel.options) {
-      if (opt.value === currentUser.notionPersonId) { opt.selected = true; break; }
-    }
+    for (const opt of staffSel.options) { if (opt.value === currentUser.notionPersonId) { opt.selected = true; break; } }
   }
   loadDashboard();
-}
-
-function applyRoleUI() {
-  const isManagerOrAbove = ['Admin', 'Manager'].includes(currentUser?.role);
-  document.querySelectorAll('[data-role-required]').forEach(el => {
-    const required = el.dataset.roleRequired.split(',');
-    el.style.display = required.some(r => r.trim() === currentUser?.role) ? '' : 'none';
-  });
 }
 
 async function doLogout() {
   await fetch('/api/logout', { method: 'POST' });
   currentUser = null;
+  closeMoreSheet();
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('user-pill').style.display = 'none';
-  document.getElementById('user-menu').classList.remove('open');
-  document.getElementById('login-username').selectedIndex = 0;
   document.getElementById('login-pin').value = '';
   document.getElementById('login-error').textContent = '';
+  const sel = document.getElementById('login-username');
+  if (sel && sel.tagName === 'SELECT') sel.selectedIndex = 0;
 }
 
-function toggleUserMenu() {
-  document.getElementById('user-menu').classList.toggle('open');
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('#user-pill') && !e.target.closest('#user-menu')) {
-    document.getElementById('user-menu').classList.remove('open');
+function openMoreSheet() { document.getElementById('more-overlay').classList.add('open'); document.getElementById('more-sheet').classList.add('open'); }
+function closeMoreSheet() { document.getElementById('more-overlay').classList.remove('open'); document.getElementById('more-sheet').classList.remove('open'); }
+function openFromSheet(action) { closeMoreSheet(); if (action === 'pin') { openChangePinModal(); return; } showTab(action); }
+
+const tabLoaded = {};
+function showTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn[data-tab]').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-' + tab);
+  if (panel) { panel.classList.add('active'); panel.style.display = ''; }
+  const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
+  if (btn) btn.classList.add('active');
+  if (!tabLoaded[tab]) {
+    tabLoaded[tab] = true;
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'checkin') loadCheckin();
+    if (tab === 'users') loadUsers();
+    if (tab === 'lockboxes') loadLockboxes();
   }
-});
-
-// Allow Enter key on login
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('login-username').addEventListener('change', () => document.getElementById('login-pin').focus());
-  initAuth();
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Change PIN
-// ─────────────────────────────────────────────────────────────────────────────
+}
 
 function openChangePinModal() {
-  document.getElementById('pin-current').value = '';
-  document.getElementById('pin-new').value = '';
-  document.getElementById('pin-confirm').value = '';
+  ['pin-current','pin-new','pin-confirm'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pin-error').textContent = '';
-  document.getElementById('pin-modal-overlay').classList.add('open');
-  document.getElementById('user-menu').classList.remove('open');
+  document.getElementById('pin-modal-overlay').style.display = 'flex';
 }
-function closeChangePinModal() { document.getElementById('pin-modal-overlay').classList.remove('open'); }
-
+function closeChangePinModal() { document.getElementById('pin-modal-overlay').style.display = 'none'; }
 async function savePin() {
   const currentPin = document.getElementById('pin-current').value;
   const newPin = document.getElementById('pin-new').value;
@@ -1030,36 +758,25 @@ async function savePin() {
     const res = await fetch('/api/change-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPin, newPin }) });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error; return; }
-    closeChangePinModal();
-    toast('PIN updated ✓');
+    closeChangePinModal(); toast('PIN updated ✓');
   } catch (e) { errEl.textContent = 'Error saving PIN'; }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// User Management (Admin only)
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function loadUsers() {
   const el = document.getElementById('users-list');
   try {
     const users = await api('/api/users');
     users.sort((a, b) => a.name.localeCompare(b.name));
-    el.innerHTML = `<table class="users-table">
-      <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th></th></tr></thead>
-      <tbody>${users.map(u => `
-        <tr>
-          <td>${u.name}</td>
-          <td style="color:var(--gray-400)">${u.username}</td>
-          <td><span class="role-badge ${u.role}">${u.role}</span></td>
-          <td>${u.active ? '<span style="color:var(--green-dark);font-weight:600">Active</span>' : '<span style="color:var(--gray-400)">Inactive</span>'}</td>
-          <td style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn-sm" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit</button>
-            <button class="btn-sm" onclick="resetUserPin('${u.id}','${u.name}')">Reset PIN</button>
-            ${u.id !== currentUser.id ? `<button class="btn-sm danger" onclick="toggleUserActive('${u.id}','${u.name}',${u.active})">${u.active ? 'Deactivate' : 'Activate'}</button>` : ''}
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
+    el.innerHTML = `<table class="users-table"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>${users.map(u => `
+      <tr>
+        <td><div>${u.name}</div><div style="font-size:.75rem;color:var(--gray-400)">${u.username}</div></td>
+        <td><span class="role-badge ${u.role}">${u.role}</span></td>
+        <td>${u.active ? '<span style="color:var(--green-dark);font-weight:600;font-size:.8rem">Active</span>' : '<span style="color:var(--gray-400);font-size:.8rem">Inactive</span>'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-sm" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
+          ${u.id !== currentUser.id ? `<button class="btn-sm danger" style="margin-left:4px" onclick="toggleUserActive('${u.id}','${u.name}',${u.active})">${u.active ? 'Off' : 'On'}</button>` : ''}
+        </td>
+      </tr>`).join('')}</tbody></table>`;
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
@@ -1067,29 +784,24 @@ let editingUserId = null;
 function openAddUserModal() {
   editingUserId = null;
   document.getElementById('user-modal-title').textContent = 'Add User';
-  document.getElementById('user-modal-id').value = '';
-  document.getElementById('user-modal-name').value = '';
-  document.getElementById('user-modal-username').value = '';
-  document.getElementById('user-modal-pin').value = '';
+  ['user-modal-name','user-modal-username','user-modal-pin'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('user-modal-role').value = 'Member';
   document.getElementById('user-modal-pin-group').style.display = 'block';
   document.getElementById('user-modal-error').textContent = '';
-  document.getElementById('user-modal-overlay').classList.add('open');
+  document.getElementById('user-modal-overlay').style.display = 'flex';
 }
 function openEditUserModal(u) {
   editingUserId = u.id;
   document.getElementById('user-modal-title').textContent = 'Edit User';
-  document.getElementById('user-modal-id').value = u.id;
   document.getElementById('user-modal-name').value = u.name;
   document.getElementById('user-modal-username').value = u.username;
   document.getElementById('user-modal-pin').value = '';
   document.getElementById('user-modal-role').value = u.role;
   document.getElementById('user-modal-pin-group').style.display = 'none';
   document.getElementById('user-modal-error').textContent = '';
-  document.getElementById('user-modal-overlay').classList.add('open');
+  document.getElementById('user-modal-overlay').style.display = 'flex';
 }
-function closeUserModal() { document.getElementById('user-modal-overlay').classList.remove('open'); }
-
+function closeUserModal() { document.getElementById('user-modal-overlay').style.display = 'none'; }
 async function saveUser() {
   const name = document.getElementById('user-modal-name').value.trim();
   const username = document.getElementById('user-modal-username').value.trim();
@@ -1105,34 +817,18 @@ async function saveUser() {
       if (!pin || pin.length < 4) { errEl.textContent = 'PIN must be at least 4 digits'; return; }
       await api('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, username, pin, role }) });
     }
-    closeUserModal();
-    loadUsers();
+    closeUserModal(); tabLoaded.users = false; loadUsers();
     toast(editingUserId ? 'User updated ✓' : 'User added ✓');
   } catch (e) { errEl.textContent = e.message; }
 }
-
-async function resetUserPin(userId, userName) {
-  const newPin = prompt(`Reset PIN for ${userName}. Enter new PIN (min 4 digits):`);
-  if (!newPin) return;
-  if (newPin.length < 4) { toast('PIN must be at least 4 digits', true); return; }
-  try {
-    await api(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: newPin }) });
-    toast(`PIN reset for ${userName} ✓`);
-  } catch (e) { toast(e.message, true); }
-}
-
 async function toggleUserActive(userId, userName, currentlyActive) {
-  if (currentlyActive && !confirm(`Deactivate ${userName}? They will no longer be able to log in.`)) return;
+  if (currentlyActive && !confirm(`Deactivate ${userName}?`)) return;
   try {
     await api(`/api/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !currentlyActive }) });
     toast(`${userName} ${currentlyActive ? 'deactivated' : 'activated'} ✓`);
-    loadUsers();
+    tabLoaded.users = false; loadUsers();
   } catch (e) { toast(e.message, true); }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 const STAFF_MAP = {
   '12fd872b-594c-8173-b8bb-0002a0d4fade': 'Chapin Hemphill',
@@ -1147,40 +843,15 @@ const STAFF_MAP = {
   '1add872b-594c-8183-834e-0002995b4763': 'Veb Torre',
   '1fad872b-594c-813d-8588-000265b1646c': 'Zandra Jean Madera',
 };
-
 function staffName(id) { return STAFF_MAP[id] || id; }
-
-function normalizeUrl(url) {
-  return (url || '').split('?')[0].replace(/-/g, '').replace(/.*notion\.so\//, '').toLowerCase();
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  const [y, m, d] = iso.split('-');
-  return `${m}/${d}/${y.slice(2)}`;
-}
-
-function todayMT() {
-  return new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Boise' }) + 'T00:00:00');
-}
-
-function isOverdue(dateDue) {
-  if (!dateDue) return false;
-  return new Date(dateDue) < todayMT();
-}
-
-function isDueSoon(dateDue) {
-  if (!dateDue) return false;
-  const diff = new Date(dateDue) - todayMT();
-  return diff >= 0 && diff <= 2 * 86400000;
-}
+function formatDate(iso) { if (!iso) return '—'; const [y,m,d] = iso.split('-'); return `${m}/${d}/${y.slice(2)}`; }
+function todayMT() { return new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Boise' }) + 'T00:00:00'); }
+function isOverdue(dateDue) { return dateDue ? new Date(dateDue) < todayMT() : false; }
+function isDueSoon(dateDue) { if (!dateDue) return false; const diff = new Date(dateDue) - todayMT(); return diff >= 0 && diff <= 2 * 86400000; }
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error(j.error || `HTTP ${res.status}`);
-  }
+  if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
   return res.json();
 }
 
@@ -1193,107 +864,459 @@ function toast(msg, isError = false) {
   toastTimer = setTimeout(() => el.className = '', 3000);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tabs
-// ─────────────────────────────────────────────────────────────────────────────
-
-const tabLoaded = {};
-
-function showTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  const panel = document.getElementById('tab-' + tab);
-  if (panel) { panel.classList.add('active'); panel.style.display = ''; }
-  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-  if (btn) btn.classList.add('active');
-  document.getElementById('user-menu').classList.remove('open');
-  if (!tabLoaded[tab]) {
-    tabLoaded[tab] = true;
-    if (tab === 'dashboard') loadDashboard();
-    if (tab === 'checkin') loadCheckin();
-    if (tab === 'users') loadUsers();
-    if (tab === 'lockboxes') loadLockboxes();
-  }
+async function loadDashboard() {
+  const el = document.getElementById('dashboard-content');
+  try {
+    const entries = await api('/api/dashboard');
+    if (entries.length === 0) { el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>'; return; }
+    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
+    let html = `<div class="section-header">${entries.length} key${entries.length !== 1 ? 's' : ''} out</div>`;
+    for (const e of entries) {
+      const overdue = isOverdue(e.dateDue);
+      const soon = !overdue && isDueSoon(e.dateDue);
+      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
+      const purposeBadge = e.purpose ? `<span class="badge badge-blue">${e.purpose}</span> ` : '';
+      const dueBadge = overdue ? `<span class="badge badge-red">Overdue</span>` : soon ? `<span class="badge badge-yellow">Due soon</span>` : '';
+      html += `<div class="${overdue ? 'card overdue' : soon ? 'card due-soon' : 'card'}">
+        <div class="card-title">${e.logEntry || '—'}</div>
+        <div class="card-meta"><span>👤 ${who}</span><span>📤 ${formatDate(e.dateOut)}</span><span>📅 Due ${formatDate(e.dateDue)}</span></div>
+        <div style="margin-top:6px">${purposeBadge}${dueBadge}</div>
+      </div>`;
+    }
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+tabLoaded['dashboard'] = true;
+loadDashboard();
+
+async function loadCheckin() {
+  const el = document.getElementById('checkin-content');
+  try {
+    const entries = await api('/api/dashboard');
+    if (entries.length === 0) { el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>'; return; }
+    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
+    let html = '';
+    for (const e of entries) {
+      const overdue = isOverdue(e.dateDue);
+      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
+      html += `<div class="${overdue ? 'card overdue' : 'card'}" id="ci-${e.id}">
+        <div class="checkin-card">
+          <div class="checkin-info">
+            <div class="card-title">${e.logEntry || '—'}</div>
+            <div class="card-meta"><span>👤 ${who}</span><br><span>📤 ${formatDate(e.dateOut)}</span><span>📅 Due ${formatDate(e.dateDue)}</span>${overdue ? '<span class="badge badge-red">Overdue</span>' : ''}</div>
+          </div>
+          <button class="btn btn-success" onclick="openCheckinPanel('${e.id}', '${(e.logEntry||'').replace(/'/g,"\\'")}')">Check In</button>
+        </div>
+      </div>`;
+    }
+    el.innerHTML = html;
+  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+// Codes & Access
+let codesSearchTimer;
+document.getElementById('codes-prop-input').addEventListener('input', () => {
+  clearTimeout(codesSearchTimer);
+  const q = document.getElementById('codes-prop-input').value.trim();
+  const res = document.getElementById('codes-prop-results');
+  if (q.length < 2) { res.style.display = 'none'; return; }
+  codesSearchTimer = setTimeout(async () => {
+    try {
+      const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+      res.innerHTML = results.length === 0
+        ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
+        : results.map(r => {
+            const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
+            return `<div class="search-result-item" onclick="selectCodesProperty('${r.id}','${addr.replace(/'/g,"\\'")}')">\n              ${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}\n            </div>`;
+          }).join('');
+      res.style.display = 'block';
+    } catch (e) { res.style.display = 'none'; }
+  }, 280);
 });
+document.addEventListener('click', e => {
+  if (!e.target.closest('#codes-prop-results') && e.target !== document.getElementById('codes-prop-input'))
+    document.getElementById('codes-prop-results').style.display = 'none';
+});
+async function selectCodesProperty(id, label) {
+  document.getElementById('codes-prop-results').style.display = 'none';
+  document.getElementById('codes-prop-input').value = '';
+  document.getElementById('codes-selected-prop').style.display = 'block';
+  document.getElementById('codes-selected-prop').innerHTML = `<div class="selected-prop"><span>${label}</span><button onclick="clearCodesProperty()">✕</button></div>`;
+  document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await api(`/api/property-codes/${id}`);
+    renderCodes(data);
+  } catch (e) { document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+function clearCodesProperty() {
+  document.getElementById('codes-selected-prop').style.display = 'none';
+  document.getElementById('codes-content').innerHTML = '';
+  document.getElementById('codes-prop-input').value = '';
+}
+function codeRow(label, value) {
+  if (!value) return `<div class="code-row"><span class="code-label">${label}</span><span class="code-value empty">—</span></div>`;
+  return `<div class="code-row"><span class="code-label">${label}</span><span class="code-value">${value}</span></div>`;
+}
+function renderCodes(data) {
+  const el = document.getElementById('codes-content');
+  let html = `<div class="codes-card"><h4>Entry Codes</h4>${codeRow('Front Door', data.frontDoorCode)}${codeRow('Garage Keypad', data.garageKeypad)}${codeRow('Community Entry', data.communityEntryCode)}</div>`;
+  if (data.mailboxNumber || data.mailboxLocation) html += `<div class="codes-card"><h4>Mailbox</h4>${codeRow('Box #', data.mailboxNumber)}${codeRow('Location', data.mailboxLocation)}</div>`;
+  if (data.otherSystems) html += `<div class="codes-card"><h4>Other Systems</h4><div style="font-size:.9rem;line-height:1.5;white-space:pre-wrap">${data.otherSystems}</div></div>`;
+  if (data.keys && data.keys.length > 0) {
+    const sc = s => s === 'In Office' ? 'in' : s === 'Missing' ? 'missing' : 'out';
+    const sl = s => s === 'In Office' ? 'In Office' : s === 'Checked Out' ? 'Out' : s || 'In Office';
+    html += `<div class="codes-card"><h4>Key Tags (${data.keys.length})</h4>${data.keys.map(k => `
+      <div class="key-tag-card">
+        <div class="key-tag-num">Tag #${k.slot}</div>
+        <div class="key-tag-info">
+          <div class="key-tag-types">${k.keyTypes.join(', ') || 'No type set'}</div>
+          ${k.kwiksetCut ? `<div class="key-tag-cut">Kwikset Cut: ${k.kwiksetCut}</div>` : ''}
+        </div>
+        <span class="key-tag-status ${sc(k.status)}">${sl(k.status)}</span>
+      </div>`).join('')}</div>`;
+  }
+  if (data.maintenanceNotes) html += `<div class="codes-card"><h4>Maintenance Notes</h4><div style="font-size:.9rem;line-height:1.5;white-space:pre-wrap">${data.maintenanceNotes}</div></div>`;
+  el.innerHTML = html;
+}
 
-// ── Lockboxes ──────────────────────────────────────────────────────────────
+// Check Out
+let searchTimer, selectedProperty = null, selectedKey = null;
+const propInput = document.getElementById('prop-input');
+const propResults = document.getElementById('prop-results');
+propInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = propInput.value.trim();
+  if (q.length < 2) { propResults.style.display = 'none'; return; }
+  searchTimer = setTimeout(() => searchProperties(q), 280);
+});
+async function searchProperties(q) {
+  try {
+    const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+    propResults.innerHTML = results.length === 0
+      ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
+      : results.map(r => { const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
+          return `<div class="search-result-item" data-id="${r.id}" data-url="${r.url}" data-label="${addr}" onclick="selectProperty(this)">${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}</div>`;
+        }).join('');
+    propResults.style.display = 'block';
+  } catch (e) { propResults.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`; propResults.style.display = 'block'; }
+}
+document.addEventListener('click', e => { if (!propResults.contains(e.target) && e.target !== propInput) propResults.style.display = 'none'; });
+async function selectProperty(el) {
+  propResults.style.display = 'none';
+  selectedProperty = { id: el.dataset.id, url: el.dataset.url, label: el.dataset.label };
+  document.getElementById('prop-search-area').style.display = 'none';
+  const propSelected = document.getElementById('prop-selected');
+  propSelected.style.display = 'block';
+  propSelected.innerHTML = `<div class="selected-prop"><span>${selectedProperty.label}</span><button onclick="clearProperty()" title="Change">✕</button></div>`;
+  await loadKeysForProperty();
+}
+function clearProperty() {
+  selectedProperty = null; selectedKey = null;
+  document.getElementById('prop-search-area').style.display = 'block';
+  document.getElementById('prop-selected').style.display = 'none';
+  propInput.value = '';
+  document.getElementById('step-key').style.display = 'none';
+  document.getElementById('step-photo').style.display = 'none';
+  document.getElementById('step-details').style.display = 'none';
+  document.getElementById('checkout-photo-input').value = '';
+  document.getElementById('checkout-photo-preview').style.display = 'none';
+  document.getElementById('checkout-photo-area').style.display = 'block';
+  updateCheckoutBtn();
+}
+async function loadKeysForProperty() {
+  const stepKey = document.getElementById('step-key');
+  const keyList = document.getElementById('key-list');
+  stepKey.style.display = 'block';
+  keyList.innerHTML = '<div class="spinner"></div>';
+  try {
+    const keys = await api(`/api/keys-for-property/${selectedProperty.id}`);
+    if (keys.length === 0) { keyList.innerHTML = '<div class="no-keys-msg">No available key tags found for this property</div>'; return; }
+    keys.sort((a, b) => parseInt(a.slot) - parseInt(b.slot));
+    keyList.innerHTML = '<div class="key-grid">' + keys.map(k => {
+      const shortType = k.keyTypes.map(t => t.replace('Front Door Key','Door').replace('Mailbox Key','Mail').replace('Garage Remote','Garage').replace('Pool Fob','Pool')).join(', ');
+      return `<div class="key-row">
+        <div class="key-btn" data-id="${k.id}" data-slot="${k.slot}" data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
+          <span class="key-tag-label">Key Tag</span>
+          <span class="key-num">#${k.slot}</span>
+          ${shortType ? `<span class="key-type">${shortType}</span>` : ''}
+          ${k.kwiksetCut ? `<span class="key-cut">Kwikset: ${k.kwiksetCut}</span>` : ''}
+        </div>
+        <button class="key-missing-btn" onclick="promptMissing('${k.id}','${k.slot}',this)">Missing</button>
+      </div>`;
+    }).join('') + '</div>';
+  } catch (e) { keyList.innerHTML = `<div class="no-keys-msg" style="color:var(--red)">${e.message}</div>`; }
+}
+function selectKey(el) {
+  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedKey = { id: el.dataset.id, slot: el.dataset.slot, logRelation: JSON.parse(el.dataset.logrel || '[]') };
+  document.getElementById('step-photo').style.display = 'block';
+  document.getElementById('step-details').style.display = 'none';
+  document.getElementById('checkout-photo-input').value = '';
+  document.getElementById('checkout-photo-preview').style.display = 'none';
+  document.getElementById('checkout-photo-area').style.display = 'block';
+  updateCheckoutBtn();
+}
+function mtDateStr(offsetDays = 0) { const d = new Date(Date.now() + offsetDays * 86400000); return d.toLocaleDateString('en-CA', { timeZone: 'America/Boise' }); }
+function setDefaultDates() { document.getElementById('inp-dateout').value = mtDateStr(0); document.getElementById('inp-datedue').value = mtDateStr(1); }
+['sel-staff','sel-purpose','inp-dateout','inp-datedue'].forEach(id => document.getElementById(id).addEventListener('change', updateCheckoutBtn));
+function updateCheckoutBtn() {
+  const hasPhoto = document.getElementById('checkout-photo-input').files.length > 0;
+  const ready = selectedProperty && selectedKey && hasPhoto && document.getElementById('sel-staff').value && document.getElementById('sel-purpose').value && document.getElementById('inp-dateout').value && document.getElementById('inp-datedue').value;
+  document.getElementById('btn-checkout').disabled = !ready;
+}
+document.getElementById('btn-checkout').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-checkout');
+  btn.disabled = true; btn.textContent = 'Checking out…';
+  const staffEl = document.getElementById('sel-staff');
+  try {
+    const formData = new FormData();
+    formData.append('keyId', selectedKey.id); formData.append('keySlot', selectedKey.slot);
+    formData.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
+    formData.append('staffId', staffEl.value); formData.append('staffName', staffEl.options[staffEl.selectedIndex].text);
+    formData.append('purpose', document.getElementById('sel-purpose').value);
+    formData.append('dateOut', document.getElementById('inp-dateout').value);
+    formData.append('dateDue', document.getElementById('inp-datedue').value);
+    formData.append('propertyId', selectedProperty.id); formData.append('propertyUrl', selectedProperty.url || '');
+    const photoFile = document.getElementById('checkout-photo-input').files[0];
+    if (photoFile) formData.append('photo', photoFile);
+    await fetch('/api/checkout', { method: 'POST', body: formData });
+    toast(`Key Tag #${selectedKey.slot} checked out ✓`);
+    clearProperty();
+    document.getElementById('checkout-photo-input').value = '';
+    document.getElementById('checkout-photo-preview').style.display = 'none';
+    document.getElementById('checkout-photo-area').style.display = 'block';
+    tabLoaded['dashboard'] = false; tabLoaded['checkin'] = false;
+    btn.textContent = 'Check Out Key';
+  } catch (e) { btn.disabled = false; btn.textContent = 'Check Out Key'; toast(e.message, true); }
+});
+function previewCheckoutPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const preview = document.getElementById('checkout-photo-preview');
+  preview.src = URL.createObjectURL(file); preview.style.display = 'block';
+  document.getElementById('checkout-photo-area').style.display = 'none';
+  document.getElementById('step-details').style.display = 'block';
+  setDefaultDates(); updateCheckoutBtn();
+}
 
+// Add Key to Property
+let akSelectedProperty = null, akExistingKeys = [];
+function openAddKeyPanel() {
+  akSelectedProperty = null; akExistingKeys = [];
+  document.getElementById('ak-prop-input').value = '';
+  document.getElementById('ak-prop-results').style.display = 'none';
+  document.getElementById('ak-step1').style.display = 'block';
+  document.getElementById('ak-step2').style.display = 'none';
+  document.getElementById('add-key-overlay').style.display = 'flex';
+}
+function closeAddKeyPanel(e) { if (e && e.target !== document.getElementById('add-key-overlay')) return; document.getElementById('add-key-overlay').style.display = 'none'; }
+let akSearchTimer;
+document.getElementById('ak-prop-input').addEventListener('input', () => {
+  clearTimeout(akSearchTimer);
+  const q = document.getElementById('ak-prop-input').value.trim();
+  const res = document.getElementById('ak-prop-results');
+  if (q.length < 2) { res.style.display = 'none'; return; }
+  akSearchTimer = setTimeout(async () => {
+    try {
+      const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
+      res.innerHTML = results.length === 0 ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
+        : results.map(r => { const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode;
+            return `<div class="search-result-item" onclick="akSelectProperty('${r.id}','${addr.replace(/'/g,"\\'")}')">\n              ${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}\n            </div>`; }).join('');
+      res.style.display = 'block';
+    } catch (e) { res.style.display = 'none'; }
+  }, 280);
+});
+async function akSelectProperty(id, label) {
+  akSelectedProperty = { id, label };
+  document.getElementById('ak-prop-results').style.display = 'none';
+  document.getElementById('ak-step1').style.display = 'none';
+  document.getElementById('ak-step2').style.display = 'block';
+  document.getElementById('ak-prop-selected').innerHTML = `<div class="selected-prop"><span>${label}</span><button onclick="akClearProperty()">✕</button></div>`;
+  const info = document.getElementById('ak-existing-info');
+  info.innerHTML = '<div style="font-size:.85rem;color:var(--gray-400);margin-bottom:12px">Loading…</div>';
+  document.getElementById('ak-action-choice').style.display = 'none';
+  document.getElementById('ak-new-slot-form').style.display = 'none';
+  try { akExistingKeys = await api(`/api/all-keys-for-property/${id}`); } catch (_) { akExistingKeys = []; }
+  if (akExistingKeys.length === 0) {
+    info.innerHTML = `<div class="badge badge-green" style="margin-bottom:14px;padding:8px 12px;border-radius:8px;display:block;font-size:.85rem">No key tags currently assigned to this property.</div>`;
+    akShowNewSlotForm();
+  } else {
+    const slotList = akExistingKeys.map(k => `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;margin-bottom:8px"><span style="font-size:1.1rem;font-weight:700;color:var(--green-dark);min-width:50px">Tag #${k.slot}</span><div><div style="font-size:.85rem;font-weight:600">${k.keyTypes.join(', ') || 'No key types'}</div><div style="font-size:.75rem;color:var(--gray-400)">${k.status || 'In Office'}${k.kwiksetCut ? ' · Cut: '+k.kwiksetCut : ''}</div></div></div>`).join('');
+    info.innerHTML = `<div class="conflict-box" style="margin-bottom:14px"><strong>⚠️ ${label} already has ${akExistingKeys.length} key tag${akExistingKeys.length!==1?'s':''}</strong></div>${slotList}`;
+    document.getElementById('ak-action-choice').style.display = 'block';
+    document.querySelectorAll('input[name="ak-action"]').forEach(r => { r.checked = false; r.onchange = () => akShowNewSlotForm(); });
+  }
+}
+function akShowNewSlotForm() {
+  document.getElementById('ak-new-slot-form').style.display = 'block';
+  document.getElementById('ak-slot').value = '';
+  document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('ak-save-btn').disabled = true;
+  document.getElementById('ak-slot').addEventListener('input', () => { document.getElementById('ak-save-btn').disabled = !document.getElementById('ak-slot').value.trim(); }, { once: true });
+}
+function akClearProperty() { akSelectedProperty = null; akExistingKeys = []; document.getElementById('ak-step2').style.display = 'none'; document.getElementById('ak-step1').style.display = 'block'; document.getElementById('ak-prop-input').value = ''; }
+async function doSaveKey() {
+  const btn = document.getElementById('ak-save-btn');
+  const slot = document.getElementById('ak-slot').value.trim();
+  const keyTypes = [...document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]:checked')].map(c => c.value);
+  const action = document.querySelector('input[name="ak-action"]:checked')?.value;
+  const existingToReplace = (action === 'replace' && akExistingKeys.length > 0) ? akExistingKeys[0].id : null;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const result = await api('/api/add-key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ propertyId: akSelectedProperty.id, slot, keyTypes, existingKeyId: existingToReplace }) });
+    document.getElementById('add-key-overlay').style.display = 'none';
+    toast(`Key Tag #${slot} ${result.created ? 'created' : 'updated'} for ${akSelectedProperty.label} ✓`);
+  } catch (e) { btn.disabled = false; btn.textContent = 'Save Key Tag'; toast(e.message, true); }
+}
+
+// Missing Keys
+let returnKeyId = null, returnKeySlot = null, returnLogId = null;
+async function loadMissingKeys() {
+  const sec = document.getElementById('missing-section');
+  sec.style.display = 'block'; sec.innerHTML = '<div class="spinner"></div>';
+  try {
+    const keys = await api('/api/missing-keys');
+    if (keys.length === 0) { sec.innerHTML = '<div class="empty">No missing keys on record ✓</div>'; return; }
+    let html = `<div class="section-header">${keys.length} missing key tag${keys.length!==1?'s':''}</div>`;
+    for (const k of keys) {
+      const safeProp = (k.propertyName||'').replace(/'/g,"\\'");
+      html += `<div class="card missing-card" id="mk-${k.id}"><div class="missing-card-row"><div class="checkin-info"><div class="card-title">Key Tag #${k.slot}</div><div class="card-meta">${k.propertyName?`<span>🏠 ${k.propertyName}</span>`:''} ${k.keyTypes.length?`<span>🔑 ${k.keyTypes.join(', ')}</span>`:''}</div></div><div class="missing-btns"><button class="btn-return" onclick="openReturnPanel('${k.id}','${k.slot}','${safeProp}')">Return</button><button class="btn-remove-key" onclick="promptRemoveKey('${k.id}','${k.slot}','${safeProp}')">Remove</button></div></div></div>`;
+    }
+    sec.innerHTML = html;
+  } catch (e) { sec.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+function openReturnPanel(keyId, slot, propertyName) {
+  returnKeyId = keyId; returnKeySlot = slot; returnLogId = null;
+  document.getElementById('return-panel-title').textContent = 'Return Missing Key';
+  document.getElementById('return-panel-sub').textContent = `Confirm Key Tag #${slot}${propertyName?` (${propertyName})`:''} is back in the office.`;
+  document.getElementById('return-note').value = '';
+  document.getElementById('return-photo-input').value = '';
+  document.getElementById('return-photo-preview').style.display = 'none';
+  document.getElementById('return-photo-area').style.display = 'block';
+  document.getElementById('return-confirm-btn').disabled = false;
+  document.getElementById('return-confirm-btn').textContent = 'Confirm Key Returned';
+  document.getElementById('return-key-overlay').style.display = 'flex';
+}
+async function openCheckinPanel(logId, logEntry) {
+  returnLogId = logId; returnKeyId = null; returnKeySlot = null;
+  document.getElementById('return-panel-title').textContent = 'Check In Key';
+  document.getElementById('return-panel-sub').textContent = `${logEntry || 'Key'} — optionally add a photo or note before checking in.`;
+  document.getElementById('return-note').value = '';
+  document.getElementById('return-photo-input').value = '';
+  document.getElementById('return-photo-preview').style.display = 'none';
+  document.getElementById('return-photo-area').style.display = 'block';
+  document.getElementById('return-confirm-btn').disabled = false;
+  document.getElementById('return-confirm-btn').textContent = 'Confirm Check In';
+  document.getElementById('return-key-overlay').style.display = 'flex';
+  try { const { keyId } = await api(`/api/key-by-log/${logId}`); returnKeyId = keyId; } catch (e) {}
+}
+function previewPhoto(input) { const file = input.files[0]; if (!file) return; const preview = document.getElementById('return-photo-preview'); preview.src = URL.createObjectURL(file); preview.style.display = 'block'; document.getElementById('return-photo-area').style.display = 'none'; }
+function closeReturnPanel(e) { if (e && e.target !== document.getElementById('return-key-overlay')) return; document.getElementById('return-key-overlay').style.display = 'none'; }
+async function confirmReturn() {
+  const btn = document.getElementById('return-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (!returnKeyId) throw new Error('Key ID not loaded yet, please try again.');
+    const note = document.getElementById('return-note').value;
+    const photoFile = document.getElementById('return-photo-input').files[0];
+    if (returnLogId) {
+      const fd = new FormData();
+      fd.append('logId', returnLogId); fd.append('keyId', returnKeyId);
+      if (photoFile) fd.append('photo', photoFile);
+      await fetch('/api/checkin', { method: 'POST', body: fd });
+      document.getElementById('return-key-overlay').style.display = 'none';
+      toast('Key checked in ✓'); tabLoaded['dashboard'] = false; loadCheckin();
+    } else {
+      const fd = new FormData();
+      fd.append('keyId', returnKeyId); fd.append('note', note);
+      if (photoFile) fd.append('photo', photoFile);
+      await fetch('/api/return-key', { method: 'POST', body: fd });
+      document.getElementById('return-key-overlay').style.display = 'none';
+      toast(`Key Tag #${returnKeySlot} marked as returned ✓`); loadMissingKeys();
+    }
+  } catch (e) { btn.disabled = false; btn.textContent = returnLogId ? 'Confirm Check In' : 'Confirm Key Returned'; toast(e.message, true); }
+}
+let removeKeyId = null, removeKeySlot = null;
+function promptRemoveKey(keyId, slot, propertyName) {
+  removeKeyId = keyId; removeKeySlot = slot;
+  document.getElementById('remove-key-modal-text').innerHTML = `This will <strong>remove Key Tag #${slot}</strong> from its property assignment${propertyName?` for <strong>${propertyName}</strong>`:''}. The tag will be available for reassignment.`;
+  document.getElementById('remove-key-confirm-btn').disabled = false;
+  document.getElementById('remove-key-confirm-btn').textContent = 'Yes, Remove';
+  document.getElementById('remove-key-modal').style.display = 'flex';
+}
+function closeRemoveKeyModal() { document.getElementById('remove-key-modal').style.display = 'none'; removeKeyId = null; removeKeySlot = null; }
+async function confirmRemoveKey() {
+  const btn = document.getElementById('remove-key-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Removing…';
+  try {
+    await api('/api/remove-key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keyId: removeKeyId }) });
+    closeRemoveKeyModal();
+    const card = document.getElementById('mk-' + removeKeyId);
+    if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
+    toast(`Key Tag #${removeKeySlot} removed ✓`);
+  } catch (e) { btn.disabled = false; btn.textContent = 'Yes, Remove'; toast(e.message, true); }
+}
+let missingKeyId = null, missingKeySlot = null, missingBtn = null;
+function promptMissing(keyId, slot, btn) { missingKeyId = keyId; missingKeySlot = slot; missingBtn = btn; document.getElementById('missing-modal-text').textContent = `Key Tag #${slot} will be marked as Missing. It cannot be checked out again until located or replaced.`; document.getElementById('missing-modal').style.display = 'flex'; }
+function closeMissingModal() { document.getElementById('missing-modal').style.display = 'none'; missingKeyId = null; missingKeySlot = null; missingBtn = null; }
+async function confirmMissing() {
+  const confirmBtn = document.getElementById('missing-confirm-btn');
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Marking…';
+  try {
+    await api('/api/mark-missing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keyId: missingKeyId }) });
+    const keyRow = missingBtn.closest('.key-row');
+    keyRow.style.opacity = '0'; keyRow.style.transition = 'opacity .3s'; setTimeout(() => keyRow.remove(), 300);
+    closeMissingModal(); toast(`Key Tag #${missingKeySlot} marked as missing`, true);
+  } catch (e) { confirmBtn.disabled = false; confirmBtn.textContent = 'Mark Missing'; toast(e.message, true); }
+}
+
+// Lockboxes
 let lockboxData = [];
-
-const STATUS_COLOR = { 'At Property': 'var(--green)', 'In Office': '#2563eb', 'Unassigned': 'var(--gray-400)' };
-
+const STATUS_COLOR = { 'At Property': 'var(--green-dark)', 'In Office': 'var(--blue)', 'Unassigned': 'var(--gray-400)' };
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
-  try {
-    const res = await fetch('/api/lockboxes');
-    lockboxData = await res.json();
-    renderLockboxes();
-  } catch (e) {
-    el.innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
-  }
+  try { lockboxData = await api('/api/lockboxes'); renderLockboxes(); }
+  catch (e) { el.innerHTML = `<p style="color:var(--red)">${e.message}</p>`; }
 }
-
 function renderLockboxes() {
   const el = document.getElementById('lockbox-list');
   if (!lockboxData.length) { el.innerHTML = '<p style="color:var(--gray-400)">No lockboxes found.</p>'; return; }
-  el.innerHTML = `<table class="users-table">
-    <thead><tr><th>SN</th><th>KRB #</th><th>Status</th><th>Property</th><th></th></tr></thead>
-    <tbody>${lockboxData.map(b => `
-      <tr>
-        <td style="font-family:monospace;font-weight:600">${b.sn}</td>
-        <td>${b.krbBox || '—'}</td>
-        <td><span style="color:${STATUS_COLOR[b.status]||'var(--gray-400)'};font-weight:600">${b.status}</span></td>
-        <td style="font-size:.85rem">${b.propertyName || '—'}</td>
-        <td style="text-align:right;white-space:nowrap">
-          <button class="btn-sm" onclick="openLockboxLocationModal('${b.id}','${b.sn}','${b.status}','${b.propertyId||''}','${(b.propertyName||'').replace(/'/g,"\\'")}'))">Edit</button>
-        </td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
+  el.innerHTML = `<table class="users-table"><thead><tr><th>SN</th><th>KRB #</th><th>Status</th><th>Property</th><th></th></tr></thead><tbody>${lockboxData.map(b => `
+    <tr>
+      <td style="font-family:monospace;font-weight:600">${b.sn}</td>
+      <td>${b.krbBox || '—'}</td>
+      <td><span style="color:${STATUS_COLOR[b.status]||'var(--gray-400)'};font-weight:600;font-size:.85rem">${b.status}</span></td>
+      <td style="font-size:.82rem">${b.propertyName || '—'}</td>
+      <td><button class="btn-sm" onclick="openLockboxLocationModal('${b.id}','${b.sn}','${b.status}','${b.propertyId||''}','${(b.propertyName||'').replace(/'/g,"\\'")}')">Edit</button></td>
+    </tr>`).join('')}</tbody></table>`;
 }
-
 function openGenerateCodeModal() {
-  const sel = document.getElementById('gen-code-sn');
-  sel.innerHTML = lockboxData.map(b => `<option value="${b.sn}">${b.sn}${b.krbBox ? ' (KRB #'+b.krbBox+')' : ''}${b.propertyName ? ' — '+b.propertyName : ''}</option>`).join('');
-  document.getElementById('gen-code-date').value = todayMT();
+  document.getElementById('gen-code-sn').innerHTML = lockboxData.map(b => `<option value="${b.sn}">${b.sn}${b.krbBox?' (KRB #'+b.krbBox+')':''}${b.propertyName?' — '+b.propertyName:''}</option>`).join('');
+  document.getElementById('gen-code-date').value = mtDateStr();
   document.getElementById('gen-code-result').style.display = 'none';
   document.getElementById('gen-code-error').textContent = '';
   document.getElementById('gen-code-modal').style.display = 'flex';
 }
 function closeGenCodeModal() { document.getElementById('gen-code-modal').style.display = 'none'; }
-
 async function generateCode() {
   const sn = document.getElementById('gen-code-sn').value;
   const date = document.getElementById('gen-code-date').value;
   const errEl = document.getElementById('gen-code-error');
   const btn = document.getElementById('gen-code-btn');
-  errEl.textContent = '';
-  document.getElementById('gen-code-result').style.display = 'none';
+  errEl.textContent = ''; document.getElementById('gen-code-result').style.display = 'none';
   if (!date) { errEl.textContent = 'Select a date'; return; }
-  btn.disabled = true; btn.textContent = 'Generating...';
+  btn.disabled = true; btn.textContent = 'Generating…';
   try {
-    const res = await fetch('/api/lockboxes/generate-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ serialNumber: sn, date }),
-    });
+    const res = await fetch('/api/lockboxes/generate-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serialNumber: sn, date }) });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error || 'Failed to generate code'; return; }
-    const code = data?.Code || data?.DayCode || data?.code || JSON.stringify(data);
-    document.getElementById('gen-code-value').textContent = code;
+    document.getElementById('gen-code-value').textContent = data?.Code || data?.DayCode || data?.code || JSON.stringify(data);
     document.getElementById('gen-code-result').style.display = 'block';
-  } catch (e) {
-    errEl.textContent = e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = 'Generate';
-  }
+  } catch (e) { errEl.textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Generate'; }
 }
-
 let lockboxPropertyTimeout;
 function openLockboxLocationModal(id, sn, status, propertyId, propertyName) {
   document.getElementById('lockbox-edit-id').value = id;
@@ -1307,7 +1330,6 @@ function openLockboxLocationModal(id, sn, status, propertyId, propertyName) {
   document.getElementById('lockbox-location-modal').style.display = 'flex';
 }
 function closeLockboxLocationModal() { document.getElementById('lockbox-location-modal').style.display = 'none'; }
-
 async function searchLockboxProperty() {
   const q = document.getElementById('lockbox-property-search').value.trim();
   const resultsEl = document.getElementById('lockbox-property-results');
@@ -1317,23 +1339,11 @@ async function searchLockboxProperty() {
     const res = await fetch(`/api/search-properties?q=${encodeURIComponent(q)}`);
     const props = await res.json();
     if (!props.length) { resultsEl.style.display = 'none'; return; }
-    resultsEl.innerHTML = props.map(p => {
-      const label = [p.address, p.city, p.state].filter(Boolean).join(', ');
-      return `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)"
-        onmousedown="selectLockboxProperty('${p.id}','${label.replace(/'/g,"\\'")}')">
-        ${label}
-      </div>`;
-    }).join('');
+    resultsEl.innerHTML = props.map(p => { const label = [p.address, p.city, p.state].filter(Boolean).join(', '); return `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--gray-100)" onmousedown="selectLockboxProperty('${p.id}','${label.replace(/'/g,"\\'")}')">\n        ${label}\n      </div>`; }).join('');
     resultsEl.style.display = 'block';
   }, 300);
 }
-function selectLockboxProperty(id, label) {
-  document.getElementById('lockbox-property-id').value = id;
-  document.getElementById('lockbox-selected-property').textContent = label;
-  document.getElementById('lockbox-property-search').value = '';
-  document.getElementById('lockbox-property-results').style.display = 'none';
-}
-
+function selectLockboxProperty(id, label) { document.getElementById('lockbox-property-id').value = id; document.getElementById('lockbox-selected-property').textContent = label; document.getElementById('lockbox-property-search').value = ''; document.getElementById('lockbox-property-results').style.display = 'none'; }
 async function saveLockboxLocation() {
   const id = document.getElementById('lockbox-edit-id').value;
   const status = document.getElementById('lockbox-edit-status').value;
@@ -1341,710 +1351,17 @@ async function saveLockboxLocation() {
   const errEl = document.getElementById('lockbox-location-error');
   errEl.textContent = '';
   try {
-    const res = await fetch(`/api/lockboxes/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, propertyId }),
-    });
+    const res = await fetch(`/api/lockboxes/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, propertyId }) });
     if (!res.ok) { const d = await res.json(); errEl.textContent = d.error || 'Save failed'; return; }
-    closeLockboxLocationModal();
-    tabLoaded.lockboxes = false;
-    loadLockboxes();
+    closeLockboxLocationModal(); tabLoaded.lockboxes = false; loadLockboxes();
   } catch (e) { errEl.textContent = e.message; }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dashboard
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function loadDashboard() {
-  const el = document.getElementById('dashboard-content');
-  try {
-    const entries = await api('/api/dashboard');
-    if (entries.length === 0) {
-      el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>';
-      return;
-    }
-    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
-    let html = `<div class="section-header">${entries.length} key${entries.length !== 1 ? 's' : ''} out</div>`;
-    for (const e of entries) {
-      const overdue = isOverdue(e.dateDue);
-      const soon = !overdue && isDueSoon(e.dateDue);
-      const cardClass = overdue ? 'card overdue' : soon ? 'card due-soon' : 'card';
-      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
-      const purposeBadge = e.purpose ? `<span class="badge badge-blue">${e.purpose}</span> ` : '';
-      const dueBadge = overdue
-        ? `<span class="badge badge-red">Overdue</span>`
-        : soon ? `<span class="badge badge-yellow">Due soon</span>` : '';
-      html += `
-        <div class="${cardClass}">
-          <div class="card-title">${e.logEntry || '—'}</div>
-          <div class="card-meta">
-            <span>👤 ${who}</span>
-            <span>📤 ${formatDate(e.dateOut)}</span>
-            <span>📅 Due ${formatDate(e.dateDue)}</span>
-          </div>
-          <div style="margin-top:6px">${purposeBadge}${dueBadge}</div>
-        </div>`;
-    }
-    el.innerHTML = html;
-  } catch (e) {
-    el.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
-}
-
-tabLoaded['dashboard'] = true;
-loadDashboard();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Check In
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function loadCheckin() {
-  const el = document.getElementById('checkin-content');
-  try {
-    const entries = await api('/api/dashboard');
-    if (entries.length === 0) {
-      el.innerHTML = '<div class="empty">No keys currently checked out ✓</div>';
-      return;
-    }
-    entries.sort((a, b) => (a.dateDue || '') < (b.dateDue || '') ? -1 : 1);
-    let html = '';
-    for (const e of entries) {
-      const overdue = isOverdue(e.dateDue);
-      const cardClass = overdue ? 'card overdue' : 'card';
-      const who = e.checkedOutBy.map(staffName).join(', ') || '?';
-      html += `
-        <div class="${cardClass}" id="ci-${e.id}">
-          <div class="checkin-card">
-            <div class="checkin-info">
-              <div class="card-title">${e.logEntry || '—'}</div>
-              <div class="card-meta">
-                <span>👤 ${who}</span><br>
-                <span>📤 ${formatDate(e.dateOut)}</span>
-                <span>📅 Due ${formatDate(e.dateDue)}</span>
-                ${overdue ? '<span class="badge badge-red">Overdue</span>' : ''}
-              </div>
-            </div>
-            <button class="btn btn-success" onclick="openCheckinPanel('${e.id}', '${e.logEntry || ''}')">Check In</button>
-          </div>
-        </div>`;
-    }
-    el.innerHTML = html;
-  } catch (e) {
-    el.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
-}
-
-async function doCheckin(logId, btn) {
-  btn.disabled = true;
-  btn.textContent = '…';
-  try {
-    // Find the key ID from the log entry
-    const { keyId } = await api(`/api/key-by-log/${logId}`);
-    await api('/api/checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ logId, keyId }),
-    });
-    const card = document.getElementById('ci-' + logId);
-    card.style.opacity = '0';
-    card.style.transition = 'opacity .3s';
-    setTimeout(() => card.remove(), 300);
-    toast('Key checked in ✓');
-    // Refresh dashboard counts
-    tabLoaded['dashboard'] = false;
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'Check In';
-    toast(e.message, true);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Check Out — property search
-// ─────────────────────────────────────────────────────────────────────────────
-
-let searchTimer;
-let selectedProperty = null;
-let selectedKey = null;
-
-const propInput = document.getElementById('prop-input');
-const propResults = document.getElementById('prop-results');
-const propSelected = document.getElementById('prop-selected');
-const propSearchArea = document.getElementById('prop-search-area');
-
-propInput.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  const q = propInput.value.trim();
-  if (q.length < 2) { propResults.style.display = 'none'; return; }
-  searchTimer = setTimeout(() => searchProperties(q), 280);
-});
-
-async function searchProperties(q) {
-  try {
-    const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-    if (results.length === 0) {
-      propResults.innerHTML = '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>';
-    } else {
-      propResults.innerHTML = results.map(r => {
-        const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
-        return `<div class="search-result-item" data-id="${r.id}" data-url="${r.url}"
-            data-label="${addr}" onclick="selectProperty(this)">
-            ${addr}
-            ${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}
-          </div>`;
-      }).join('');
-    }
-    propResults.style.display = 'block';
-  } catch (e) {
-    propResults.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`;
-    propResults.style.display = 'block';
-  }
-}
-
-document.addEventListener('click', e => {
-  if (!propResults.contains(e.target) && e.target !== propInput) {
-    propResults.style.display = 'none';
-  }
-});
-
-async function selectProperty(el) {
-  propResults.style.display = 'none';
-  selectedProperty = { id: el.dataset.id, url: el.dataset.url, label: el.dataset.label };
-  propSearchArea.style.display = 'none';
-  propSelected.style.display = 'block';
-  propSelected.innerHTML = `
-    <div class="selected-prop">
-      <span>${selectedProperty.label}</span>
-      <button onclick="clearProperty()" title="Change">✕</button>
-    </div>`;
-  // Load keys for this property
-  await loadKeysForProperty();
-}
-
-function clearProperty() {
-  selectedProperty = null;
-  selectedKey = null;
-  propSearchArea.style.display = 'block';
-  propSelected.style.display = 'none';
-  propInput.value = '';
-  document.getElementById('step-key').style.display = 'none';
-  document.getElementById('step-photo').style.display = 'none';
-  document.getElementById('step-details').style.display = 'none';
-  document.getElementById('checkout-photo-input').value = '';
-  document.getElementById('checkout-photo-preview').style.display = 'none';
-  document.getElementById('checkout-photo-area').style.display = 'block';
-  updateCheckoutBtn();
-}
-
-async function loadKeysForProperty() {
-  const stepKey = document.getElementById('step-key');
-  const keyList = document.getElementById('key-list');
-  stepKey.style.display = 'block';
-  keyList.innerHTML = '<div class="spinner"></div>';
-
-  try {
-    const keys = await api(`/api/keys-for-property/${selectedProperty.id}`);
-
-    if (keys.length === 0) {
-      keyList.innerHTML = '<div class="no-keys-msg">No available keys found for this property</div>';
-      return;
-    }
-
-    keys.sort((a, b) => parseInt(a.slot) - parseInt(b.slot));
-    keyList.innerHTML = '<div class="key-grid">' + keys.map(k => {
-      const shortType = k.keyTypes
-        .map(t => t.replace('Front Door Key', 'Door').replace('Mailbox Key', 'Mail').replace('Garage Remote', 'Garage').replace('Pool Fob', 'Pool'))
-        .join(', ');
-      return `<div class="key-row">
-          <div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
-              data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
-            <span class="key-num">#${k.slot}</span>
-            <span class="key-type">${shortType}</span>
-          </div>
-          <button class="key-missing-btn" onclick="promptMissing('${k.id}', '${k.slot}', this)">Missing</button>
-        </div>`;
-    }).join('') + '</div>';
-
-  } catch (e) {
-    keyList.innerHTML = `<div class="no-keys-msg" style="color:var(--red)">${e.message}</div>`;
-  }
-}
-
-function selectKey(el) {
-  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedKey = {
-    id: el.dataset.id,
-    slot: el.dataset.slot,
-    logRelation: JSON.parse(el.dataset.logrel || '[]'),
-  };
-  // Show photo step; hide details until photo is taken
-  document.getElementById('step-photo').style.display = 'block';
-  document.getElementById('step-details').style.display = 'none';
-  // Reset photo state when a different key is selected
-  document.getElementById('checkout-photo-input').value = '';
-  document.getElementById('checkout-photo-preview').style.display = 'none';
-  document.getElementById('checkout-photo-area').style.display = 'block';
-  updateCheckoutBtn();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Check Out — form
-// ─────────────────────────────────────────────────────────────────────────────
-
-function mtDateStr(offsetDays = 0) {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Boise' }); // en-CA → YYYY-MM-DD
-}
-
-function setDefaultDates() {
-  document.getElementById('inp-dateout').value = mtDateStr(0);
-  document.getElementById('inp-datedue').value = mtDateStr(1);
-}
-
-['sel-staff', 'sel-purpose', 'inp-dateout', 'inp-datedue'].forEach(id => {
-  document.getElementById(id).addEventListener('change', updateCheckoutBtn);
-});
-
-function updateCheckoutBtn() {
-  const btn = document.getElementById('btn-checkout');
-  const hasPhoto = document.getElementById('checkout-photo-input').files.length > 0;
-  const ready = selectedProperty && selectedKey && hasPhoto &&
-    document.getElementById('sel-staff').value &&
-    document.getElementById('sel-purpose').value &&
-    document.getElementById('inp-dateout').value &&
-    document.getElementById('inp-datedue').value;
-  btn.disabled = !ready;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Add Key to Property
-// ─────────────────────────────────────────────────────────────────────────────
-
-let akSelectedProperty = null;
-let akExistingKeys = [];
-
-function openAddKeyPanel() {
-  akSelectedProperty = null;
-  akExistingKeys = [];
-  document.getElementById('ak-prop-input').value = '';
-  document.getElementById('ak-prop-results').style.display = 'none';
-  document.getElementById('ak-step1').style.display = 'block';
-  document.getElementById('ak-step2').style.display = 'none';
-  document.getElementById('add-key-overlay').style.display = 'flex';
-}
-
-function closeAddKeyPanel(e) {
-  if (e && e.target !== document.getElementById('add-key-overlay')) return;
-  document.getElementById('add-key-overlay').style.display = 'none';
-}
-
-// Property search within add-key panel
-let akSearchTimer;
-document.getElementById('ak-prop-input').addEventListener('input', () => {
-  clearTimeout(akSearchTimer);
-  const q = document.getElementById('ak-prop-input').value.trim();
-  const res = document.getElementById('ak-prop-results');
-  if (q.length < 2) { res.style.display = 'none'; return; }
-  akSearchTimer = setTimeout(async () => {
-    try {
-      const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-      res.innerHTML = results.length === 0
-        ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
-        : results.map(r => {
-            const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode;
-            return `<div class="search-result-item" onclick="akSelectProperty('${r.id}','${addr.replace(/'/g,"\\'")}')">
-              ${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}
-            </div>`;
-          }).join('');
-      res.style.display = 'block';
-    } catch (e) {
-      res.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`;
-      res.style.display = 'block';
-    }
-  }, 280);
-});
-
-async function akSelectProperty(id, label) {
-  akSelectedProperty = { id, label };
-  document.getElementById('ak-prop-results').style.display = 'none';
-  document.getElementById('ak-step1').style.display = 'none';
-  document.getElementById('ak-step2').style.display = 'block';
-
-  // Show selected property
-  document.getElementById('ak-prop-selected').innerHTML = `
-    <div class="selected-prop">
-      <span>${label}</span>
-      <button onclick="akClearProperty()">✕</button>
-    </div>`;
-
-  // Load existing keys for this property
-  const info = document.getElementById('ak-existing-info');
-  info.innerHTML = '<div style="font-size:.85rem;color:var(--gray-400);margin-bottom:12px">Loading existing keys…</div>';
-  document.getElementById('ak-action-choice').style.display = 'none';
-  document.getElementById('ak-new-slot-form').style.display = 'none';
-
-  try {
-    akExistingKeys = await api(`/api/keys-for-property/${id}`);
-    // Also include checked-out/missing keys, not just in-office
-    const allKeys = await api(`/api/all-keys-for-property/${id}`);
-    akExistingKeys = allKeys;
-  } catch (_) {}
-
-  if (akExistingKeys.length === 0) {
-    info.innerHTML = `<div class="badge badge-green" style="margin-bottom:14px;padding:8px 12px;border-radius:8px;display:block;font-size:.85rem">
-      No keys currently assigned to this property.</div>`;
-    // Jump straight to new slot form
-    akShowNewSlotForm();
-  } else {
-    const slotList = akExistingKeys.map(k =>
-      `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;margin-bottom:8px">
-        <span style="font-size:1.1rem;font-weight:700;color:var(--red);min-width:40px">#${k.slot}</span>
-        <div>
-          <div style="font-size:.85rem;font-weight:600">${k.keyTypes.join(', ') || 'No key types set'}</div>
-          <div style="font-size:.75rem;color:var(--gray-400)">${k.status || 'In Office'}</div>
-        </div>
-      </div>`
-    ).join('');
-
-    info.innerHTML = `<div class="conflict-box" style="background:#fde8e8;border-color:#f8b4b4;margin-bottom:14px">
-      <strong>⚠️ ${label} is already assigned to ${akExistingKeys.length === 1 ? 'Key Slot #' + akExistingKeys[0].slot : akExistingKeys.length + ' key slots'}</strong>
-    </div>${slotList}`;
-
-    document.getElementById('ak-action-choice').style.display = 'block';
-    document.querySelectorAll('input[name="ak-action"]').forEach(r => {
-      r.checked = false;
-      r.onchange = () => akShowNewSlotForm();
-    });
-  }
-}
-
-function akShowNewSlotForm() {
-  document.getElementById('ak-new-slot-form').style.display = 'block';
-  document.getElementById('ak-slot').value = '';
-  document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]').forEach(c => c.checked = false);
-  document.getElementById('ak-save-btn').disabled = true;
-  document.getElementById('ak-slot').addEventListener('input', () => {
-    document.getElementById('ak-save-btn').disabled = !document.getElementById('ak-slot').value.trim();
-  }, { once: true });
-}
-
-function akClearProperty() {
-  akSelectedProperty = null;
-  akExistingKeys = [];
-  document.getElementById('ak-step2').style.display = 'none';
-  document.getElementById('ak-step1').style.display = 'block';
-  document.getElementById('ak-prop-input').value = '';
-}
-
-async function doSaveKey() {
-  const btn = document.getElementById('ak-save-btn');
-  const slot = document.getElementById('ak-slot').value.trim();
-  const keyTypes = [...document.querySelectorAll('#add-key-overlay .key-type-check input[type=checkbox]:checked')].map(c => c.value);
-  const action = document.querySelector('input[name="ak-action"]:checked')?.value;
-
-  // If property had existing keys and user chose "replace", remove old relation
-  const existingToReplace = (action === 'replace' && akExistingKeys.length > 0) ? akExistingKeys[0].id : null;
-
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    const result = await api('/api/add-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        propertyId: akSelectedProperty.id,
-        slot,
-        keyTypes,
-        existingKeyId: existingToReplace,
-      }),
-    });
-    document.getElementById('add-key-overlay').style.display = 'none';
-    toast(`Key #${slot} ${result.created ? 'created' : 'updated'} for ${akSelectedProperty.label} ✓`);
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'Save';
-    toast(e.message, true);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Missing Keys
-// ─────────────────────────────────────────────────────────────────────────────
-
-let returnKeyId = null;
-let returnKeySlot = null;
-let returnLogId = null; // set for check-in tab flow, null for missing-key flow
-
-async function loadMissingKeys() {
-  const sec = document.getElementById('missing-section');
-  sec.style.display = 'block';
-  sec.innerHTML = '<div class="spinner"></div>';
-  try {
-    const keys = await api('/api/missing-keys');
-    if (keys.length === 0) {
-      sec.innerHTML = '<div class="empty">No missing keys on record ✓</div>';
-      return;
-    }
-    let html = `<div class="section-header">${keys.length} missing key${keys.length !== 1 ? 's' : ''}</div>`;
-    for (const k of keys) {
-      const safeProp = (k.propertyName||'').replace(/'/g,"\\'");
-      html += `<div class="card missing-card" id="mk-${k.id}">
-        <div class="missing-card-row">
-          <div class="checkin-info">
-            <div class="card-title">Key #${k.slot}</div>
-            <div class="card-meta">
-              ${k.propertyName ? `<span>🏠 ${k.propertyName}</span>` : ''}
-              ${k.keyTypes.length ? `<span>🔑 ${k.keyTypes.join(', ')}</span>` : ''}
-            </div>
-          </div>
-          <div class="missing-btns">
-            <button class="btn-return" onclick="openReturnPanel('${k.id}','${k.slot}','${safeProp}')">Return Key</button>
-            <button class="btn-remove-key" onclick="promptRemoveKey('${k.id}','${k.slot}','${safeProp}')">Remove Key</button>
-          </div>
-        </div>
-      </div>`;
-    }
-    sec.innerHTML = html;
-  } catch (e) {
-    sec.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
-}
-
-function openReturnPanel(keyId, slot, propertyName) {
-  returnKeyId = keyId;
-  returnKeySlot = slot;
-  returnLogId = null;
-  document.getElementById('return-panel-title').textContent = '✅ Return Missing Key';
-  document.getElementById('return-panel-sub').textContent =
-    `Confirm that Key #${slot}${propertyName ? ` (${propertyName})` : ''} has been located or replaced and is back in the office.`;
-  document.getElementById('return-note').value = '';
-  document.getElementById('return-photo-input').value = '';
-  document.getElementById('return-photo-preview').style.display = 'none';
-  document.getElementById('return-photo-area').style.display = 'block';
-  document.getElementById('return-confirm-btn').disabled = false;
-  document.getElementById('return-confirm-btn').textContent = 'Confirm Key Returned';
-  document.getElementById('return-key-overlay').style.display = 'flex';
-}
-
-async function openCheckinPanel(logId, logEntry) {
-  returnLogId = logId;
-  returnKeyId = null;
-  returnKeySlot = null;
-  document.getElementById('return-panel-title').textContent = '✅ Check In Key';
-  document.getElementById('return-panel-sub').textContent =
-    `${logEntry || 'Key'} — optionally add a photo or note before checking in.`;
-  document.getElementById('return-note').value = '';
-  document.getElementById('return-photo-input').value = '';
-  document.getElementById('return-photo-preview').style.display = 'none';
-  document.getElementById('return-photo-area').style.display = 'block';
-  document.getElementById('return-confirm-btn').disabled = false;
-  document.getElementById('return-confirm-btn').textContent = 'Confirm Check In';
-  document.getElementById('return-key-overlay').style.display = 'flex';
-  // Fetch keyId in background so we have it ready
-  try {
-    const { keyId } = await api(`/api/key-by-log/${logId}`);
-    returnKeyId = keyId;
-  } catch (e) { /* will surface on confirm */ }
-}
-
-function previewPhoto(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const preview = document.getElementById('return-photo-preview');
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = 'block';
-  document.getElementById('return-photo-area').style.display = 'none';
-}
-
-function closeReturnPanel(e) {
-  if (e && e.target !== document.getElementById('return-key-overlay')) return;
-  document.getElementById('return-key-overlay').style.display = 'none';
-}
-
-async function confirmReturn() {
-  const btn = document.getElementById('return-confirm-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    if (!returnKeyId) throw new Error('Key ID not loaded yet, please try again.');
-    const note = document.getElementById('return-note').value;
-    const photoFile = document.getElementById('return-photo-input').files[0];
-    if (returnLogId) {
-      // Check In tab flow — send photo + note to /api/checkin
-      const fd = new FormData();
-      fd.append('logId', returnLogId);
-      fd.append('keyId', returnKeyId);
-      if (photoFile) fd.append('photo', photoFile);
-      await fetch('/api/checkin', { method: 'POST', body: fd });
-      document.getElementById('return-key-overlay').style.display = 'none';
-      toast('Key checked in ✓');
-      tabLoaded['dashboard'] = false;
-      loadCheckin();
-    } else {
-      // Missing key return — always call return-key (sets status to In Office + optional photo/note)
-      const fd = new FormData();
-      fd.append('keyId', returnKeyId);
-      fd.append('note', note);
-      if (photoFile) fd.append('photo', photoFile);
-      await fetch('/api/return-key', { method: 'POST', body: fd });
-      document.getElementById('return-key-overlay').style.display = 'none';
-      toast(`Key #${returnKeySlot} marked as returned ✓`);
-      loadMissingKeys();
-    }
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = returnLogId ? 'Confirm Check In' : 'Confirm Key Returned';
-    toast(e.message, true);
-  }
-}
-
-let removeKeyId = null;
-let removeKeySlot = null;
-
-function promptRemoveKey(keyId, slot, propertyName) {
-  removeKeyId = keyId;
-  removeKeySlot = slot;
-  document.getElementById('remove-key-modal-text').innerHTML =
-    `This will <strong>remove Key #${slot}</strong> from its key slot and clear the property assignment${propertyName ? ` for <strong>${propertyName}</strong>` : ''}.<br><br>
-    The key tag will be unassigned and available for reassignment. This cannot be undone automatically.`;
-  document.getElementById('remove-key-confirm-btn').disabled = false;
-  document.getElementById('remove-key-confirm-btn').textContent = 'Yes, Remove';
-  document.getElementById('remove-key-modal').style.display = 'flex';
-}
-
-function closeRemoveKeyModal() {
-  document.getElementById('remove-key-modal').style.display = 'none';
-  removeKeyId = null;
-  removeKeySlot = null;
-}
-
-async function confirmRemoveKey() {
-  const btn = document.getElementById('remove-key-confirm-btn');
-  btn.disabled = true;
-  btn.textContent = 'Removing…';
-  try {
-    await api('/api/remove-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyId: removeKeyId }),
-    });
-    closeRemoveKeyModal();
-    const card = document.getElementById('mk-' + removeKeyId);
-    if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(() => card.remove(), 300); }
-    toast(`Key #${removeKeySlot} removed from slot ✓`);
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'Yes, Remove';
-    toast(e.message, true);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Missing key flow (checkout page)
-// ─────────────────────────────────────────────────────────────────────────────
-
-let missingKeyId = null;
-let missingKeySlot = null;
-let missingBtn = null;
-
-function promptMissing(keyId, slot, btn) {
-  missingKeyId = keyId;
-  missingKeySlot = slot;
-  missingBtn = btn;
-  document.getElementById('missing-modal-text').textContent =
-    `Key #${slot} will be marked as Missing in Notion. The team will need to locate or replace it before it can be checked out again.`;
-  document.getElementById('missing-modal').style.display = 'flex';
-}
-
-function closeMissingModal() {
-  document.getElementById('missing-modal').style.display = 'none';
-  missingKeyId = null;
-  missingKeySlot = null;
-  missingBtn = null;
-}
-
-async function confirmMissing() {
-  const confirmBtn = document.getElementById('missing-confirm-btn');
-  confirmBtn.disabled = true;
-  confirmBtn.textContent = 'Marking…';
-  try {
-    await api('/api/mark-missing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyId: missingKeyId }),
-    });
-    // Remove the entire key row from the list
-    const keyRow = missingBtn.closest('.key-row');
-    keyRow.style.opacity = '0';
-    keyRow.style.transition = 'opacity .3s';
-    setTimeout(() => keyRow.remove(), 300);
-    closeMissingModal();
-    toast(`Key #${missingKeySlot} marked as missing`, true);
-  } catch (e) {
-    confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Mark Missing';
-    toast(e.message, true);
-  }
-}
-
-function previewCheckoutPhoto(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const preview = document.getElementById('checkout-photo-preview');
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = 'block';
-  document.getElementById('checkout-photo-area').style.display = 'none';
-  // Reveal details step now that photo is provided
-  document.getElementById('step-details').style.display = 'block';
-  setDefaultDates();
-  updateCheckoutBtn();
-}
-
-document.getElementById('btn-checkout').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-checkout');
-  btn.disabled = true;
-  btn.textContent = 'Checking out…';
-
-  const staffEl = document.getElementById('sel-staff');
-  const staffId = staffEl.value;
-  const staffNameVal = staffEl.options[staffEl.selectedIndex].text;
-
-  try {
-    const formData = new FormData();
-    formData.append('keyId', selectedKey.id);
-    formData.append('keySlot', selectedKey.slot);
-    formData.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
-    formData.append('staffId', staffId);
-    formData.append('staffName', staffNameVal);
-    formData.append('purpose', document.getElementById('sel-purpose').value);
-    formData.append('dateOut', document.getElementById('inp-dateout').value);
-    formData.append('dateDue', document.getElementById('inp-datedue').value);
-    formData.append('propertyId', selectedProperty.id);
-    formData.append('propertyUrl', selectedProperty.url || '');
-    const photoFile = document.getElementById('checkout-photo-input').files[0];
-    if (photoFile) formData.append('photo', photoFile);
-
-    await fetch('/api/checkout', { method: 'POST', body: formData });
-
-    toast(`Key #${selectedKey.slot} checked out ✓`);
-
-    // Reset form
-    clearProperty();
-    document.getElementById('checkout-photo-input').value = '';
-    document.getElementById('checkout-photo-preview').style.display = 'none';
-    document.getElementById('checkout-photo-area').style.display = 'block';
-    tabLoaded['dashboard'] = false;
-    tabLoaded['checkin'] = false;
-
-    btn.textContent = 'Check Out Key';
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = 'Check Out Key';
-    toast(e.message, true);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  const loginSel = document.getElementById('login-username');
+  if (loginSel) loginSel.addEventListener('change', () => document.getElementById('login-pin').focus());
+  initAuth();
 });
 </script>
 </body>
