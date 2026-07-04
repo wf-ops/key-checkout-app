@@ -310,7 +310,7 @@ app.delete('/api/users/:id', requireRole('Admin'), async (req, res) => {
   }
 });
 
-// GET /api/properties — list all properties for the search dropdown
+// GET /api/properties — list all properties
 app.get('/api/properties', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.properties, null, [{ property: 'Property Code', direction: 'ascending' }]);
@@ -323,6 +323,31 @@ app.get('/api/properties', requireAuth, async (req, res) => {
       };
     }).filter(p => p.name);
     res.json(props);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/search-properties?q= — fast live search by address or property code
+app.get('/api/search-properties', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json([]);
+    const rows = await queryAll(DB.properties, {
+      or: [
+        { property: 'Street Address - Property', rich_text: { contains: q } },
+        { property: 'Property Code', rich_text: { contains: q } },
+      ],
+    }, [{ property: 'Property Code', direction: 'ascending' }]);
+    const results = rows.map(r => {
+      const p = r.properties;
+      return {
+        id: r.id,
+        address: extractRichText(p['Street Address - Property']),
+        propertyCode: extractRichText(p['Property Code']),
+      };
+    }).filter(p => p.address || p.propertyCode);
+    res.json(results);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
