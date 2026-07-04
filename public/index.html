@@ -455,26 +455,34 @@ function showTab(name) {
   if (name === 'users') loadUsers();
 }
 
-// ── Properties search (shared) ──────────────────────────────────────────────
-let propCache = [];
-async function ensureProps() {
-  if (propCache.length) return;
-  propCache = await api('/api/properties');
-}
+// ── Properties search (shared) ────────────────────────────────────────────
+let propSearchTimers = {};
 
 function searchProps(prefix) {
-  const q = document.getElementById(prefix + '-prop-search').value.toLowerCase();
+  const q = document.getElementById(prefix + '-prop-search').value.trim();
   const res = document.getElementById(prefix + '-prop-results');
-  ensureProps().then(() => {
-    const hits = q ? propCache.filter(p => p.name.toLowerCase().includes(q)) : propCache;
-    if (!hits.length) { res.style.display = 'none'; return; }
-    res.innerHTML = hits.slice(0, 8).map(p =>
-      `<div class="search-result-item" onclick="selectProp('${prefix}','${p.id}',${JSON.stringify(p.name)})">
-        ${p.name}<div class="result-code">${p.code || ''}</div>
-      </div>`
-    ).join('');
-    res.style.display = 'block';
-  });
+  if (q.length < 2) { res.style.display = 'none'; return; }
+  clearTimeout(propSearchTimers[prefix]);
+  propSearchTimers[prefix] = setTimeout(async () => {
+    try {
+      const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
+      if (!hits.length) { res.style.display = 'none'; return; }
+      res.innerHTML = hits.slice(0, 8).map((p, i) =>
+        `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
+      ).join('');
+      res._hits = hits;
+      res.querySelectorAll('.search-result-item').forEach(el => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          const p = res._hits[+el.dataset.idx];
+          res.style.display = 'none';
+          document.getElementById(prefix + '-prop-search').value = '';
+          selectProp(prefix, p.id, p.address || p.propertyCode);
+        });
+      });
+      res.style.display = 'block';
+    } catch (_) { res.style.display = 'none'; }
+  }, 300);
 }
 
 function selectProp(prefix, id, name) {
@@ -485,7 +493,7 @@ function selectProp(prefix, id, name) {
   else if (prefix === 'codes') selectPropForCodes(id, name);
 }
 
-// ── Dashboard ────────────────────────────────────────────────────────────────
+// ── Dashboard ──────────────────────────────────────────────────────────────────
 async function loadDashboard() {
   const [keys, log] = await Promise.all([api('/api/keys'), api('/api/log?limit=5')]);
   const available = keys.filter(k => k.status === 'Available').length;
@@ -526,7 +534,7 @@ function fmtTime(iso) {
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-// ── Check Out ────────────────────────────────────────────────────────────────
+// ── Check Out ────────────────────────────────────────────────────────────────────
 let coSelectedProp = null;
 async function selectPropForCheckout(id, name) {
   coSelectedProp = { id, name };
@@ -564,7 +572,7 @@ async function doCheckout() {
   } catch (e) { alert('Checkout failed: ' + e.message); }
 }
 
-// ── Check In ─────────────────────────────────────────────────────────────────
+// ── Check In ────────────────────────────────────────────────────────────────────────
 let ciSelectedProp = null;
 async function selectPropForCheckin(id, name) {
   ciSelectedProp = { id, name };
@@ -601,7 +609,7 @@ function clearPropSelection(prefix) {
   document.getElementById(prefix + '-prop-search').value = '';
 }
 
-// ── Codes Tab ────────────────────────────────────────────────────────────────
+// ── Codes Tab ──────────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
 function canEditCodes() {
   return currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager');
@@ -640,7 +648,8 @@ function codeRow(label, field, value) {
 }
 
 function renderCodes(data) {
-  const { codes, keys } = data;
+  const codes = data.codes || data;
+  const keys = data.keys || [];
   let html = '';
 
   html += '<div class="code-section"><div class="code-section-title">Entry Codes</div>';
@@ -737,7 +746,7 @@ function showEditModal(label, currentValue, onSave) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
-// ── Lockboxes ─────────────────────────────────────────────────────────────────
+// ── Lockboxes ─────────────────────────────────────────────────────────────────────────
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -746,8 +755,8 @@ async function loadLockboxes() {
     if (!boxes.length) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
     el.innerHTML = boxes.map(b => `
       <div class="lockbox-item">
-        <div class="lockbox-name">${b.name}</div>
-        <div class="lockbox-address">${b.address || ''}</div>
+        <div class="lockbox-name">${b.propertyName || ('Lockbox ' + b.sn)}</div>
+        <div class="lockbox-address">SN: ${b.sn}${b.krbBox ? ' · Box #' + b.krbBox : ''}</div>
         <div class="lockbox-code-display">
           <div>
             <div class="lockbox-code-val" id="lbcode-${b.id}">
@@ -765,7 +774,7 @@ async function loadLockboxes() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Users ─────────────────────────────────────────────────────────────────────
+// ── Users ─────────────────────────────────────────────────────────────────────────────
 async function loadUsers() {
   const el = document.getElementById('user-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -785,7 +794,7 @@ async function loadUsers() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN Modal ──────────────────────────────────────────────────────────
+// ── Change PIN Modal ──────────────────────────────────────────────────────────────
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
