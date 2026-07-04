@@ -163,6 +163,16 @@ function extractPeople(prop) {
   return prop.people.map(p => p.id);
 }
 
+const MT_TZ = 'America/Boise';
+
+function mtDateStr(date = new Date()) {
+  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ });
+}
+
+function mtTimestamp(date = new Date()) {
+  return date.toLocaleString('en-US', { timeZone: MT_TZ });
+}
+
 // --- API Routes ---
 
 app.post('/api/login', async (req, res) => {
@@ -246,7 +256,8 @@ app.get('/api/users', requireRole('Admin'), async (req, res) => {
     }));
     res.json(users);
   } catch (e) {
-    res.status(500).json({ error: e.message });  }
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/users', requireRole('Admin'), async (req, res) => {
@@ -299,91 +310,123 @@ app.delete('/api/users/:id', requireRole('Admin'), async (req, res) => {
   }
 });
 
-app.get('/api/dashboard', requireAuth, async (req, res) => {
+// GET /api/properties — list all properties for the search dropdown
+app.get('/api/properties', requireAuth, async (req, res) => {
   try {
-    const rows = await queryAll(DB.log, { property: 'Date Returned', date: { is_empty: true } });
-    const entries = rows
-      .map(row => {
-        const p = row.properties;
-        return {
-          id: row.id,
-          url: row.url,
-          logEntry: extractRichText(p['Log Entry']),
-          checkedOutBy: extractPeople(p['Checked Out By']),
-          dateOut: extractDate(p['Date Out'], 'start'),
-          dateDue: extractDate(p['Date Out'], 'end'),
-          dateReturned: extractDate(p['Date Returned'], 'start'),
-          purpose: extractSelect(p['Purpose']),
-          property: extractRelation(p['Property']),
-          keyRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
-        };
-      })
-      .filter(e => e.logEntry && e.dateOut);
-    res.json(entries);
+    const rows = await queryAll(DB.properties, null, [{ property: 'Property Code', direction: 'ascending' }]);
+    const props = rows.map(r => {
+      const p = r.properties;
+      return {
+        id: r.id,
+        name: extractRichText(p['Street Address - Property']) || extractRichText(p['Property Code']),
+        code: extractRichText(p['Property Code']),
+      };
+    }).filter(p => p.name);
+    res.json(props);
   } catch (e) {
-    console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/keys-for-property/:propertyId', requireAuth, async (req, res) => {
+// GET /api/keys — list keys, optionally filtered by ?propertyId=
+app.get('/api/keys', requireAuth, async (req, res) => {
   try {
-    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-      headers: notionHeaders(),
-    }).then(r => r.json());
-    if (propPage.object === 'error') throw new Error(propPage.message);
-    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    if (keyRelation.length === 0) return res.json([]);
-    const keyPages = await Promise.all(
-      keyRelation.map(r =>
-        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-      )
-    );
-    const keys = keyPages
-      .filter(row => row.object !== 'error')
-      .map(row => {
-        const p = row.properties;
-        return {
-          id: row.id,
-          url: row.url,
-          slot: extractRichText(p['Key Slot #']),
-          kwiksetCut: extractRichText(p['Kwikset Cut']),
-          status: extractSelect(p['Status']),
-          keyTypes: extractMultiSelect(p['Key Types']),
-          logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
-        };
-      })
-      .filter(k => !k.status || k.status === 'In Office');
+    const { propertyId } = req.query;
+    const filter = propertyId
+      ? { property: 'Rental Matrix', relation: { contains: propertyId } }
+      : undefined;
+    const rows = await queryAll(DB.keys, filter);
+    const keys = rows.map(row => {
+      const p = row.properties;
+      const rawStatus = extractSelect(p['Status']);
+      const keyTypes = extractMultiSelect(p['Key Types']);
+      return {
+        id: row.id,
+        tag: extractRichText(p['Key Slot #']),
+        name: keyTypes.join(', ') || 'Key',
+        status: rawStatus === 'In Office' ? 'Available' : rawStatus,
+        keyTypes,
+      };
+    });
     res.json(keys);
   } catch (e) {
-    console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-app.get('/api/search-properties', requireAuth, async (req, res) => {
-  const q = (req.query.q || '').trim();
-  if (q.length < 2) return res.json([]);
+// GET /api/log — list recent log entries for the dashboard
+app.get('/api/log', requireAuth, async (req, res) => {
   try {
-    const data = await notionPost('https://api.notion.com/v1/search', {
-      query: q,
-      filter: { value: 'page', property: 'object' },
-      page_size: 20,
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const rows = await queryAll(DB.log, null, [{ property: 'Date Out', direction: 'descending' }]);
+    const recent = rows.slice(0, limit);
+    const entries = await Promise.all(recent.map(async row => {
+      const p = row.properties;
+      const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
+      const keyTagMatch = title.match(/Key #?([^\s-]+)/);
+      const keyTag = keyTagMatch ? keyTagMatch[1] : '';
+      const staffName = p['Checked Out By']?.people?.[0]?.name || '';
+      const dateOut = p['Date Out']?.date?.start || null;
+      const dateReturned = p['Date Returned']?.date?.start || null;
+      let propertyName = '';
+      const propRelation = p['Property']?.relation || [];
+      if (propRelation.length > 0) {
+        try {
+          const propPage = await fetch(`https://api.notion.com/v1/pages/${propRelation[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
+                         extractRichText(propPage.properties?.['Property Code']) || '';
+        } catch (_) {}
+      }
+      return {
+        id: row.id,
+        propertyName: propertyName || title,
+        keyTag,
+        staffName,
+        timestamp: dateReturned || dateOut,
+        action: dateReturned ? 'Check In' : 'Check Out',
+      };
+    }));
+    res.json(entries);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/staff — list active staff for checkout assignment dropdown
+app.get('/api/staff', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
+    const staff = rows.map(r => ({
+      id: r.properties['Notion Person ID']?.rich_text?.[0]?.plain_text || '',
+      notionPageId: r.id,
+      name: r.properties['Name']?.title?.[0]?.plain_text || '',
+    })).filter(s => s.name);
+    res.json(staff);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/lockbox-code/:id — get today's day code for a lockbox by Notion page ID
+app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
+  try {
+    const lockboxPage = await fetch(`https://api.notion.com/v1/pages/${req.params.id}`, { headers: notionHeaders() }).then(r => r.json());
+    if (lockboxPage.object === 'error') return res.status(404).json({ error: 'Lockbox not found' });
+    const sn = extractRichText(lockboxPage.properties?.['Lockbox SN']);
+    if (!sn) return res.status(404).json({ error: 'Lockbox serial number not found' });
+    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) {
+      return res.status(503).json({ error: 'Codebox credentials not configured' });
+    }
+    const token = await getCodeboxToken();
+    const today = mtDateStr();
+    const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+      body: JSON.stringify({ SerialNumber: parseInt(sn), DateOfShowing: today }),
     });
-    const results = data.results
-      .filter(r => r.parent?.database_id?.replace(/-/g, '') === DB.properties.replace(/-/g, ''))
-      .map(r => {
-        const p = r.properties;
-        return {
-          id: r.id,
-          url: r.url,
-          propertyCode: extractRichText(p['Property Code']),
-          address: extractRichText(p['Street Address - Property']),
-          city: extractRichText(p['City']),
-          state: extractRichText(p['State - Property']),
-        };
-      });
-    res.json(results);
+    const data = await cbRes.json();
+    if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
+    res.json({ code: data.Code || data.code || String(data) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
@@ -418,7 +461,7 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
       const kp = row.properties;
       return {
         id: row.id,
-        slot: extractRichText(kp['Key Slot #']),
+        tag: extractRichText(kp['Key Slot #']),
         kwiksetCut: extractRichText(kp['Kwikset Cut']),
         status: extractSelect(kp['Status']),
         keyTypes: extractMultiSelect(kp['Key Types']),
@@ -442,7 +485,7 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/property-codes/:propertyId — update a single property field
+// PATCH /api/property-codes/:propertyId — update a single property code field
 app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { field, value } = req.body;
@@ -458,7 +501,7 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
   }
 });
 
-// PATCH /api/keys/:keyId — update key fields (kwikset cut)
+// PATCH /api/keys/:keyId — update key fields (kwikset cut, etc.)
 app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { kwiksetCut } = req.body;
@@ -473,38 +516,34 @@ app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) 
   }
 });
 
-app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) => {
+// POST /api/checkout — check out a key
+app.post('/api/checkout', requireAuth, async (req, res) => {
   try {
-    const { keyId, keySlot, staffId, staffName, purpose, dateOut, dateDue, propertyId, propertyUrl } = req.body;
-    const existingLogRelation = JSON.parse(req.body.existingLogRelation || '[]');
-    const photoFile = req.file;
-    const logTitle = `Key #${keySlot} - ${mtTimestamp()}`;
+    const { keyId, staffId, propertyId } = req.body;
+    if (!keyId || !propertyId) return res.status(400).json({ error: 'keyId and propertyId required' });
+
+    const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
+    const keyTag = extractRichText(keyPage.properties?.['Key Slot #']) || '?';
+    const existingLogRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
+
+    const logTitle = `Key #${keyTag} - ${mtTimestamp()}`;
+    const logProps = {
+      'Log Entry': { title: [{ text: { content: logTitle } }] },
+      'Date Out': { date: { start: mtDateStr() } },
+      'Property': { relation: [{ id: propertyId }] },
+    };
+    if (staffId) {
+      try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {}
+    }
     const logPage = await notionPost('https://api.notion.com/v1/pages', {
       parent: { database_id: DB.log },
-      properties: {
-        'Log Entry': { title: [{ text: { content: logTitle } }] },
-        'Checked Out By': { people: [{ id: staffId }] },
-        'Date Out': { date: { start: dateOut, end: dateDue } },
-        'Purpose': { select: { name: purpose } },
-        'Property': { relation: [{ id: propertyId }] },
-      },
+      properties: logProps,
     });
-    if (photoFile) {
-      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
-      await notionPatch(`https://api.notion.com/v1/pages/${logPage.id}`, {
-        properties: {
-          'Check-Out Photo': { files: [{ name: photoFile.originalname || 'checkout-photo.jpg', type: 'external', external: { url: photoUrl } }] },
-        },
-      });
-    }
-    const updatedLogRelation = [...(existingLogRelation || []).map(url => {
-      const id = url.split('/').pop().replace(/[^a-f0-9]/gi, '');
-      return { id: `${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}` };
-    }), { id: logPage.id }];
+
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
       properties: {
         'Status': { select: { name: 'Checked Out' } },
-        'Key Check-In/ Check-Out Log': { relation: updatedLogRelation },
+        'Key Check-In/ Check-Out Log': { relation: [...existingLogRelation, { id: logPage.id }] },
       },
     });
     res.json({ success: true, logId: logPage.id });
@@ -514,212 +553,35 @@ app.post('/api/checkout', requireAuth, upload.single('photo'), async (req, res) 
   }
 });
 
-app.post('/api/checkin', requireAuth, upload.single('photo'), async (req, res) => {
-  try {
-    const { logId, keyId } = req.body;
-    const photoFile = req.file;
-    const today = mtDateStr();
-    const logProps = { 'Date Returned': { date: { start: today } } };
-    if (photoFile) {
-      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
-      logProps['Check-In Photo'] = { files: [{ name: photoFile.originalname || 'checkin-photo.jpg', type: 'external', external: { url: photoUrl } }] };
-    }
-    await Promise.all([
-      notionPatch(`https://api.notion.com/v1/pages/${logId}`, { properties: logProps }),
-      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } }),
-    ]);
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/api/key-by-log/:logId', requireAuth, async (req, res) => {
-  try {
-    await fetch(`https://api.notion.com/v1/pages/${req.params.logId}`, { headers: notionHeaders() }).then(r => r.json());
-    const rows = await queryAll(DB.keys, {
-      property: 'Key Check-In/ Check-Out Log',
-      relation: { contains: req.params.logId },
-    });
-    if (rows.length === 0) return res.status(404).json({ error: 'Key not found for log entry' });
-    res.json({ keyId: rows[0].id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/api/all-keys-for-property/:propertyId', requireAuth, async (req, res) => {
-  try {
-    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-      headers: notionHeaders(),
-    }).then(r => r.json());
-    if (propPage.object === 'error') throw new Error(propPage.message);
-    const keyRelation = propPage.properties?.['KRB Keys & Access']?.relation || [];
-    if (keyRelation.length === 0) return res.json([]);
-    const keyPages = await Promise.all(
-      keyRelation.map(r =>
-        fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-      )
-    );
-    const keys = keyPages
-      .filter(row => row.object !== 'error')
-      .map(row => {
-        const p = row.properties;
-        return {
-          id: row.id,
-          slot: extractRichText(p['Key Slot #']),
-          kwiksetCut: extractRichText(p['Kwikset Cut']),
-          status: extractSelect(p['Status']),
-          keyTypes: extractMultiSelect(p['Key Types']),
-          logRelation: extractRelation(p['Key Check-In/ Check-Out Log']),
-        };
-      });
-    res.json(keys);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/remove-key', requireRole('Admin', 'Manager'), async (req, res) => {
+// POST /api/checkin — check in a key
+app.post('/api/checkin', requireAuth, async (req, res) => {
   try {
     const { keyId } = req.body;
-    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
-      properties: {
-        'Rental Matrix': { relation: [] },
-        'Status': { select: { name: 'In Office' } },
-      },
-    });
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
+    if (!keyId) return res.status(400).json({ error: 'keyId required' });
 
-app.post('/api/mark-missing', requireRole('Admin', 'Manager'), async (req, res) => {
-  try {
-    const { keyId } = req.body;
-    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
-      properties: { 'Status': { select: { name: 'Missing' } } },
-    });
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/api/missing-keys', requireAuth, async (req, res) => {
-  try {
-    const rows = await queryAll(DB.keys, { property: 'Status', select: { equals: 'Missing' } });
-    const keys = await Promise.all(rows.map(async row => {
-      const p = row.properties;
-      const slot = extractRichText(p['Key Slot #']);
-      const keyTypes = extractMultiSelect(p['Key Types']);
-      const rentalUrls = extractRelation(p['Rental Matrix']);
-      let propertyName = '';
-      if (rentalUrls.length > 0) {
-        try {
-          const propId = rentalUrls[0].split('/').pop();
-          const propPage = await fetch(`https://api.notion.com/v1/pages/${propId}`, {
-            headers: notionHeaders(),
-          }).then(r => r.json());
-          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
-                         extractRichText(propPage.properties?.['Property Code']) || '';
-        } catch (_) {}
-      }
-      return { id: row.id, slot, keyTypes, propertyName };
-    }));
-    res.json(keys);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/return-key', requireRole('Admin', 'Manager'), upload.single('photo'), async (req, res) => {
-  try {
-    const { keyId, note } = req.body;
-    const photoFile = req.file;
-    const keyProps = { 'Status': { select: { name: 'In Office' } } };
-    if (photoFile) {
-      const photoUrl = await uploadToDrive(photoFile.buffer, photoFile.originalname, photoFile.mimetype);
-      keyProps['Return Photo'] = { files: [{ name: photoFile.originalname || 'return-photo.jpg', type: 'external', external: { url: photoUrl } }] };
-    }
-    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: keyProps });
-    if (note) {
-      const timestamp = mtTimestamp();
-      await fetch(`https://api.notion.com/v1/blocks/${keyId}/children`, {
-        method: 'PATCH',
-        headers: notionHeaders(),
-        body: JSON.stringify({ children: [
-          { object: 'block', type: 'heading_3', heading_3: { rich_text: [{ type: 'text', text: { content: `Key Returned — ${timestamp}` } }] } },
-          { object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: note } }] } },
-        ]}),
-      });
-    }
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/api/key-by-slot/:slot', requireAuth, async (req, res) => {
-  try {
-    const rows = await queryAll(DB.keys, { property: 'Key Slot #', title: { equals: req.params.slot } });
-    if (rows.length === 0) return res.json(null);
-    const row = rows[0];
-    const p = row.properties;
-    const rentalUrls = extractRelation(p['Rental Matrix']);
-    let propertyName = '';
-    if (rentalUrls.length > 0) {
+    const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
+    const logRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
+    let activeLogId = null;
+    for (const rel of [...logRelation].reverse()) {
       try {
-        const propId = rentalUrls[0].split('/').pop();
-        const propPage = await fetch(`https://api.notion.com/v1/pages/${propId}`, {
-          headers: notionHeaders(),
-        }).then(r => r.json());
-        propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
-                       extractRichText(propPage.properties?.['Property Code']) || '';
+        const logPage = await fetch(`https://api.notion.com/v1/pages/${rel.id}`, { headers: notionHeaders() }).then(r => r.json());
+        if (!logPage.properties?.['Date Returned']?.date) { activeLogId = rel.id; break; }
       } catch (_) {}
     }
-    res.json({
-      id: row.id,
-      slot: extractRichText(p['Key Slot #']),
-      kwiksetCut: extractRichText(p['Kwikset Cut']),
-      status: extractSelect(p['Status']),
-      keyTypes: extractMultiSelect(p['Key Types']),
-      propertyName,
-      rentalUrls,
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
 
-app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
-  try {
-    const { propertyId, slot, keyTypes, existingKeyId } = req.body;
-    const properties = {
-      'Key Slot #': { title: [{ text: { content: String(slot) } }] },
-      'Status': { select: { name: 'In Office' } },
-      'Key Types': { multi_select: keyTypes.map(name => ({ name })) },
-      'Rental Matrix': { relation: [{ id: propertyId }] },
-    };
-    if (existingKeyId) {
-      await notionPatch(`https://api.notion.com/v1/pages/${existingKeyId}`, { properties });
-      res.json({ success: true, keyId: existingKeyId, created: false });
-    } else {
-      const page = await notionPost('https://api.notion.com/v1/pages', {
-        parent: { database_id: DB.keys },
-        properties,
-      });
-      res.json({ success: true, keyId: page.id, created: true });
+    const today = mtDateStr();
+    const updates = [
+      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
+        properties: { 'Status': { select: { name: 'In Office' } } },
+      }),
+    ];
+    if (activeLogId) {
+      updates.push(notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, {
+        properties: { 'Date Returned': { date: { start: today } } },
+      }));
     }
+    await Promise.all(updates);
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
@@ -727,15 +589,6 @@ app.post('/api/add-key', requireRole('Admin', 'Manager'), async (req, res) => {
 });
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
-const MT_TZ = 'America/Boise';
-
-function mtDateStr(date = new Date()) {
-  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ });
-}
-
-function mtTimestamp(date = new Date()) {
-  return date.toLocaleString('en-US', { timeZone: MT_TZ });
-}
 
 async function sendSlackAlert(message) {
   if (!SLACK_WEBHOOK_URL) return;
@@ -814,7 +667,7 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
   }
 });
 
-// ── Lockboxes ──────────────────────────────────────────────────────────────
+// ── Lockboxes ──────────────────────────────────────────────
 
 app.get('/api/lockboxes', requireAuth, async (req, res) => {
   try {
