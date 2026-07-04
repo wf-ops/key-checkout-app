@@ -161,16 +161,24 @@
     .lockbox-loading { color: var(--gray-400); font-size: .85rem; }
 
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
+    .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
     .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
     .modal-actions .btn { flex: 1; }
 
-    /* inline modal search results */
+    .kw-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
+    .kw-info-label { color: var(--gray-600); font-size: .78rem; }
+    .kw-info-val { font-weight: 700; }
+    .kw-warning { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: .82rem; color: #5d4037; margin-top: 12px; line-height: 1.4; }
+    @media (prefers-color-scheme: dark) {
+      .kw-warning { background: #332900; border-color: #665500; color: #ffd54f; }
+    }
+
     .modal-search-wrap { position: relative; }
     .modal-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
-    .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); }
+    .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); padding: 9px 14px; cursor: pointer; font-size: .9rem; }
     .modal-search-results .search-result-item:last-child { border-bottom: none; }
+    .modal-search-results .search-result-item:hover { background: var(--bg); }
   </style>
 </head>
 <body>
@@ -537,26 +545,37 @@ async function showChangeKwiksetModal() {
   overlay.innerHTML = `
     <div class="modal-card">
       <h3>🔐 Change Kwikset Cut</h3>
-      <label>Property</label>
+      <label style="margin-top:0">Property</label>
       <div class="modal-search-wrap">
         <input type="text" id="kw-prop-input" placeholder="Search property…" autocomplete="off" />
         <div class="modal-search-results" id="kw-prop-results"></div>
       </div>
-      <div id="kw-selected-prop" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:7px 12px;font-size:.88rem;font-weight:600;margin-top:8px"></div>
-      <div id="kw-cut-wrap" style="display:none">
-        <label>Kwikset Cut</label>
-        <select id="kw-cut-select"><option>Loading…</option></select>
+      <div id="kw-body" style="display:none">
+        <div style="margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div class="kw-info-row" style="padding:8px 12px">
+            <span class="kw-info-label">Property</span>
+            <span class="kw-info-val" id="kw-prop-name" style="font-size:.85rem"></span>
+          </div>
+          <div class="kw-info-row" style="padding:8px 12px;border-bottom:none">
+            <span class="kw-info-label">Current Kwikset</span>
+            <span class="kw-info-val" id="kw-current-name" style="color:var(--primary)"></span>
+          </div>
+        </div>
+        <label>Changing to</label>
+        <select id="kw-new-select"></select>
+        <div class="kw-warning" id="kw-warning" style="display:none"></div>
       </div>
+      <div id="kw-loading" style="text-align:center;padding:16px 0;color:var(--gray-600);font-size:.88rem;display:none">Loading…</div>
       <div id="kw-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-        <button class="btn btn-primary" id="kw-save-btn" onclick="saveKwikset(this)" disabled>Save</button>
+        <button class="btn btn-primary" id="kw-save-btn" onclick="saveKwikset(this)" disabled>Confirm Change</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  let kwSelectedPropId = null;
+  let kwPropId = null, kwCurrentId = null, kwCurrentName = null;
   let kwSearchTimer;
   const propInput = overlay.querySelector('#kw-prop-input');
   const propResults = overlay.querySelector('#kw-prop-results');
@@ -580,24 +599,28 @@ async function showChangeKwiksetModal() {
             const p = propResults._hits[+el.dataset.idx];
             propResults.style.display = 'none';
             propInput.value = '';
-            kwSelectedPropId = p.id;
-            overlay.querySelector('#kw-selected-prop').textContent = p.address || p.propertyCode;
-            overlay.querySelector('#kw-selected-prop').style.display = 'block';
-            const cutWrap = overlay.querySelector('#kw-cut-wrap');
-            cutWrap.style.display = 'block';
-            const sel = overlay.querySelector('#kw-cut-select');
-            sel.innerHTML = '<option>Loading…</option>';
+            kwPropId = p.id;
+            overlay.querySelector('#kw-loading').style.display = 'block';
+            overlay.querySelector('#kw-body').style.display = 'none';
+            overlay.querySelector('#kw-save-btn').disabled = true;
             try {
-              // Load options + current value in parallel
-              const [opts, codes] = await Promise.all([
-                getKwiksetOptions(),
-                api('/api/property-codes/' + p.id),
-              ]);
-              sel.innerHTML = `<option value="">— none —</option>` +
-                opts.map(o => `<option value="${o.id}"${o.id === codes.kwiksetCutId ? ' selected' : ''}>${o.name}</option>`).join('');
+              const [opts, codes] = await Promise.all([getKwiksetOptions(), api('/api/property-codes/' + p.id)]);
+              kwCurrentId = codes.kwiksetCutId || '';
+              kwCurrentName = codes.kwiksetCut || '— None —';
+              overlay.querySelector('#kw-prop-name').textContent = codes.address || p.address || p.propertyCode;
+              overlay.querySelector('#kw-current-name').textContent = kwCurrentName;
+              const sel = overlay.querySelector('#kw-new-select');
+              sel.innerHTML = `<option value="">— None —</option>` +
+                opts.map(o => `<option value="${o.id}"${o.id === kwCurrentId ? ' selected' : ''}>${o.name}</option>`).join('');
+              updateKwWarning(overlay, sel, kwCurrentName);
+              sel.addEventListener('change', () => updateKwWarning(overlay, sel, kwCurrentName));
+              overlay.querySelector('#kw-loading').style.display = 'none';
+              overlay.querySelector('#kw-body').style.display = 'block';
               overlay.querySelector('#kw-save-btn').disabled = false;
             } catch (err) {
-              sel.innerHTML = '<option>Error loading options</option>';
+              overlay.querySelector('#kw-loading').style.display = 'none';
+              overlay.querySelector('#kw-error').textContent = 'Error loading data: ' + err.message;
+              overlay.querySelector('#kw-error').style.display = 'block';
             }
           });
         });
@@ -606,26 +629,44 @@ async function showChangeKwiksetModal() {
     }, 300);
   });
 
-  overlay.querySelector('#kw-save-btn')._getPropId = () => kwSelectedPropId;
+  // Store refs for saveKwikset
+  overlay.querySelector('#kw-save-btn')._getState = () => ({ kwPropId, kwCurrentId });
   propInput.focus();
+}
+
+function updateKwWarning(overlay, sel, currentName) {
+  const warning = overlay.querySelector('#kw-warning');
+  const newName = sel.options[sel.selectedIndex]?.text || '— None —';
+  const newVal = sel.value;
+  if (!newVal && !overlay.querySelector('#kw-save-btn')._getState().kwCurrentId) {
+    // Clearing an already-empty field
+    warning.style.display = 'none';
+    return;
+  }
+  warning.style.display = 'block';
+  const hasCurrent = !!overlay.querySelector('#kw-save-btn')._getState().kwCurrentId;
+  const previousNote = hasCurrent ? ` The current cut (<strong>${currentName}</strong>) will be added to Previous Kwiksets.` : '';
+  warning.innerHTML = `⚠️ This will set the Kwikset cut to <strong>${newName}</strong>.${previousNote}`;
 }
 
 async function saveKwikset(btn) {
   const overlay = btn.closest('.modal-overlay');
-  const propId = btn._getPropId();
-  if (!propId) return;
-  const kwiksetPageId = overlay.querySelector('#kw-cut-select').value || null;
+  const { kwPropId, kwCurrentId } = btn._getState();
+  if (!kwPropId) return;
+  const sel = overlay.querySelector('#kw-new-select');
+  const kwiksetPageId = sel.value || null;
   btn.disabled = true; btn.textContent = 'Saving…';
   const err = overlay.querySelector('#kw-error');
   err.style.display = 'none';
   try {
-    await api(`/api/property-kwikset/${propId}`, {
-      method: 'PATCH', body: JSON.stringify({ kwiksetPageId })
+    await api(`/api/property-kwikset/${kwPropId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ kwiksetPageId, previousKwiksetId: kwCurrentId || null }),
     });
     overlay.remove();
   } catch (e) {
     err.textContent = e.message; err.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Save';
+    btn.disabled = false; btn.textContent = 'Confirm Change';
   }
 }
 
@@ -817,8 +858,9 @@ async function saveAllCodes() {
     }
     const kwiksetSelect = document.getElementById('edit-kwiksetCut');
     if (kwiksetSelect) {
+      const previousKwiksetId = codesCurrentData?.kwiksetCutId || null;
       await api(`/api/property-kwikset/${codesCurrentPropertyId}`, {
-        method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwiksetSelect.value || null })
+        method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwiksetSelect.value || null, previousKwiksetId })
       });
     }
     codesEditMode = false;

@@ -390,9 +390,10 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
 });
 
 // GET /api/kwikset-options — list all Kwikset Cut options
+// Title field in Kwikset Cuts DB is "Kwikset Key #"
 app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   try {
-    const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Name', direction: 'ascending' }]);
+    const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
     const options = rows.map(r => {
       const titleProp = Object.values(r.properties || {}).find(prop => prop.type === 'title');
       const name = titleProp?.title?.[0]?.plain_text || '';
@@ -470,14 +471,24 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/property-kwikset/:propertyId — update Kwikset Cut relation
+// PATCH /api/property-kwikset/:propertyId
+// Updates Kwikset Cut relation and appends old value to Previous Kwiksets relation
 app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
-    const { kwiksetPageId } = req.body;
-    const relation = kwiksetPageId ? [{ id: kwiksetPageId }] : [];
-    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-      properties: { 'Kwikset Cut': { relation } },
-    });
+    const { kwiksetPageId, previousKwiksetId } = req.body;
+    const props = {
+      'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] },
+    };
+    // Append previous kwikset to the Previous Kwiksets relation (avoid duplicates)
+    if (previousKwiksetId) {
+      const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+      const existing = propPage.properties?.['Previous Kwiksets']?.relation || [];
+      const alreadyPresent = existing.some(r => r.id === previousKwiksetId);
+      if (!alreadyPresent) {
+        props['Previous Kwiksets'] = { relation: [...existing, { id: previousKwiksetId }] };
+      }
+    }
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
