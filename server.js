@@ -132,10 +132,6 @@ function extractMultiSelect(prop) {
   if (!prop || prop.type !== 'multi_select') return [];
   return prop.multi_select.map(s => s.name);
 }
-function extractNumber(prop) {
-  if (!prop || prop.type !== 'number') return null;
-  return prop.number;
-}
 
 const MT_TZ = 'America/Boise';
 function mtDateStr(date = new Date()) { return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); }
@@ -366,13 +362,11 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// Fields editable via PATCH /api/property-codes — all stored as rich_text to preserve leading zeros
 const PROPERTY_CODE_FIELDS = {
   frontDoorCode: 'Front Door Code',
   garageKeypad: 'Garage Keypad',
   communityEntryCode: 'Community Entry Code',
-  mailboxNumber: 'Mailbox #',
-  mailboxLocation: 'Mailbox Location',
-  otherSystems: 'Other Property Systems',
 };
 
 // GET /api/property-codes/:propertyId
@@ -384,27 +378,36 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     ]);
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
+
+    // Kwikset Cut moved to Property Matrix as a relation — fetch the title of the linked page
+    let kwiksetCut = '';
+    const kwiksetRel = p['Kwikset Cut']?.relation || [];
+    if (kwiksetRel.length > 0) {
+      try {
+        const kwPage = await fetch(`https://api.notion.com/v1/pages/${kwiksetRel[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+        const titleProp = Object.values(kwPage.properties || {}).find(prop => prop.type === 'title');
+        kwiksetCut = titleProp?.title?.[0]?.plain_text || '';
+      } catch (_) {}
+    }
+
+    // Keys: only tag, status, types — code fields moved to Property Matrix
     const keys = keyRows.map(row => {
       const kp = row.properties;
-      const garageCodeNum = extractNumber(kp['Garage Code']);
       return {
         id: row.id,
         tag: extractRichText(kp['Key Tag #']),
-        kwiksetCut: extractSelect(kp['Kwikset Cut']),
-        garageCode: garageCodeNum != null ? String(garageCodeNum) : '',
         status: extractSelect(kp['Status']),
         keyTypes: extractMultiSelect(kp['Key Types']),
       };
     });
+
     res.json({
       address: extractRichText(p['Street Address - Property']),
       propertyCode: extractRichText(p['Property Code']),
       frontDoorCode: extractRichText(p['Front Door Code']),
       garageKeypad: extractRichText(p['Garage Keypad']),
       communityEntryCode: extractRichText(p['Community Entry Code']),
-      mailboxNumber: extractRichText(p['Mailbox #']) || (p['Mailbox #']?.number != null ? String(p['Mailbox #'].number) : ''),
-      mailboxLocation: extractRichText(p['Mailbox Location']),
-      otherSystems: extractRichText(p['Other Property Systems']),
+      kwiksetCut,
       keys,
     });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -416,24 +419,10 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
     const { field, value } = req.body;
     const notionField = PROPERTY_CODE_FIELDS[field];
     if (!notionField) return res.status(400).json({ error: 'Unknown field: ' + field });
+    // Store as rich_text to preserve leading zeros
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
       properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
     });
-    res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
-});
-
-// PATCH /api/keys/:keyId
-app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) => {
-  try {
-    const { kwiksetCut } = req.body;
-    const props = {};
-    if (kwiksetCut !== undefined) {
-      // Kwikset Cut is a select field in Notion
-      props['Kwikset Cut'] = kwiksetCut ? { select: { name: String(kwiksetCut) } } : { select: null };
-    }
-    if (Object.keys(props).length === 0) return res.status(400).json({ error: 'No valid fields provided' });
-    await notionPatch(`https://api.notion.com/v1/pages/${req.params.keyId}`, { properties: props });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });

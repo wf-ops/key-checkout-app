@@ -132,10 +132,8 @@
     .code-label { font-size: .78rem; color: var(--gray-600); width: 110px; flex-shrink: 0; }
     .code-value { font-size: .88rem; font-weight: 600; flex: 1; }
     .code-edit-input { flex: 1; padding: 4px 8px !important; font-size: .85rem !important; margin: 0 !important; width: auto !important; }
-    .code-row-col { flex-direction: column; align-items: flex-start; gap: 4px; }
     .key-tag-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
     .key-tag-row:last-child { border-bottom: none; }
-    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 
     .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .user-item:last-child { border-bottom: none; }
@@ -570,14 +568,14 @@ function viewRow(label, value) {
 function editRow(label, field, value) {
   return `<div class="code-row">
     <span class="code-label">${label}</span>
-    <input type="text" id="edit-${field}" class="code-edit-input" value="${(value||'').replace(/"/g,'&quot;')}" />
+    <input type="text" id="edit-${field}" class="code-edit-input" inputmode="numeric" value="${(value||'').replace(/"/g,'&quot;')}" />
   </div>`;
 }
 
 function renderCodes(data) {
   if (data) codesCurrentData = data;
-  const codes = codesCurrentData.codes || codesCurrentData;
-  const keys = codesCurrentData.keys || [];
+  const d = codesCurrentData;
+  const keys = d.keys || [];
   let html = '';
 
   // Action bar
@@ -597,34 +595,21 @@ function renderCodes(data) {
   }
 
   html += '<div class="code-section"><div class="code-section-title">Entry Codes</div>';
-  html += codesEditMode ? editRow('Front Door','frontDoorCode',codes.frontDoorCode) : viewRow('Front Door',codes.frontDoorCode);
-  html += codesEditMode ? editRow('Garage Keypad','garageKeypad',codes.garageKeypad) : viewRow('Garage Keypad',codes.garageKeypad);
-  html += codesEditMode ? editRow('Community Entry','communityEntryCode',codes.communityEntryCode) : viewRow('Community Entry',codes.communityEntryCode);
+  html += codesEditMode ? editRow('Front Door','frontDoorCode',d.frontDoorCode) : viewRow('Front Door',d.frontDoorCode);
+  html += codesEditMode ? editRow('Garage Keypad','garageKeypad',d.garageKeypad) : viewRow('Garage Keypad',d.garageKeypad);
+  html += codesEditMode ? editRow('Community Entry','communityEntryCode',d.communityEntryCode) : viewRow('Community Entry',d.communityEntryCode);
+  // Kwikset Cut is now a relation on Property Matrix — read-only
+  html += viewRow('Kwikset Cut', d.kwiksetCut);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
   if (keys && keys.length) {
     keys.forEach(k => {
-      html += `<div class="key-tag-row">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span class="key-tag">${k.tag || '?'}</span>
-          <span style="font-size:.82rem;font-weight:600">${k.name || ''}</span>
-        </div>
-        <div class="key-tag-cut-row">
-          <span style="font-size:.76rem;color:var(--gray-600);min-width:80px">Kwikset Cut:</span>`;
-      if (codesEditMode) {
-        html += `<input type="text" id="edit-kwikset-${k.id}" class="code-edit-input" style="text-align:left" value="${(k.kwiksetCut||'').replace(/"/g,'&quot;')}" />`;
-      } else {
-        html += `<span style="font-size:.82rem;font-weight:600;flex:1;margin-left:4px">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>`;
-      }
-      html += '</div>';
-      if (k.garageCode) {
-        html += `<div class="key-tag-cut-row">
-          <span style="font-size:.76rem;color:var(--gray-600);min-width:80px">Garage Code:</span>
-          <span style="font-size:.82rem;font-weight:600;flex:1;margin-left:4px">${k.garageCode}</span>
-        </div>`;
-      }
-      html += '</div>';
+      const types = (k.keyTypes || []).join(', ');
+      html += `<div class="key-tag-row" style="display:flex;align-items:center;gap:8px">
+        <span class="key-tag">${k.tag || '?'}</span>
+        <span style="font-size:.82rem;color:var(--gray-600)">${types || ''}</span>
+      </div>`;
     });
   } else {
     html += '<div class="empty" style="padding:8px 0">No keys linked</div>';
@@ -632,7 +617,6 @@ function renderCodes(data) {
   html += '</div>';
 
   document.getElementById('codes-content').innerHTML = html;
-  window._codesKeys = keys;
 }
 
 function startEditCodes() {
@@ -655,16 +639,6 @@ async function saveAllCodes() {
         await api(`/api/property-codes/${codesCurrentPropertyId}`, {
           method: 'PATCH', body: JSON.stringify({ field, value: input.value })
         });
-      }
-    }
-    if (window._codesKeys) {
-      for (const k of window._codesKeys) {
-        const input = document.getElementById('edit-kwikset-' + k.id);
-        if (input) {
-          await api(`/api/keys/${k.id}`, {
-            method: 'PATCH', body: JSON.stringify({ kwiksetCut: input.value })
-          });
-        }
       }
     }
     codesEditMode = false;
