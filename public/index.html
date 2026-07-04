@@ -632,7 +632,14 @@ function renderCodes(data) {
       } else {
         html += `<span style="font-size:.82rem;font-weight:600;flex:1;margin-left:4px">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>`;
       }
-      html += '</div></div>';
+      html += '</div>';
+      if (k.garageCode) {
+        html += `<div class="key-tag-cut-row">
+          <span style="font-size:.76rem;color:var(--gray-600);min-width:80px">Garage Code:</span>
+          <span style="font-size:.82rem;font-weight:600;flex:1;margin-left:4px">${k.garageCode}</span>
+        </div>`;
+      }
+      html += '</div>';
     });
   } else {
     html += '<div class="empty" style="padding:8px 0">No keys linked</div>';
@@ -726,7 +733,7 @@ async function loadUsers() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN ────────────────────────────────────────────────────────────────────
+// ── Change PIN ────────────────────────────────────────────────────────────────
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
