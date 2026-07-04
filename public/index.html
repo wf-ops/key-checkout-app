@@ -110,73 +110,72 @@
     .login-card p { font-size: .85rem; color: var(--gray-600); margin-bottom: 20px; }
 
     /* Dashboard */
-    .checkout-card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 4px solid var(--orange); }
-    .checkout-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
-    .checkout-card .meta { font-size: .78rem; color: var(--gray-600); }
-    .checkout-card .overdue { color: var(--red); font-weight: 600; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .72rem; font-weight: 700; }
-    .badge-orange { background: #fff3e0; color: var(--orange); }
-    .badge-red { background: #ffebee; color: var(--red); }
+    .dash-stat { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .dash-stat:last-child { border-bottom: none; }
+    .dash-stat-icon { font-size: 1.5rem; width: 36px; text-align: center; }
+    .dash-stat-label { font-size: .8rem; color: var(--gray-600); }
+    .dash-stat-value { font-size: 1.1rem; font-weight: 700; }
 
-    /* Keys */
-    .key-row { display: flex; align-items: stretch; gap: 8px; margin-bottom: 8px; }
-    .key-btn { flex: 1; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; transition: border-color .15s, background .15s; }
-    .key-btn.selected { border-color: var(--primary); background: #e8f5e9; }
-    .key-tag-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-600); }
-    .key-num { font-size: 1.2rem; font-weight: 800; }
-    .key-type { font-size: .75rem; color: var(--gray-600); }
-    .key-cut { font-size: .75rem; color: #1565c0; font-family: monospace; font-weight: 600; }
-    .key-missing-btn { background: none; border: 1px solid var(--red); color: var(--red); border-radius: 8px; padding: 0 10px; font-size: .75rem; cursor: pointer; white-space: nowrap; }
+    /* Key list */
+    .key-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .key-item:last-child { border-bottom: none; }
+    .key-tag { background: var(--primary); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: .75rem; font-weight: 700; min-width: 36px; text-align: center; }
+    .key-meta { flex: 1; min-width: 0; }
+    .key-name { font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .key-sub { font-size: .75rem; color: var(--gray-600); }
+    .status-badge { font-size: .7rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; text-transform: uppercase; }
+    .status-available { background: #e8f5e9; color: #2e7d32; }
+    .status-out { background: #fff3e0; color: #e65100; }
+    .status-maintenance { background: #fce4ec; color: #c62828; }
 
-    /* Checkin cards */
-    .log-card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
-    .log-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
-    .log-card .meta { font-size: .78rem; color: var(--gray-600); }
+    /* Log */
+    .log-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .log-item:last-child { border-bottom: none; }
+    .log-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .log-name { font-size: .9rem; font-weight: 600; }
+    .log-time { font-size: .75rem; color: var(--gray-600); }
+    .log-detail { font-size: .8rem; color: var(--gray-600); }
+    .log-action-out { color: var(--orange); font-weight: 700; }
+    .log-action-in { color: var(--primary); font-weight: 700; }
 
-    /* Codes tab */
-    .codes-card { background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-    .codes-card h4 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 12px; }
-    .code-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+    /* Codes */
+    .code-section { margin-bottom: 16px; }
+    .code-section-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 8px; }
+    .code-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
     .code-row:last-child { border-bottom: none; }
-    .code-label { font-size: .85rem; color: var(--gray-600); flex: 1; min-width: 0; }
-    .code-value { font-size: 1rem; font-weight: 700; font-family: monospace; color: var(--gray-900); text-align: right; }
-    .code-value.empty { color: var(--gray-400); font-weight: 400; font-family: inherit; font-size: .85rem; }
-    .code-edit-btn { background: none; border: none; cursor: pointer; font-size: .85rem; padding: 2px 4px; opacity: .45; flex-shrink: 0; line-height: 1; }
+    .code-label { font-size: .8rem; color: var(--gray-600); min-width: 110px; flex-shrink: 0; }
+    .code-value { font-size: .9rem; font-weight: 600; text-align: right; flex: 1; word-break: break-word; }
+    .code-edit-btn { background: none; border: none; cursor: pointer; font-size: .9rem; padding: 0 4px; opacity: .4; flex-shrink: 0; }
     .code-edit-btn:hover { opacity: 1; }
-    .key-tag-cut-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-    .key-tag-card { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .key-tag-card:last-child { border-bottom: none; }
-    .key-tag-num { font-size: 1.1rem; font-weight: 800; min-width: 56px; flex-shrink: 0; }
-    .key-tag-info { flex: 1; min-width: 0; }
-    .key-tag-types { font-size: .8rem; color: var(--gray-600); }
-    .key-tag-cut { font-size: .82rem; color: #1565c0; font-family: monospace; font-weight: 600; }
-    .key-tag-status { font-size: .72rem; font-weight: 700; padding: 3px 8px; border-radius: 12px; flex-shrink: 0; }
-    .key-tag-status.in { background: #e8f5e9; color: #2e7d32; }
-    .key-tag-status.out { background: #fff3e0; color: #e65100; }
-    .key-tag-status.missing { background: #ffebee; color: #c62828; }
+    .key-tag-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .key-tag-row:last-child { border-bottom: none; }
+    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; }
 
-    /* Users */
-    .user-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .user-row:last-child { border-bottom: none; }
-    .user-name { font-weight: 600; font-size: .9rem; }
-    .user-meta { font-size: .78rem; color: var(--gray-600); }
-    .user-actions { margin-left: auto; display: flex; gap: 6px; }
+    /* Users tab */
+    .user-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .user-item:last-child { border-bottom: none; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: .9rem; font-weight: 600; }
+    .user-username { font-size: .75rem; color: var(--gray-600); }
+    .user-role-badge { font-size: .68rem; font-weight: 700; border-radius: 4px; padding: 2px 6px; background: var(--bg); color: var(--gray-600); border: 1px solid var(--border); }
 
-    /* Lockboxes */
-    .lockbox-card { background: var(--surface); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
-    .lockbox-sn { font-weight: 700; font-size: .95rem; min-width: 80px; }
-    .lockbox-meta { flex: 1; font-size: .8rem; color: var(--gray-600); }
-    .lockbox-status { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
-    .lockbox-status.deployed { background: #e8f5e9; color: #2e7d32; }
-    .lockbox-status.available { background: #e3f2fd; color: #1565c0; }
-    .lockbox-status.unassigned { background: var(--bg); color: var(--gray-600); }
+    /* Lockbox */
+    .lockbox-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .lockbox-item:last-child { border-bottom: none; }
+    .lockbox-name { font-size: .95rem; font-weight: 600; margin-bottom: 2px; }
+    .lockbox-address { font-size: .8rem; color: var(--gray-600); margin-bottom: 8px; }
+    .lockbox-code-display { background: var(--bg); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .lockbox-code-val { font-size: 1.4rem; font-weight: 700; letter-spacing: 4px; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .lockbox-code-label { font-size: .7rem; color: var(--gray-600); text-align: right; }
+    .lockbox-loading { color: var(--gray-400); font-size: .85rem; }
 
     /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .modal { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
-    .modal h3 { font-size: 1.05rem; margin-bottom: 16px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
-    .photo-preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; margin-top: 8px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
+    .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions .btn { flex: 1; }
   </style>
 </head>
 <body>
@@ -232,170 +231,109 @@
 <!-- Bottom Nav -->
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
   <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">
-    <span class="nav-icon">🏠</span>Home
+    <span class="nav-icon">🏠</span><span>Home</span>
   </button>
   <button class="nav-btn" data-tab="checkout" onclick="showTab('checkout')">
-    <span class="nav-icon">📤</span>Out
+    <span class="nav-icon">📤</span><span>Out</span>
   </button>
   <button class="nav-btn" data-tab="checkin" onclick="showTab('checkin')">
-    <span class="nav-icon">📥</span>In
+    <span class="nav-icon">📥</span><span>In</span>
   </button>
   <button class="nav-btn" data-tab="codes" onclick="showTab('codes')">
-    <span class="nav-icon">🔑</span>Codes
+    <span class="nav-icon">🔑</span><span>Codes</span>
   </button>
-  <button class="nav-btn" id="more-nav-btn" onclick="openMoreSheet()">
-    <span class="nav-icon">☰</span>More
+  <button class="nav-btn" data-tab="more" onclick="openMoreSheet()">
+    <span class="nav-icon">⋯</span><span>More</span>
   </button>
 </nav>
 
 <!-- Dashboard Tab -->
-<div id="tab-dashboard" class="tab active">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <h2 style="font-size:1.1rem">Keys Out</h2>
-    <button class="btn btn-outline" style="padding:6px 12px;font-size:.8rem" onclick="loadDashboard()">Refresh</button>
+<div class="tab active" id="tab-dashboard">
+  <div class="card">
+    <h3>Key Inventory</h3>
+    <div id="dash-stats"><div class="spinner"></div></div>
   </div>
-  <div id="dashboard-content"><div class="spinner"></div></div>
+  <div class="card">
+    <h3>Recent Activity</h3>
+    <div id="dash-log"><div class="spinner"></div></div>
+  </div>
 </div>
 
 <!-- Check Out Tab -->
-<div id="tab-checkout" class="tab">
-  <h2 style="font-size:1.1rem;margin-bottom:12px">Check Out Key</h2>
-  <div class="search-box">
-    <input type="text" id="prop-input" placeholder="Search property or code..." autocomplete="off" />
-    <div class="search-results" id="prop-results"></div>
-  </div>
-  <div id="selected-prop-display" style="display:none"></div>
-  <div id="checkout-keys"></div>
-  <div id="checkout-form" style="display:none">
-    <div class="card" style="margin-top:8px">
-      <label>Purpose
-        <select id="co-purpose">
-          <option>Tenant Move-In</option>
-          <option>Tenant Move-Out</option>
-          <option>Maintenance</option>
-          <option>Showing</option>
-          <option>Inspection</option>
-          <option>Other</option>
-        </select>
-      </label>
-      <label>Check-Out Date
-        <input type="date" id="co-date-out" />
-      </label>
-      <label>Due Back
-        <input type="date" id="co-date-due" />
-      </label>
-      <label>Photo (optional)
-        <input type="file" id="co-photo" accept="image/*" capture="environment" onchange="previewPhoto(this,'co-photo-preview')" />
-        <img id="co-photo-preview" class="photo-preview" style="display:none" />
-      </label>
-      <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="submitCheckout()">Confirm Check Out</button>
+<div class="tab" id="tab-checkout">
+  <div class="card">
+    <h3>Check Out Key</h3>
+    <label>Property</label>
+    <div class="search-box">
+      <input type="text" id="co-prop-search" placeholder="Search property…" oninput="searchProps('co')" onfocus="searchProps('co')" />
+      <div class="search-results" id="co-prop-results"></div>
     </div>
+    <div id="co-selected-prop" style="display:none"></div>
+    <div id="co-key-select" style="display:none">
+      <label>Key</label>
+      <select id="co-key-dd"></select>
+    </div>
+    <div id="co-staff-select" style="display:none">
+      <label>Staff</label>
+      <select id="co-staff-dd"></select>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:16px;display:none" id="co-btn" onclick="doCheckout()">Check Out</button>
   </div>
 </div>
 
 <!-- Check In Tab -->
-<div id="tab-checkin" class="tab">
-  <h2 style="font-size:1.1rem;margin-bottom:12px">Check In Key</h2>
-  <div id="checkin-content"><div class="spinner"></div></div>
+<div class="tab" id="tab-checkin">
+  <div class="card">
+    <h3>Check In Key</h3>
+    <label>Property</label>
+    <div class="search-box">
+      <input type="text" id="ci-prop-search" placeholder="Search property…" oninput="searchProps('ci')" onfocus="searchProps('ci')" />
+      <div class="search-results" id="ci-prop-results"></div>
+    </div>
+    <div id="ci-selected-prop" style="display:none"></div>
+    <div id="ci-key-select" style="display:none">
+      <label>Key</label>
+      <select id="ci-key-dd"></select>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:16px;display:none" id="ci-btn" onclick="doCheckin()">Check In</button>
+  </div>
 </div>
 
 <!-- Codes Tab -->
-<div id="tab-codes" class="tab">
-  <h2 style="font-size:1.1rem;margin-bottom:12px">Codes &amp; Access</h2>
-  <div class="search-box">
-    <input type="text" id="codes-prop-input" placeholder="Search property or code..." autocomplete="off" />
-    <div class="search-results" id="codes-prop-results"></div>
+<div class="tab" id="tab-codes">
+  <div class="card">
+    <h3>Property Codes</h3>
+    <div class="search-box">
+      <input type="text" id="codes-prop-search" placeholder="Search property…" oninput="searchProps('codes')" onfocus="searchProps('codes')" />
+      <div class="search-results" id="codes-prop-results"></div>
+    </div>
+    <div id="codes-selected-prop" style="display:none"></div>
+    <div id="codes-content"><div class="empty">Search for a property above</div></div>
   </div>
-  <div id="codes-selected-prop" style="display:none"></div>
-  <div id="codes-content"></div>
 </div>
 
 <!-- Lockboxes Tab -->
-<div id="tab-lockboxes" class="tab">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <h2 style="font-size:1.1rem">Lockboxes</h2>
-    <button class="btn btn-outline" style="padding:6px 12px;font-size:.8rem" onclick="loadLockboxes()">Refresh</button>
+<div class="tab" id="tab-lockboxes">
+  <div class="card">
+    <h3>Lockbox Day Codes</h3>
+    <div id="lockbox-list"><div class="spinner"></div></div>
   </div>
-  <div id="lockboxes-content"><div class="spinner"></div></div>
 </div>
 
 <!-- Users Tab -->
-<div id="tab-users" class="tab">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <h2 style="font-size:1.1rem">Users</h2>
-    <button class="btn btn-primary" style="padding:6px 14px;font-size:.8rem" onclick="showAddUserModal()">+ Add</button>
-  </div>
-  <div id="users-content"><div class="spinner"></div></div>
-</div>
-
-<!-- Change PIN Modal -->
-<div class="modal-overlay" id="change-pin-modal" style="display:none">
-  <div class="modal">
-    <h3>Change PIN</h3>
-    <label>Current PIN <input type="password" id="cp-current" inputmode="numeric" /></label>
-    <label>New PIN <input type="password" id="cp-new" inputmode="numeric" /></label>
-    <label>Confirm New PIN <input type="password" id="cp-confirm" inputmode="numeric" /></label>
-    <div id="cp-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="document.getElementById('change-pin-modal').style.display='none'">Cancel</button>
-      <button class="btn btn-primary" onclick="submitChangePin()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- Add/Edit User Modal -->
-<div class="modal-overlay" id="user-modal" style="display:none">
-  <div class="modal">
-    <h3 id="user-modal-title">Add User</h3>
-    <input type="hidden" id="um-id" />
-    <label>Name <input type="text" id="um-name" /></label>
-    <label>Username <input type="text" id="um-username" autocapitalize="none" /></label>
-    <label>PIN <input type="password" id="um-pin" inputmode="numeric" placeholder="leave blank to keep" /></label>
-    <label>Role
-      <select id="um-role">
-        <option>Member</option>
-        <option>Manager</option>
-        <option>Admin</option>
-      </select>
-    </label>
-    <label>Notion Person ID <input type="text" id="um-notion-id" placeholder="optional" /></label>
-    <div id="um-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="document.getElementById('user-modal').style.display='none'">Cancel</button>
-      <button class="btn btn-primary" onclick="submitUserModal()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- Lockbox Code Modal -->
-<div class="modal-overlay" id="lockbox-code-modal" style="display:none">
-  <div class="modal">
-    <h3>Generate Day Code</h3>
-    <p id="lockbox-code-sn" style="font-size:.85rem;color:var(--gray-600);margin-bottom:12px"></p>
-    <label>Date
-      <input type="date" id="lc-date" />
-    </label>
-    <div id="lc-result" style="margin-top:12px;display:none">
-      <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:4px">Day Code</div>
-      <div id="lc-code" style="font-size:2rem;font-weight:800;font-family:monospace;letter-spacing:4px;color:var(--primary)"></div>
-    </div>
-    <div id="lc-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="document.getElementById('lockbox-code-modal').style.display='none'">Close</button>
-      <button class="btn btn-primary" onclick="generateLockboxCode()">Generate</button>
-    </div>
+<div class="tab" id="tab-users">
+  <div class="card">
+    <h3>Staff Users</h3>
+    <div id="user-list"><div class="spinner"></div></div>
   </div>
 </div>
 
 <script>
-let currentUser = null;
-window.currentUser = null;
+const BASE = '';
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
-    ...opts,
-  });
+  opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const res = await fetch(BASE + path, opts);
   if (res.status === 401) { showLogin(); throw new Error('Not authenticated'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -412,9 +350,16 @@ async function loadLoginUsers() {
 function showLoginUserList() {
   const list = document.getElementById('login-user-list');
   if (loginUsers.length === 0) { list.style.display = 'none'; return; }
-  list.innerHTML = loginUsers.map(u =>
-    `<div class="login-user-item" onclick="selectLoginUser('${u.username}','${u.name.replace(/'/g,"\\'")}")">${u.name}<span style="color:var(--gray-400);font-size:.78rem;margin-left:6px">@${u.username}</span></div>`
+  list.innerHTML = loginUsers.map((u, i) =>
+    `<div class="login-user-item" data-idx="${i}">${u.name}<span style="color:var(--gray-400);font-size:.78rem;margin-left:6px">@${u.username}</span></div>`
   ).join('');
+  list.querySelectorAll('.login-user-item').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const u = loginUsers[+el.dataset.idx];
+      selectLoginUser(u.username, u.name);
+    });
+  });
   list.style.display = 'block';
 }
 function selectLoginUser(username, name) {
@@ -455,16 +400,25 @@ async function doLogin() {
   const pin = document.getElementById('login-pin').value.trim();
   const err = document.getElementById('login-error');
   err.style.display = 'none';
+  if (!username || !pin) { err.textContent = 'Enter username and PIN'; err.style.display = 'block'; return; }
   try {
-    const res = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, pin }) });
-    currentUser = res.user;
-    window.currentUser = currentUser;
-    onLogin(currentUser);
+    const user = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, pin }) });
+    currentUser = user;
+    window.currentUser = user;
+    onLogin(user);
   } catch (e) {
     err.textContent = e.message;
     err.style.display = 'block';
   }
 }
+
+async function doLogout() {
+  await api('/api/logout', { method: 'POST' }).catch(() => {});
+  showLogin();
+}
+
+let currentUser = null;
+window.currentUser = null;
 
 function onLogin(user) {
   document.getElementById('login-screen').style.display = 'none';
@@ -472,30 +426,13 @@ function onLogin(user) {
   document.getElementById('bottom-nav').style.display = 'flex';
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-role-display').textContent = user.role;
-  const isManager = user.role === 'Admin' || user.role === 'Manager';
   const isAdmin = user.role === 'Admin';
-  document.getElementById('sheet-lockboxes').style.display = isManager ? 'flex' : 'none';
+  const isMgr = user.role === 'Manager';
+  document.getElementById('sheet-lockboxes').style.display = (isAdmin || isMgr) ? 'flex' : 'none';
   document.getElementById('sheet-users').style.display = isAdmin ? 'flex' : 'none';
-  document.getElementById('sheet-divider').style.display = isManager ? 'block' : 'none';
+  document.getElementById('sheet-divider').style.display = (isAdmin || isMgr) ? 'block' : 'none';
   showTab('dashboard');
   loadDashboard();
-}
-
-async function doLogout() {
-  await api('/api/logout', { method: 'POST' });
-  showLogin();
-}
-
-function showTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const el = document.getElementById('tab-' + tab);
-  if (el) el.classList.add('active');
-  const btn = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
-  if (btn) btn.classList.add('active');
-  if (tab === 'checkin') loadCheckin();
-  if (tab === 'lockboxes') loadLockboxes();
-  if (tab === 'users') loadUsers();
 }
 
 function openMoreSheet() {
@@ -507,112 +444,250 @@ function closeMoreSheet() {
   document.getElementById('more-sheet').classList.remove('open');
 }
 
-// Dashboard
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+  const btn = document.querySelector(`.nav-btn[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  if (name === 'lockboxes') loadLockboxes();
+  if (name === 'users') loadUsers();
+}
+
+// ── Properties search (shared) ──────────────────────────────────────────────
+let propCache = [];
+async function ensureProps() {
+  if (propCache.length) return;
+  propCache = await api('/api/properties');
+}
+
+function searchProps(prefix) {
+  const q = document.getElementById(prefix + '-prop-search').value.toLowerCase();
+  const res = document.getElementById(prefix + '-prop-results');
+  ensureProps().then(() => {
+    const hits = q ? propCache.filter(p => p.name.toLowerCase().includes(q)) : propCache;
+    if (!hits.length) { res.style.display = 'none'; return; }
+    res.innerHTML = hits.slice(0, 8).map(p =>
+      `<div class="search-result-item" onclick="selectProp('${prefix}','${p.id}',${JSON.stringify(p.name)})">
+        ${p.name}<div class="result-code">${p.code || ''}</div>
+      </div>`
+    ).join('');
+    res.style.display = 'block';
+  });
+}
+
+function selectProp(prefix, id, name) {
+  document.getElementById(prefix + '-prop-search').value = '';
+  document.getElementById(prefix + '-prop-results').style.display = 'none';
+  if (prefix === 'co') selectPropForCheckout(id, name);
+  else if (prefix === 'ci') selectPropForCheckin(id, name);
+  else if (prefix === 'codes') selectPropForCodes(id, name);
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
 async function loadDashboard() {
-  const el = document.getElementById('dashboard-content');
-  el.innerHTML = '<div class="spinner"></div>';
-  try {
-    const entries = await api('/api/dashboard');
-    if (entries.length === 0) { el.innerHTML = '<div class="empty">No keys currently checked out</div>'; return; }
-    const today = new Date().toISOString().slice(0, 10);
-    el.innerHTML = entries.map(e => {
-      const due = e.dateDue || e.dateOut;
-      const overdue = due && due < today;
-      return `<div class="checkout-card">
-        <h4>${e.logEntry}</h4>
-        <div class="meta">
-          Out: ${e.dateOut || '?'} &nbsp;|&nbsp;
-          ${overdue
-            ? `<span class="overdue">Due: ${due} (OVERDUE)</span>`
-            : `Due: ${due || '?'}`}
-          ${e.purpose ? `&nbsp;|&nbsp; ${e.purpose}` : ''}
-        </div>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    el.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  const [keys, log] = await Promise.all([api('/api/keys'), api('/api/log?limit=5')]);
+  const available = keys.filter(k => k.status === 'Available').length;
+  const out = keys.filter(k => k.status === 'Checked Out').length;
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="dash-stat">
+      <span class="dash-stat-icon">🗝️</span>
+      <div><div class="dash-stat-label">Available</div><div class="dash-stat-value">${available}</div></div>
+    </div>
+    <div class="dash-stat">
+      <span class="dash-stat-icon">📤</span>
+      <div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div>
+    </div>
+    <div class="dash-stat">
+      <span class="dash-stat-icon">📋</span>
+      <div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div>
+    </div>
+  `;
+  document.getElementById('dash-log').innerHTML = log.length
+    ? log.map(l => `
+        <div class="log-item">
+          <div class="log-item-header">
+            <span class="log-name">${l.propertyName}</span>
+            <span class="log-time">${fmtTime(l.timestamp)}</span>
+          </div>
+          <div class="log-detail">
+            <span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span>
+            · ${l.staffName} · Key ${l.keyTag}
+          </div>
+        </div>`).join('')
+    : '<div class="empty">No recent activity</div>';
+}
+
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Check Out ────────────────────────────────────────────────────────────────
+let coSelectedProp = null;
+async function selectPropForCheckout(id, name) {
+  coSelectedProp = { id, name };
+  document.getElementById('co-selected-prop').style.display = 'flex';
+  document.getElementById('co-selected-prop').innerHTML =
+    `<span>${name}</span><button onclick="clearPropSelection('co')">✕</button>`;
+  document.getElementById('co-key-select').style.display = 'none';
+  document.getElementById('co-staff-select').style.display = 'none';
+  document.getElementById('co-btn').style.display = 'none';
+  const keys = await api('/api/keys?propertyId=' + id);
+  const avail = keys.filter(k => k.status === 'Available');
+  const dd = document.getElementById('co-key-dd');
+  dd.innerHTML = avail.length
+    ? avail.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('')
+    : '<option disabled>No keys available</option>';
+  document.getElementById('co-key-select').style.display = avail.length ? 'block' : 'none';
+  if (avail.length) {
+    const staff = await api('/api/staff');
+    document.getElementById('co-staff-dd').innerHTML = staff.map(s =>
+      `<option value="${s.id}">${s.name}</option>`).join('');
+    document.getElementById('co-staff-select').style.display = 'block';
+    document.getElementById('co-btn').style.display = 'block';
   }
 }
 
-// Codes Tab
+async function doCheckout() {
+  const keyId = document.getElementById('co-key-dd').value;
+  const staffId = document.getElementById('co-staff-dd').value;
+  if (!keyId || !staffId || !coSelectedProp) return;
+  try {
+    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id }) });
+    clearPropSelection('co');
+    loadDashboard();
+    showTab('dashboard');
+  } catch (e) { alert('Checkout failed: ' + e.message); }
+}
+
+// ── Check In ─────────────────────────────────────────────────────────────────
+let ciSelectedProp = null;
+async function selectPropForCheckin(id, name) {
+  ciSelectedProp = { id, name };
+  document.getElementById('ci-selected-prop').style.display = 'flex';
+  document.getElementById('ci-selected-prop').innerHTML =
+    `<span>${name}</span><button onclick="clearPropSelection('ci')">✕</button>`;
+  document.getElementById('ci-key-select').style.display = 'none';
+  document.getElementById('ci-btn').style.display = 'none';
+  const keys = await api('/api/keys?propertyId=' + id);
+  const out = keys.filter(k => k.status === 'Checked Out');
+  const dd = document.getElementById('ci-key-dd');
+  dd.innerHTML = out.length
+    ? out.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('')
+    : '<option disabled>No keys checked out</option>';
+  document.getElementById('ci-key-select').style.display = out.length ? 'block' : 'none';
+  document.getElementById('ci-btn').style.display = out.length ? 'block' : 'none';
+}
+
+async function doCheckin() {
+  const keyId = document.getElementById('ci-key-dd').value;
+  if (!keyId || !ciSelectedProp) return;
+  try {
+    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId, propertyId: ciSelectedProp.id }) });
+    clearPropSelection('ci');
+    loadDashboard();
+    showTab('dashboard');
+  } catch (e) { alert('Checkin failed: ' + e.message); }
+}
+
+function clearPropSelection(prefix) {
+  if (prefix === 'co') { coSelectedProp = null; document.getElementById('co-key-select').style.display = 'none'; document.getElementById('co-staff-select').style.display = 'none'; document.getElementById('co-btn').style.display = 'none'; }
+  if (prefix === 'ci') { ciSelectedProp = null; document.getElementById('ci-key-select').style.display = 'none'; document.getElementById('ci-btn').style.display = 'none'; }
+  document.getElementById(prefix + '-selected-prop').style.display = 'none';
+  document.getElementById(prefix + '-prop-search').value = '';
+}
+
+// ── Codes Tab ────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
-let codesPropTimer;
-document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('codes-prop-input');
-  const res = document.getElementById('codes-prop-results');
-  inp.addEventListener('input', () => {
-    clearTimeout(codesPropTimer);
-    const q = inp.value.trim();
-    if (q.length < 2) { res.style.display = 'none'; return; }
-    codesPropTimer = setTimeout(async () => {
-      try {
-        const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-        res.innerHTML = results.length === 0
-          ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
-          : results.map(r => {
-              const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
-              return `<div class="search-result-item" onclick="selectCodesProperty('${r.id}','${addr.replace(/'/g,"\\'")}')">\n              ${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}\n            </div>`;
-            }).join('');
-        res.style.display = 'block';
-      } catch (e) { res.style.display = 'none'; }
-    }, 280);
-  });
-});
-document.addEventListener('click', e => {
-  if (!e.target.closest('#codes-prop-results') && e.target !== document.getElementById('codes-prop-input'))
-    document.getElementById('codes-prop-results').style.display = 'none';
-});
-async function selectCodesProperty(id, label) {
+function canEditCodes() {
+  return currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager');
+}
+
+async function selectPropForCodes(id, name) {
   codesCurrentPropertyId = id;
-  document.getElementById('codes-prop-results').style.display = 'none';
-  document.getElementById('codes-prop-input').value = '';
-  document.getElementById('codes-selected-prop').style.display = 'block';
-  document.getElementById('codes-selected-prop').innerHTML = `<div class="selected-prop"><span>${label}</span><button onclick="clearCodesProperty()">✕</button></div>`;
+  document.getElementById('codes-selected-prop').innerHTML =
+    `<span>${name}</span><button onclick="clearCodesSelection()">✕</button>`;
+  document.getElementById('codes-selected-prop').style.display = 'flex';
   document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
   try {
-    const data = await api(`/api/property-codes/${id}`);
+    const data = await api('/api/property-codes/' + id);
     renderCodes(data);
-  } catch (e) { document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+  } catch (e) {
+    document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
 }
-function clearCodesProperty() {
+
+function clearCodesSelection() {
   codesCurrentPropertyId = null;
   document.getElementById('codes-selected-prop').style.display = 'none';
-  document.getElementById('codes-content').innerHTML = '';
-  document.getElementById('codes-prop-input').value = '';
+  document.getElementById('codes-prop-search').value = '';
+  document.getElementById('codes-content').innerHTML = '<div class="empty">Search for a property above</div>';
 }
-function canEditCodes() {
-  return window.currentUser && (window.currentUser.role === 'Admin' || window.currentUser.role === 'Manager');
-}
+
 function codeRow(label, field, value) {
-  const eb = canEditCodes() ? `<button class="code-edit-btn" onclick="editCodeField('${field}','${(value||'').replace(/'/g,String.fromCharCode(92)+"'")}','${label}')" title="Edit">✏️</button>` : '';
-  if (!value) return `<div class="code-row"><span class="code-label">${label}</span><span class="code-value empty">—</span>${eb}</div>`;
-  return `<div class="code-row"><span class="code-label">${label}</span><span class="code-value">${value}</span>${eb}</div>`;
+  const editBtn = canEditCodes()
+    ? `<button class="code-edit-btn" onclick="editCodeField(${JSON.stringify(field)},${JSON.stringify(value||'')},${JSON.stringify(label)})">✏️</button>`
+    : '';
+  return `<div class="code-row">
+    <span class="code-label">${label}</span>
+    <span class="code-value">${value || '<span style="color:var(--gray-400)">—</span>'}</span>
+    ${editBtn}
+  </div>`;
 }
+
 function renderCodes(data) {
-  const el = document.getElementById('codes-content');
-  let html = `<div class="codes-card"><h4>Entry Codes</h4>${codeRow('Front Door','frontDoorCode',data.frontDoorCode)}${codeRow('Garage Keypad','garageKeypad',data.garageKeypad)}${codeRow('Community Entry','communityEntryCode',data.communityEntryCode)}</div>`;
-  html += `<div class="codes-card"><h4>Mailbox</h4>${codeRow('Box #','mailboxNumber',data.mailboxNumber)}${codeRow('Location','mailboxLocation',data.mailboxLocation)}</div>`;
-  const osEdit = canEditCodes() ? `<button class="code-edit-btn" onclick="editCodeField('otherSystems',${JSON.stringify(data.otherSystems||'')},'Other Systems')" style="display:block;margin-top:4px" title="Edit">✏️</button>` : '';
-  html += `<div class="codes-card"><h4>Other Systems</h4>${data.otherSystems ? `<div style="font-size:.9rem;line-height:1.5;white-space:pre-wrap">${data.otherSystems}</div>` : '<span style="color:var(--gray-400);font-size:.9rem">—</span>'}${osEdit}</div>`;
-  if (data.keys && data.keys.length > 0) {
-    const sc = s => s === 'In Office' ? 'in' : s === 'Missing' ? 'missing' : 'out';
-    const sl = s => s === 'In Office' ? 'In Office' : s === 'Checked Out' ? 'Out' : s || 'In Office';
-    html += `<div class="codes-card"><h4>Key Tags (${data.keys.length})</h4>${data.keys.map(k => {
-      const cutEdit = canEditCodes() ? `<button class="code-edit-btn" onclick="editKwiksetCut('${k.id}',${JSON.stringify(k.kwiksetCut||'')})" title="Edit cut">✏️</button>` : '';
-      return `<div class="key-tag-card">
-        <div class="key-tag-num">Tag #${k.slot}</div>
-        <div class="key-tag-info">
-          <div class="key-tag-types">${k.keyTypes.join(', ') || 'No type set'}</div>
-          <div class="key-tag-cut-row">${k.kwiksetCut ? `<span class="key-tag-cut">Kwikset: ${k.kwiksetCut}</span>` : '<span style="color:var(--gray-400);font-size:.85rem">No cut code</span>'}${cutEdit}</div>
+  const { codes, keys } = data;
+  let html = '';
+
+  html += '<div class="code-section"><div class="code-section-title">Entry Codes</div>';
+  html += codeRow('Front Door', 'frontDoorCode', codes.frontDoorCode);
+  html += codeRow('Garage Keypad', 'garageKeypad', codes.garageKeypad);
+  html += codeRow('Community Entry', 'communityEntryCode', codes.communityEntryCode);
+  html += '</div>';
+
+  html += '<div class="code-section"><div class="code-section-title">Mailbox</div>';
+  html += codeRow('Mailbox #', 'mailboxNumber', codes.mailboxNumber);
+  html += codeRow('Location', 'mailboxLocation', codes.mailboxLocation);
+  html += '</div>';
+
+  html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
+  if (keys && keys.length) {
+    keys.forEach(k => {
+      const cutEdit = canEditCodes()
+        ? `<button class="code-edit-btn" onclick="editKwiksetCut(${JSON.stringify(k.id)},${JSON.stringify(k.kwiksetCut||'')})">✏️</button>`
+        : '';
+      html += `<div class="key-tag-row">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="key-tag">${k.tag || '?'}</span>
+          <span style="font-size:.85rem;font-weight:600">${k.name || ''}</span>
         </div>
-        <span class="key-tag-status ${sc(k.status)}">${sl(k.status)}</span>
+        <div class="key-tag-cut-row">
+          <span style="font-size:.8rem;color:var(--gray-600)">Kwikset Cut:</span>
+          <span style="font-size:.85rem;font-weight:600;flex:1">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>
+          ${cutEdit}
+        </div>
       </div>`;
-    }).join('')}</div>`;
+    });
+  } else {
+    html += '<div class="empty" style="padding:12px 0">No keys linked</div>';
   }
-  const mnEdit = canEditCodes() ? `<button class="code-edit-btn" onclick="editCodeField('maintenanceNotes',${JSON.stringify(data.maintenanceNotes||'')},'Maintenance Notes')" style="display:block;margin-top:4px" title="Edit">✏️</button>` : '';
-  html += `<div class="codes-card"><h4>Maintenance Notes</h4>${data.maintenanceNotes ? `<div style="font-size:.9rem;line-height:1.5;white-space:pre-wrap">${data.maintenanceNotes}</div>` : '<span style="color:var(--gray-400);font-size:.9rem">—</span>'}${mnEdit}</div>`;
-  el.innerHTML = html;
+  html += '</div>';
+
+  html += '<div class="code-section"><div class="code-section-title">Other Systems</div>';
+  html += codeRow('Other Systems', 'otherSystems', codes.otherSystems);
+  html += '</div>';
+
+  html += '<div class="code-section"><div class="code-section-title">Maintenance Notes</div>';
+  html += codeRow('Notes', 'maintenanceNotes', codes.maintenanceNotes);
+  html += '</div>';
+
+  document.getElementById('codes-content').innerHTML = html;
 }
+
 async function editCodeField(field, currentValue, label) {
   if (!codesCurrentPropertyId) return;
   showEditModal(label, currentValue, async (newVal) => {
@@ -623,6 +698,7 @@ async function editCodeField(field, currentValue, label) {
     } catch (e) { alert('Save failed: ' + e.message); }
   });
 }
+
 async function editKwiksetCut(keyId, currentValue) {
   showEditModal('Kwikset Cut Code', currentValue, async (newVal) => {
     try {
@@ -632,335 +708,125 @@ async function editKwiksetCut(keyId, currentValue) {
     } catch (e) { alert('Save failed: ' + e.message); }
   });
 }
+
 function showEditModal(label, currentValue, onSave) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  const isMultiline = label === 'Other Systems' || label === 'Maintenance Notes';
-  overlay.innerHTML = `<div style="background:var(--surface);border-radius:12px;padding:20px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-    <h4 style="margin:0 0 12px;font-size:1rem">Edit ${label}</h4>
-    ${isMultiline
-      ? `<textarea id="edit-modal-input" style="width:100%;min-height:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;resize:vertical;box-sizing:border-box"></textarea>`
-      : `<input id="edit-modal-input" type="text" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;box-sizing:border-box">`}
-    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-      <button onclick="this.closest('[style*=fixed]').remove()" style="padding:8px 16px;border:1px solid var(--border);background:transparent;border-radius:6px;cursor:pointer">Cancel</button>
-      <button id="edit-modal-save" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Save</button>
-    </div>
-  </div>`;
+  overlay.className = 'modal-overlay';
+  const isMultiline = ['Notes', 'Other Systems', 'Maintenance Notes'].some(s => label.includes(s));
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>Edit ${label}</h3>
+      ${isMultiline
+        ? `<textarea id="edit-modal-input" rows="4" style="resize:vertical">${currentValue || ''}</textarea>`
+        : `<input type="text" id="edit-modal-input" value="${(currentValue || '').replace(/"/g, '&quot;')}" />`
+      }
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="edit-modal-save">Save</button>
+      </div>
+    </div>`;
   document.body.appendChild(overlay);
-  const input = document.getElementById('edit-modal-input');
-  input.value = currentValue || '';
+  const input = overlay.querySelector('#edit-modal-input');
   input.focus();
-  if (input.tagName === 'INPUT') input.select();
-  document.getElementById('edit-modal-save').onclick = async () => {
-    const val = input.value.trim();
+  if (input.tagName === 'INPUT') { input.select(); }
+  overlay.querySelector('#edit-modal-save').addEventListener('click', async () => {
+    const newVal = input.value;
     overlay.remove();
-    await onSave(val);
-  };
+    await onSave(newVal);
+  });
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
-// Check Out
-let searchTimer, selectedProperty = null, selectedKey = null;
-const propInput = document.getElementById('prop-input');
-const propResults = document.getElementById('prop-results');
-propInput.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  const q = propInput.value.trim();
-  if (q.length < 2) { propResults.style.display = 'none'; return; }
-  searchTimer = setTimeout(() => searchProperties(q), 280);
-});
-async function searchProperties(q) {
-  try {
-    const results = await api(`/api/search-properties?q=${encodeURIComponent(q)}`);
-    propResults.innerHTML = results.length === 0
-      ? '<div class="search-result-item" style="color:var(--gray-400)">No properties found</div>'
-      : results.map(r => { const addr = [r.address, r.city, r.state].filter(Boolean).join(', ') || r.propertyCode || r.id;
-          return `<div class="search-result-item" data-id="${r.id}" data-url="${r.url}" data-label="${addr}" onclick="selectProperty(this)">${addr}${r.propertyCode ? `<div class="result-code">${r.propertyCode}</div>` : ''}</div>`;
-        }).join('');
-    propResults.style.display = 'block';
-  } catch (e) { propResults.innerHTML = `<div class="search-result-item" style="color:var(--red)">${e.message}</div>`; propResults.style.display = 'block'; }
-}
-document.addEventListener('click', e => { if (!propResults.contains(e.target) && e.target !== propInput) propResults.style.display = 'none'; });
-async function selectProperty(el) {
-  propResults.style.display = 'none';
-  selectedProperty = { id: el.dataset.id, url: el.dataset.url, label: el.dataset.label };
-  propInput.value = '';
-  document.getElementById('selected-prop-display').style.display = 'block';
-  document.getElementById('selected-prop-display').innerHTML = `<div class="selected-prop"><span>${selectedProperty.label}</span><button onclick="clearProperty()">✕</button></div>`;
-  selectedKey = null;
-  document.getElementById('checkout-form').style.display = 'none';
-  const keysEl = document.getElementById('checkout-keys');
-  keysEl.innerHTML = '<div class="spinner"></div>';
-  try {
-    const keys = await api(`/api/keys-for-property/${selectedProperty.id}`);
-    if (keys.length === 0) { keysEl.innerHTML = '<div class="empty">No available keys for this property</div>'; return; }
-    keysEl.innerHTML = `<div class="card"><h3>Select Key Tag</h3>${keys.map(k => {
-      const shortType = k.keyTypes.length > 0 ? k.keyTypes[0].replace('Key','').trim() : '';
-      return `<div class="key-row">
-        <div class="key-btn" data-id="${k.id}" data-slot="${k.slot}"
-            data-logrel='${JSON.stringify(k.logRelation)}' onclick="selectKey(this)">
-          <span class="key-tag-label">Key Tag</span>
-          <span class="key-num">#${k.slot}</span>
-          ${shortType ? `<span class="key-type">${shortType}</span>` : ''}
-          ${k.kwiksetCut ? `<span class="key-cut">Kwikset: ${k.kwiksetCut}</span>` : ''}
-        </div>
-        <button class="key-missing-btn" onclick="promptMissing('${k.id}','${k.slot}',this)">Missing</button>
-      </div>`;
-    }).join('')}</div>`;
-  } catch (e) { keysEl.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
-}
-function clearProperty() {
-  selectedProperty = null; selectedKey = null;
-  document.getElementById('selected-prop-display').style.display = 'none';
-  document.getElementById('checkout-keys').innerHTML = '';
-  document.getElementById('checkout-form').style.display = 'none';
-  propInput.value = '';
-}
-function selectKey(el) {
-  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedKey = { id: el.dataset.id, slot: el.dataset.slot, logRelation: JSON.parse(el.dataset.logrel || '[]') };
-  const today = new Date().toISOString().slice(0, 10);
-  document.getElementById('co-date-out').value = today;
-  document.getElementById('co-date-due').value = today;
-  document.getElementById('checkout-form').style.display = 'block';
-}
-async function promptMissing(keyId, slot, btn) {
-  if (!confirm(`Mark Key Tag #${slot} as Missing?`)) return;
-  try {
-    btn.disabled = true;
-    await api('/api/mark-missing', { method: 'POST', body: JSON.stringify({ keyId }) });
-    btn.closest('.key-row').remove();
-  } catch (e) { alert(e.message); btn.disabled = false; }
-}
-async function submitCheckout() {
-  if (!selectedProperty || !selectedKey) return alert('Select a property and key first');
-  const purpose = document.getElementById('co-purpose').value;
-  const dateOut = document.getElementById('co-date-out').value;
-  const dateDue = document.getElementById('co-date-due').value;
-  if (!dateOut || !dateDue) return alert('Please fill in dates');
-  const form = new FormData();
-  form.append('keyId', selectedKey.id);
-  form.append('keySlot', selectedKey.slot);
-  form.append('staffId', currentUser.notionPersonId || currentUser.id);
-  form.append('staffName', currentUser.name);
-  form.append('purpose', purpose);
-  form.append('dateOut', dateOut);
-  form.append('dateDue', dateDue);
-  form.append('propertyId', selectedProperty.id);
-  form.append('propertyUrl', selectedProperty.url);
-  form.append('existingLogRelation', JSON.stringify(selectedKey.logRelation || []));
-  const photo = document.getElementById('co-photo').files[0];
-  if (photo) form.append('photo', photo);
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = 'Saving...';
-  try {
-    await fetch('/api/checkout', { method: 'POST', body: form }).then(async r => {
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Checkout failed');
-      return d;
-    });
-    clearProperty();
-    showTab('dashboard');
-    loadDashboard();
-  } catch (e) { alert(e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Confirm Check Out'; }
-}
-function previewPhoto(input, previewId) {
-  const file = input.files[0];
-  const preview = document.getElementById(previewId);
-  if (file) {
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-  } else {
-    preview.style.display = 'none';
-  }
-}
-
-// Check In
-async function loadCheckin() {
-  const el = document.getElementById('checkin-content');
-  el.innerHTML = '<div class="spinner"></div>';
-  try {
-    const entries = await api('/api/dashboard');
-    if (entries.length === 0) { el.innerHTML = '<div class="empty">No keys currently checked out</div>'; return; }
-    el.innerHTML = entries.map(e => `
-      <div class="log-card">
-        <h4>${e.logEntry}</h4>
-        <div class="meta">Out: ${e.dateOut || '?'} | Due: ${e.dateDue || '?'}${e.purpose ? ' | ' + e.purpose : ''}</div>
-        <button class="btn btn-primary" style="margin-top:10px;padding:7px 16px;font-size:.85rem" onclick="showCheckinForm('${e.id}','${e.logEntry.replace(/'/g,"\\'")}')">Check In</button>
-      </div>`).join('');
-  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
-}
-function showCheckinForm(logId, logEntry) {
-  const el = document.getElementById('checkin-content');
-  el.innerHTML = `
-    <div class="card">
-      <h3>Check In: ${logEntry}</h3>
-      <label>Photo (optional)
-        <input type="file" id="ci-photo" accept="image/*" capture="environment" onchange="previewPhoto(this,'ci-photo-preview')" />
-        <img id="ci-photo-preview" class="photo-preview" style="display:none" />
-      </label>
-      <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="submitCheckin('${logId}')">Confirm Check In</button>
-      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="loadCheckin()">Cancel</button>
-    </div>`;
-}
-async function submitCheckin(logId) {
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = 'Saving...';
-  try {
-    const keyRes = await api(`/api/key-by-log/${logId}`);
-    const keyId = keyRes.keyId;
-    const form = new FormData();
-    form.append('logId', logId);
-    form.append('keyId', keyId);
-    const photo = document.getElementById('ci-photo').files[0];
-    if (photo) form.append('photo', photo);
-    await fetch('/api/checkin', { method: 'POST', body: form }).then(async r => {
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Check-in failed');
-    });
-    showTab('dashboard');
-    loadDashboard();
-  } catch (e) { alert(e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Confirm Check In'; }
-}
-
-// Users
-async function loadUsers() {
-  const el = document.getElementById('users-content');
-  el.innerHTML = '<div class="spinner"></div>';
-  try {
-    const users = await api('/api/users');
-    el.innerHTML = users.length === 0 ? '<div class="empty">No users found</div>' :
-      `<div class="card">${users.map(u => `
-        <div class="user-row">
-          <div>
-            <div class="user-name">${u.name}</div>
-            <div class="user-meta">@${u.username} · ${u.role} ${u.active ? '' : '(inactive)'}</div>
-          </div>
-          <div class="user-actions">
-            <button class="btn btn-outline" style="padding:4px 10px;font-size:.78rem" onclick='showEditUserModal(${JSON.stringify(u)})'>Edit</button>
-          </div>
-        </div>`).join('')}</div>`;
-  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
-}
-function showAddUserModal() {
-  document.getElementById('user-modal-title').textContent = 'Add User';
-  document.getElementById('um-id').value = '';
-  document.getElementById('um-name').value = '';
-  document.getElementById('um-username').value = '';
-  document.getElementById('um-pin').value = '';
-  document.getElementById('um-role').value = 'Member';
-  document.getElementById('um-notion-id').value = '';
-  document.getElementById('um-error').style.display = 'none';
-  document.getElementById('user-modal').style.display = 'flex';
-}
-function showEditUserModal(user) {
-  document.getElementById('user-modal-title').textContent = 'Edit User';
-  document.getElementById('um-id').value = user.id;
-  document.getElementById('um-name').value = user.name;
-  document.getElementById('um-username').value = user.username;
-  document.getElementById('um-pin').value = '';
-  document.getElementById('um-role').value = user.role;
-  document.getElementById('um-notion-id').value = user.notionPersonId || '';
-  document.getElementById('um-error').style.display = 'none';
-  document.getElementById('user-modal').style.display = 'flex';
-}
-async function submitUserModal() {
-  const id = document.getElementById('um-id').value;
-  const body = {
-    name: document.getElementById('um-name').value.trim(),
-    username: document.getElementById('um-username').value.trim(),
-    role: document.getElementById('um-role').value,
-    notionPersonId: document.getElementById('um-notion-id').value.trim(),
-  };
-  const pin = document.getElementById('um-pin').value.trim();
-  if (pin) body.pin = pin;
-  const err = document.getElementById('um-error');
-  err.style.display = 'none';
-  try {
-    if (id) {
-      await api(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    } else {
-      if (!pin) { err.textContent = 'PIN is required for new users'; err.style.display = 'block'; return; }
-      await api('/api/users', { method: 'POST', body: JSON.stringify({ ...body, pin }) });
-    }
-    document.getElementById('user-modal').style.display = 'none';
-    loadUsers();
-  } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
-}
-
-// Change PIN
-function showChangePinModal() {
-  document.getElementById('cp-current').value = '';
-  document.getElementById('cp-new').value = '';
-  document.getElementById('cp-confirm').value = '';
-  document.getElementById('cp-error').style.display = 'none';
-  document.getElementById('change-pin-modal').style.display = 'flex';
-}
-async function submitChangePin() {
-  const current = document.getElementById('cp-current').value;
-  const newPin = document.getElementById('cp-new').value;
-  const confirm = document.getElementById('cp-confirm').value;
-  const err = document.getElementById('cp-error');
-  err.style.display = 'none';
-  if (newPin !== confirm) { err.textContent = 'PINs do not match'; err.style.display = 'block'; return; }
-  if (newPin.length < 4) { err.textContent = 'PIN must be at least 4 digits'; err.style.display = 'block'; return; }
-  try {
-    await api('/api/change-pin', { method: 'POST', body: JSON.stringify({ currentPin: current, newPin }) });
-    document.getElementById('change-pin-modal').style.display = 'none';
-    alert('PIN changed successfully');
-  } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
-}
-
-// Lockboxes
-let currentLockboxSN = null;
+// ── Lockboxes ─────────────────────────────────────────────────────────────────
 async function loadLockboxes() {
-  const el = document.getElementById('lockboxes-content');
+  const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
   try {
     const boxes = await api('/api/lockboxes');
-    if (boxes.length === 0) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
-    el.innerHTML = boxes.map(b => {
-      const statusClass = b.status === 'Deployed' ? 'deployed' : b.status === 'Available' ? 'available' : 'unassigned';
-      return `<div class="lockbox-card">
-        <div class="lockbox-sn">SN: ${b.sn}${b.krbBox ? ` / Box #${b.krbBox}` : ''}</div>
-        <div class="lockbox-meta">${b.propertyName || 'Unassigned'}${b.notes ? '<br>' + b.notes : ''}</div>
-        <span class="lockbox-status ${statusClass}">${b.status}</span>
-        <button class="btn btn-outline" style="padding:4px 10px;font-size:.75rem" onclick="openLockboxCode('${b.sn}')">Code</button>
-      </div>`;
-    }).join('');
+    if (!boxes.length) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
+    el.innerHTML = boxes.map(b => `
+      <div class="lockbox-item">
+        <div class="lockbox-name">${b.name}</div>
+        <div class="lockbox-address">${b.address || ''}</div>
+        <div class="lockbox-code-display">
+          <div>
+            <div class="lockbox-code-val" id="lbcode-${b.id}">
+              <span class="lockbox-loading">Loading…</span>
+            </div>
+          </div>
+          <div class="lockbox-code-label">Today's<br>Code</div>
+        </div>
+      </div>`).join('');
+    boxes.forEach(b => {
+      api('/api/lockbox-code/' + b.id)
+        .then(r => { document.getElementById('lbcode-' + b.id).textContent = r.code || '—'; })
+        .catch(() => { document.getElementById('lbcode-' + b.id).textContent = '—'; });
+    });
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
-function openLockboxCode(sn) {
-  currentLockboxSN = sn;
-  document.getElementById('lockbox-code-sn').textContent = `Serial: ${sn}`;
-  document.getElementById('lc-date').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('lc-result').style.display = 'none';
-  document.getElementById('lc-error').style.display = 'none';
-  document.getElementById('lockbox-code-modal').style.display = 'flex';
-}
-async function generateLockboxCode() {
-  const date = document.getElementById('lc-date').value;
-  if (!date) return alert('Select a date');
-  const errEl = document.getElementById('lc-error');
-  errEl.style.display = 'none';
-  document.getElementById('lc-result').style.display = 'none';
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const el = document.getElementById('user-list');
+  el.innerHTML = '<div class="spinner"></div>';
   try {
-    const data = await api('/api/lockboxes/generate-code', {
-      method: 'POST',
-      body: JSON.stringify({ serialNumber: currentLockboxSN, date }),
-    });
-    document.getElementById('lc-code').textContent = data.DayCode || data.dayCode || JSON.stringify(data);
-    document.getElementById('lc-result').style.display = 'block';
-  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+    const users = await api('/api/users');
+    el.innerHTML = users.length
+      ? users.map(u => `
+          <div class="user-item">
+            <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
+            <div class="user-info">
+              <div class="user-name">${u.name}</div>
+              <div class="user-username">@${u.username}</div>
+            </div>
+            <span class="user-role-badge">${u.role}</span>
+          </div>`).join('')
+      : '<div class="empty">No users found</div>';
+  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('login-pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  initAuth();
-});
+// ── Change PIN Modal ──────────────────────────────────────────────────────────
+function showChangePinModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>Change PIN</h3>
+      <label>Current PIN</label>
+      <input type="password" id="pin-current" inputmode="numeric" placeholder="••••" />
+      <label>New PIN</label>
+      <input type="password" id="pin-new" inputmode="numeric" placeholder="••••" />
+      <label>Confirm New PIN</label>
+      <input type="password" id="pin-confirm" inputmode="numeric" placeholder="••••" />
+      <div id="pin-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="doChangePin(this)">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#pin-current').focus();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function doChangePin(btn) {
+  const current = document.getElementById('pin-current').value;
+  const newPin = document.getElementById('pin-new').value;
+  const confirm = document.getElementById('pin-confirm').value;
+  const err = document.getElementById('pin-error');
+  if (newPin !== confirm) { err.textContent = 'PINs do not match'; err.style.display = 'block'; return; }
+  if (newPin.length < 4) { err.textContent = 'PIN must be at least 4 digits'; err.style.display = 'block'; return; }
+  btn.disabled = true;
+  try {
+    await api('/api/change-pin', { method: 'POST', body: JSON.stringify({ currentPin: current, newPin }) });
+    btn.closest('.modal-overlay').remove();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+    btn.disabled = false;
+  }
+}
+
+initAuth();
 </script>
 </body>
-</html>
