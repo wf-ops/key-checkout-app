@@ -246,8 +246,7 @@ app.get('/api/users', requireRole('Admin'), async (req, res) => {
     }));
     res.json(users);
   } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    res.status(500).json({ error: e.message });  }
 });
 
 app.post('/api/users', requireRole('Admin'), async (req, res) => {
@@ -391,7 +390,17 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/property-codes/:propertyId — door codes, mailbox info, key tags + kwikset cuts
+const PROPERTY_CODE_FIELDS = {
+  frontDoorCode: 'Front Door Code',
+  garageKeypad: 'Garage Keypad',
+  communityEntryCode: 'Community Entry Code',
+  mailboxNumber: 'Mailbox #',
+  mailboxLocation: 'Mailbox Location',
+  otherSystems: 'Other Property Systems',
+  maintenanceNotes: 'Maintenance Notes',
+};
+
+// GET /api/property-codes/:propertyId
 app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   try {
     const [propPage, keyRows] = await Promise.all([
@@ -405,7 +414,6 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     ]);
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
-
     const keys = keyRows.map(row => {
       const kp = row.properties;
       return {
@@ -416,7 +424,6 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
         keyTypes: extractMultiSelect(kp['Key Types']),
       };
     });
-
     res.json({
       address: extractRichText(p['Street Address - Property']),
       propertyCode: extractRichText(p['Property Code']),
@@ -429,6 +436,37 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
       maintenanceNotes: extractRichText(p['Maintenance Notes']),
       keys,
     });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/property-codes/:propertyId — update a single property field
+app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { field, value } = req.body;
+    const notionField = PROPERTY_CODE_FIELDS[field];
+    if (!notionField) return res.status(400).json({ error: 'Unknown field: ' + field });
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+      properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/keys/:keyId — update key fields (kwikset cut)
+app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { kwiksetCut } = req.body;
+    const props = {};
+    if (kwiksetCut !== undefined) props['Kwikset Cut'] = { rich_text: [{ text: { content: kwiksetCut || '' } }] };
+    if (Object.keys(props).length === 0) return res.status(400).json({ error: 'No valid fields provided' });
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.keyId}`, { properties: props });
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
@@ -722,7 +760,6 @@ async function checkOverdueKeys() {
         { property: 'Date Out', date: { before: today } },
       ],
     });
-
     const overdue = rows.filter(row => {
       const p = row.properties;
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
@@ -730,12 +767,7 @@ async function checkOverdueKeys() {
       if (!title || !dateDue) return false;
       return new Date(dateDue) < new Date(today);
     });
-
-    if (overdue.length === 0) {
-      console.log('Daily check: no overdue keys');
-      return;
-    }
-
+    if (overdue.length === 0) { console.log('Daily check: no overdue keys'); return; }
     const lines = overdue.map(row => {
       const p = row.properties;
       const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start || '';
@@ -745,7 +777,6 @@ async function checkOverdueKeys() {
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || 'Unknown key';
       return `• *${title}* — checked out by ${who} | Purpose: ${purpose} | Due: ${dateDue} *(${daysLate} day${daysLate !== 1 ? 's' : ''} overdue)*`;
     });
-
     const msg = `🔑 *KRB Overdue Key Alert* — ${overdue.length} key${overdue.length !== 1 ? 's' : ''} past due:\n${lines.join('\n')}`;
     await sendSlackAlert(msg);
     console.log(`Slack: sent overdue alert for ${overdue.length} key(s)`);
@@ -754,7 +785,6 @@ async function checkOverdueKeys() {
   }
 }
 
-// Schedule one Slack alert per day at 8 AM Mountain Time.
 function scheduleDailyOverdueCheck() {
   const now = new Date();
   const mtParts = new Intl.DateTimeFormat('en-US', {
