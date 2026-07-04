@@ -394,33 +394,28 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
 // GET /api/property-codes/:propertyId — door codes, mailbox info, key tags + kwikset cuts
 app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   try {
-    const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-      headers: notionHeaders(),
-    }).then(r => r.json());
+    const [propPage, keyRows] = await Promise.all([
+      fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+        headers: notionHeaders(),
+      }).then(r => r.json()),
+      queryAll(DB.keys, {
+        property: 'Rental Matrix',
+        relation: { contains: req.params.propertyId },
+      }),
+    ]);
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
 
-    const keyRelation = p?.['KRB Keys & Access']?.relation || [];
-    let keys = [];
-    if (keyRelation.length > 0) {
-      const keyPages = await Promise.all(
-        keyRelation.map(r =>
-          fetch(`https://api.notion.com/v1/pages/${r.id}`, { headers: notionHeaders() }).then(x => x.json())
-        )
-      );
-      keys = keyPages
-        .filter(row => row.object !== 'error')
-        .map(row => {
-          const kp = row.properties;
-          return {
-            id: row.id,
-            slot: extractRichText(kp['Key Slot #']),
-            kwiksetCut: extractRichText(kp['Kwikset Cut']),
-            status: extractSelect(kp['Status']),
-            keyTypes: extractMultiSelect(kp['Key Types']),
-          };
-        });
-    }
+    const keys = keyRows.map(row => {
+      const kp = row.properties;
+      return {
+        id: row.id,
+        slot: extractRichText(kp['Key Slot #']),
+        kwiksetCut: extractRichText(kp['Kwikset Cut']),
+        status: extractSelect(kp['Status']),
+        keyTypes: extractMultiSelect(kp['Key Types']),
+      };
+    });
 
     res.json({
       address: extractRichText(p['Street Address - Property']),
