@@ -53,7 +53,7 @@
     .sheet-item .sheet-icon { font-size: 1.3rem; width: 28px; text-align: center; }
     .sheet-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
-    .tab { display: none; padding: 12px; }
+    .tab { display: none; padding: 12px; max-width: 560px; margin: 0 auto; }
     .tab.active { display: block; }
 
     .card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -74,6 +74,7 @@
     .result-code { font-size: .75rem; color: var(--gray-600); margin-top: 2px; }
     .selected-prop { display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-size: .9rem; font-weight: 600; }
     .selected-prop button { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--gray-600); padding: 0 4px; }
+    .codes-prop-label { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-size: .9rem; font-weight: 600; display: none; }
 
     .login-user-list { border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; overflow: hidden; display: none; }
     .login-user-item { padding: 10px 12px; cursor: pointer; font-size: .9rem; border-bottom: 1px solid var(--border); background: var(--surface); }
@@ -87,6 +88,7 @@
     .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--gray-900); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn-full { width: 100%; }
+    .btn-sm { padding: 6px 14px; font-size: .82rem; }
 
     label { display: block; font-size: .8rem; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; margin-top: 12px; }
     input[type=text], input[type=password], input[type=date], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--gray-900); font-size: .9rem; outline: none; font-family: inherit; }
@@ -109,10 +111,6 @@
     .key-meta { flex: 1; min-width: 0; }
     .key-name { font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .key-sub { font-size: .75rem; color: var(--gray-600); }
-    .status-badge { font-size: .7rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; text-transform: uppercase; }
-    .status-available { background: #e8f5e9; color: #2e7d32; }
-    .status-out { background: #fff3e0; color: #e65100; }
-    .status-maintenance { background: #fce4ec; color: #c62828; }
 
     .log-item { padding: 9px 0; border-bottom: 1px solid var(--border); }
     .log-item:last-child { border-bottom: none; }
@@ -123,21 +121,21 @@
     .log-action-out { color: var(--orange); font-weight: 700; }
     .log-action-in { color: var(--primary); font-weight: 700; }
 
-    /* Codes — compact */
+    /* Codes */
+    .codes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .codes-header-title { font-size: .82rem; font-weight: 600; color: var(--gray-600); }
+    .codes-actions { display: flex; gap: 8px; }
     .code-section { margin-bottom: 10px; }
     .code-section-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 2px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
-    .code-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+    .code-row { display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); gap: 8px; }
     .code-row:last-child { border-bottom: none; }
-    .code-label { font-size: .78rem; color: var(--gray-600); min-width: 100px; flex-shrink: 0; }
-    .code-value { font-size: .88rem; font-weight: 600; text-align: right; flex: 1; word-break: break-word; }
-    .code-edit-btn { background: none; border: none; cursor: pointer; font-size: .85rem; padding: 2px 4px; opacity: .75; flex-shrink: 0; border-radius: 4px; }
-    .code-edit-btn:hover { opacity: 1; background: var(--bg); }
+    .code-label { font-size: .78rem; color: var(--gray-600); width: 110px; flex-shrink: 0; }
+    .code-value { font-size: .88rem; font-weight: 600; flex: 1; }
+    .code-edit-input { flex: 1; padding: 4px 8px !important; font-size: .85rem !important; margin: 0 !important; width: auto !important; }
+    .code-row-col { flex-direction: column; align-items: flex-start; gap: 4px; }
     .key-tag-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
     .key-tag-row:last-child { border-bottom: none; }
-    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-
-    /* Codes selected property — no X, just label */
-    .codes-prop-label { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-size: .9rem; font-weight: 600; }
+    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 
     .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .user-item:last-child { border-bottom: none; }
@@ -195,13 +193,13 @@
 <div class="sheet-overlay" id="more-overlay" onclick="closeMoreSheet()"></div>
 <div class="bottom-sheet" id="more-sheet">
   <div class="sheet-handle"></div>
-  <button class="sheet-item" id="sheet-lockboxes" onclick="closeMoreSheet();showTab('lockboxes')" style="display:none">
+  <button class="sheet-item" id="sheet-lockboxes" onclick="closeMoreSheet();showTab('lockboxes')">
     <span class="sheet-icon">🔒</span> Lockboxes
   </button>
-  <button class="sheet-item" id="sheet-users" onclick="closeMoreSheet();showTab('users')" style="display:none">
+  <button class="sheet-item" id="sheet-users" onclick="closeMoreSheet();showTab('users')">
     <span class="sheet-icon">👥</span> Users
   </button>
-  <div class="sheet-divider" id="sheet-divider" style="display:none"></div>
+  <div class="sheet-divider"></div>
   <button class="sheet-item" onclick="closeMoreSheet();showChangePinModal()">
     <span class="sheet-icon">🔐</span> Change PIN
   </button>
@@ -247,7 +245,7 @@
       <input type="text" id="co-prop-search" placeholder="Search property…" oninput="searchProps('co')" onfocus="searchProps('co')" />
       <div class="search-results" id="co-prop-results"></div>
     </div>
-    <div id="co-selected-prop" style="display:none"></div>
+    <div id="co-selected-prop" class="selected-prop" style="display:none"></div>
     <div id="co-key-select" style="display:none">
       <label>Key</label>
       <select id="co-key-dd"></select>
@@ -268,7 +266,7 @@
       <input type="text" id="ci-prop-search" placeholder="Search property…" oninput="searchProps('ci')" onfocus="searchProps('ci')" />
       <div class="search-results" id="ci-prop-results"></div>
     </div>
-    <div id="ci-selected-prop" style="display:none"></div>
+    <div id="ci-selected-prop" class="selected-prop" style="display:none"></div>
     <div id="ci-key-select" style="display:none">
       <label>Key</label>
       <select id="ci-key-dd"></select>
@@ -284,7 +282,7 @@
       <input type="text" id="codes-prop-search" placeholder="Search property…" oninput="searchProps('codes')" onfocus="searchProps('codes')" />
       <div class="search-results" id="codes-prop-results"></div>
     </div>
-    <div id="codes-selected-prop" style="display:none"></div>
+    <div class="codes-prop-label" id="codes-selected-prop"></div>
     <div id="codes-content"><div class="empty">Search for a property above</div></div>
   </div>
 </div>
@@ -384,21 +382,13 @@ async function doLogout() {
 let currentUser = null;
 window.currentUser = null;
 
-function userRole() { return (currentUser?.role || '').toLowerCase().trim(); }
-function isAdmin() { return userRole() === 'admin' || userRole().startsWith('admin'); }
-function isManager() { return userRole() === 'manager' || userRole().startsWith('manager'); }
-function isAdminOrManager() { return isAdmin() || isManager(); }
-
 function onLogin(user) {
-  console.log('[KRB] role raw:', user.role, '| normalized:', (user.role||'').toLowerCase().trim(), '| isAdmin:', isAdmin(), '| isAdminOrManager:', isAdminOrManager());
+  console.log('[KRB] signed in:', user.name, '| role:', user.role);
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
   document.getElementById('bottom-nav').style.display = 'flex';
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-role-display').textContent = user.role;
-  document.getElementById('sheet-lockboxes').style.display = isAdminOrManager() ? 'flex' : 'none';
-  document.getElementById('sheet-users').style.display = isAdmin() ? 'flex' : 'none';
-  document.getElementById('sheet-divider').style.display = isAdminOrManager() ? 'block' : 'none';
   showTab('dashboard');
   loadDashboard();
 }
@@ -459,7 +449,7 @@ function selectProp(prefix, id, name) {
   else if (prefix === 'codes') selectPropForCodes(id, name);
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────────────────────────────
+// ── Dashboard ────────────────────────────────────────────────────────────────────────────
 async function loadDashboard() {
   const [keys, log] = await Promise.all([api('/api/keys'), api('/api/log?limit=5')]);
   const available = keys.filter(k => k.status === 'Available').length;
@@ -484,7 +474,7 @@ function fmtTime(iso) {
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-// ── Check Out ────────────────────────────────────────────────────────────────────────────────
+// ── Check Out ──────────────────────────────────────────────────────────────────────────────
 let coSelectedProp = null;
 async function selectPropForCheckout(id, name) {
   coSelectedProp = { id, name };
@@ -517,7 +507,7 @@ async function doCheckout() {
   } catch (e) { alert('Checkout failed: ' + e.message); }
 }
 
-// ── Check In ────────────────────────────────────────────────────────────────────────────────────
+// ── Check In ────────────────────────────────────────────────────────────────────────────────
 let ciSelectedProp = null;
 async function selectPropForCheckin(id, name) {
   ciSelectedProp = { id, name };
@@ -549,81 +539,100 @@ function clearPropSelection(prefix) {
   document.getElementById(prefix + '-prop-search').value = '';
 }
 
-// ── Codes ───────────────────────────────────────────────────────────────────────────────────────
+// ── Codes ──────────────────────────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
-function canEditCodes() { return isAdminOrManager(); }
+let codesCurrentData = null;
+let codesEditMode = false;
 
 async function selectPropForCodes(id, name) {
   codesCurrentPropertyId = id;
-  // Show property name as plain label — no X button
+  codesEditMode = false;
   const label = document.getElementById('codes-selected-prop');
-  label.className = 'codes-prop-label';
   label.textContent = name;
   label.style.display = 'block';
   document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
   try {
     const data = await api('/api/property-codes/' + id);
+    codesCurrentData = data;
     renderCodes(data);
   } catch (e) {
     document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
 }
-function clearCodesSelection() {
-  codesCurrentPropertyId = null;
-  const label = document.getElementById('codes-selected-prop');
-  label.style.display = 'none';
-  document.getElementById('codes-prop-search').value = '';
-  document.getElementById('codes-content').innerHTML = '<div class="empty">Search for a property above</div>';
-}
 
-function codeRow(label, field, value) {
-  const editBtn = canEditCodes()
-    ? `<button class="code-edit-btn" title="Edit" onclick="editCodeField(${JSON.stringify(field)},${JSON.stringify(value||'')},${JSON.stringify(label)})">✏️</button>`
-    : '';
+function viewRow(label, value) {
   return `<div class="code-row">
     <span class="code-label">${label}</span>
     <span class="code-value">${value || '<span style="color:var(--gray-400)">—</span>'}</span>
-    ${editBtn}
+  </div>`;
+}
+
+function editRow(label, field, value, multiline) {
+  if (multiline) {
+    return `<div class="code-row code-row-col">
+      <span class="code-label">${label}</span>
+      <textarea id="edit-${field}" rows="2" style="width:100%;font-size:.85rem;padding:5px 8px;resize:vertical">${value || ''}</textarea>
+    </div>`;
+  }
+  return `<div class="code-row">
+    <span class="code-label">${label}</span>
+    <input type="text" id="edit-${field}" class="code-edit-input" value="${(value||'').replace(/"/g,'&quot;')}" />
   </div>`;
 }
 
 function renderCodes(data) {
-  const codes = data.codes || data;
-  const keys = data.keys || [];
+  if (data) codesCurrentData = data;
+  const codes = codesCurrentData.codes || codesCurrentData;
+  const keys = codesCurrentData.keys || [];
   let html = '';
 
+  // Action bar
+  if (codesEditMode) {
+    html += `<div class="codes-header">
+      <span class="codes-header-title">Editing…</span>
+      <div class="codes-actions">
+        <button class="btn btn-outline btn-sm" onclick="cancelEditCodes()">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="codes-save-btn" onclick="saveAllCodes()">Save</button>
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="codes-header">
+      <span class="codes-header-title">&nbsp;</span>
+      <button class="btn btn-outline btn-sm" onclick="startEditCodes()">✏️ Edit</button>
+    </div>`;
+  }
+
   html += '<div class="code-section"><div class="code-section-title">Entry Codes</div>';
-  html += codeRow('Front Door', 'frontDoorCode', codes.frontDoorCode);
-  html += codeRow('Garage Keypad', 'garageKeypad', codes.garageKeypad);
-  html += codeRow('Community Entry', 'communityEntryCode', codes.communityEntryCode);
+  html += codesEditMode ? editRow('Front Door','frontDoorCode',codes.frontDoorCode) : viewRow('Front Door',codes.frontDoorCode);
+  html += codesEditMode ? editRow('Garage Keypad','garageKeypad',codes.garageKeypad) : viewRow('Garage Keypad',codes.garageKeypad);
+  html += codesEditMode ? editRow('Community Entry','communityEntryCode',codes.communityEntryCode) : viewRow('Community Entry',codes.communityEntryCode);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Mailbox</div>';
-  html += codeRow('Mailbox #', 'mailboxNumber', codes.mailboxNumber);
-  html += codeRow('Location', 'mailboxLocation', codes.mailboxLocation);
+  html += codesEditMode ? editRow('Mailbox #','mailboxNumber',codes.mailboxNumber) : viewRow('Mailbox #',codes.mailboxNumber);
+  html += codesEditMode ? editRow('Location','mailboxLocation',codes.mailboxLocation) : viewRow('Location',codes.mailboxLocation);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Other Systems</div>';
-  html += codeRow('Other Systems', 'otherSystems', codes.otherSystems);
+  html += codesEditMode ? editRow('Other Systems','otherSystems',codes.otherSystems,true) : viewRow('Other Systems',codes.otherSystems);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
   if (keys && keys.length) {
     keys.forEach(k => {
-      const cutEdit = canEditCodes()
-        ? `<button class="code-edit-btn" title="Edit" onclick="editKwiksetCut(${JSON.stringify(k.id)},${JSON.stringify(k.kwiksetCut||'')})">✏️</button>`
-        : '';
       html += `<div class="key-tag-row">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <span class="key-tag">${k.tag || '?'}</span>
           <span style="font-size:.82rem;font-weight:600">${k.name || ''}</span>
         </div>
         <div class="key-tag-cut-row">
-          <span style="font-size:.76rem;color:var(--gray-600)">Kwikset Cut:</span>
-          <span style="font-size:.82rem;font-weight:600;flex:1">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>
-          ${cutEdit}
-        </div>
-      </div>`;
+          <span style="font-size:.76rem;color:var(--gray-600);min-width:80px">Kwikset Cut:</span>`;
+      if (codesEditMode) {
+        html += `<input type="text" id="edit-kwikset-${k.id}" class="code-edit-input" style="text-align:left" value="${(k.kwiksetCut||'').replace(/"/g,'&quot;')}" />`;
+      } else {
+        html += `<span style="font-size:.82rem;font-weight:600;flex:1;margin-left:4px">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>`;
+      }
+      html += '</div></div>';
     });
   } else {
     html += '<div class="empty" style="padding:8px 0">No keys linked</div>';
@@ -631,56 +640,52 @@ function renderCodes(data) {
   html += '</div>';
 
   document.getElementById('codes-content').innerHTML = html;
+  window._codesKeys = keys;
 }
 
-async function editCodeField(field, currentValue, label) {
+function startEditCodes() {
+  codesEditMode = true;
+  renderCodes();
+}
+function cancelEditCodes() {
+  codesEditMode = false;
+  renderCodes();
+}
+async function saveAllCodes() {
   if (!codesCurrentPropertyId) return;
-  showEditModal(label, currentValue, async (newVal) => {
-    try {
-      await api(`/api/property-codes/${codesCurrentPropertyId}`, { method: 'PATCH', body: JSON.stringify({ field, value: newVal }) });
-      const data = await api(`/api/property-codes/${codesCurrentPropertyId}`);
-      renderCodes(data);
-    } catch (e) { alert('Save failed: ' + e.message); }
-  });
-}
-async function editKwiksetCut(keyId, currentValue) {
-  showEditModal('Kwikset Cut Code', currentValue, async (newVal) => {
-    try {
-      await api(`/api/keys/${keyId}`, { method: 'PATCH', body: JSON.stringify({ kwiksetCut: newVal }) });
-      const data = await api(`/api/property-codes/${codesCurrentPropertyId}`);
-      renderCodes(data);
-    } catch (e) { alert('Save failed: ' + e.message); }
-  });
-}
-function showEditModal(label, currentValue, onSave) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  const isMultiline = ['Other Systems'].some(s => label.includes(s));
-  overlay.innerHTML = `
-    <div class="modal-card">
-      <h3>Edit ${label}</h3>
-      ${isMultiline
-        ? `<textarea id="edit-modal-input" rows="3" style="resize:vertical">${currentValue || ''}</textarea>`
-        : `<input type="text" id="edit-modal-input" value="${(currentValue || '').replace(/"/g, '&quot;')}" />`
+  const saveBtn = document.getElementById('codes-save-btn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+  try {
+    const fields = ['frontDoorCode','garageKeypad','communityEntryCode','mailboxNumber','mailboxLocation','otherSystems'];
+    for (const field of fields) {
+      const input = document.getElementById('edit-' + field);
+      if (input) {
+        await api(`/api/property-codes/${codesCurrentPropertyId}`, {
+          method: 'PATCH', body: JSON.stringify({ field, value: input.value })
+        });
       }
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-        <button class="btn btn-primary" id="edit-modal-save">Save</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  const input = overlay.querySelector('#edit-modal-input');
-  input.focus();
-  if (input.tagName === 'INPUT') input.select();
-  overlay.querySelector('#edit-modal-save').addEventListener('click', async () => {
-    const newVal = input.value;
-    overlay.remove();
-    await onSave(newVal);
-  });
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    }
+    if (window._codesKeys) {
+      for (const k of window._codesKeys) {
+        const input = document.getElementById('edit-kwikset-' + k.id);
+        if (input) {
+          await api(`/api/keys/${k.id}`, {
+            method: 'PATCH', body: JSON.stringify({ kwiksetCut: input.value })
+          });
+        }
+      }
+    }
+    codesEditMode = false;
+    const data = await api('/api/property-codes/' + codesCurrentPropertyId);
+    codesCurrentData = data;
+    renderCodes(data);
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  }
 }
 
-// ── Lockboxes ─────────────────────────────────────────────────────────────────────────────────────
+// ── Lockboxes ───────────────────────────────────────────────────────────────────────────────────
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -704,7 +709,7 @@ async function loadLockboxes() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Users ───────────────────────────────────────────────────────────────────────────────────────
+// ── Users ───────────────────────────────────────────────────────────────────────────────────
 async function loadUsers() {
   const el = document.getElementById('user-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -721,7 +726,7 @@ async function loadUsers() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN ──────────────────────────────────────────────────────────────────────
+// ── Change PIN ────────────────────────────────────────────────────────────────────
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
