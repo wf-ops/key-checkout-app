@@ -66,40 +66,47 @@ const DB = {
 const CODEBOX_BASE = 'https://api02.codeboxinc.com';
 let codeboxToken = null;
 let codeboxTokenExp = 0;
+let codeboxAuthInFlight = null; // prevents parallel auth storms
 
 async function getCodeboxToken() {
   if (codeboxToken && Date.now() < codeboxTokenExp - 60000) return codeboxToken;
-  const res = await fetch(`${CODEBOX_BASE}/authentication`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ Username: process.env.CODEBOX_USERNAME, Password: process.env.CODEBOX_PASSWORD }),
-  });
-  const rawText = await res.text();
-  console.log(`[Codebox auth] status=${res.status} body=${rawText.slice(0, 200)}`);
-  if (!res.ok) throw new Error(`Codebox auth failed: ${res.status} ${rawText}`);
-  // Response may be a raw JWT string (possibly quoted) or a JSON object with a token field
-  let token;
-  try {
-    const parsed = JSON.parse(rawText);
-    token = typeof parsed === 'string' ? parsed : (parsed.token || parsed.Token || parsed.access_token || parsed.AccessToken);
-    if (!token) throw new Error('No token field in response: ' + rawText);
-  } catch (_) {
-    // Already a plain string
-    token = rawText.trim().replace(/^"|"$/g, '');
+  // Deduplicate concurrent auth calls
+  if (!codeboxAuthInFlight) {
+    codeboxAuthInFlight = (async () => {
+      const res = await fetch(`${CODEBOX_BASE}/authentication`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: process.env.CODEBOX_USERNAME, Password: process.env.CODEBOX_PASSWORD }),
+      });
+      const rawText = await res.text();
+      console.log(`[Codebox auth] status=${res.status} body=${rawText.slice(0, 120)}`);
+      if (!res.ok) throw new Error(`Codebox auth failed: ${res.status} ${rawText}`);
+      // Auth response is {"AuthToken":"eyJ..."}
+      let token;
+      let parsed;
+      try { parsed = JSON.parse(rawText); } catch (_) { parsed = null; }
+      if (parsed !== null && typeof parsed === 'object') {
+        token = parsed.AuthToken || parsed.authToken || parsed.token || parsed.Token || parsed.access_token || parsed.AccessToken;
+        if (!token) throw new Error('No token field in Codebox auth response: ' + rawText.slice(0, 200));
+      } else {
+        token = (typeof parsed === 'string' ? parsed : rawText).trim().replace(/^"|"$/g, '');
+      }
+      // Decode JWT expiry if possible
+      let exp = Date.now() + 3600000;
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+          if (payload.exp) exp = payload.exp * 1000;
+        }
+      } catch (_) {}
+      console.log(`[Codebox auth] token acquired, expires in ${Math.round((exp - Date.now()) / 60000)}min`);
+      codeboxToken = token;
+      codeboxTokenExp = exp;
+      return token;
+    })().finally(() => { codeboxAuthInFlight = null; });
   }
-  // Decode JWT expiry if possible
-  let exp = Date.now() + 3600000; // default 1h
-  try {
-    const parts = token.split('.');
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-      if (payload.exp) exp = payload.exp * 1000;
-    }
-  } catch (_) {}
-  console.log(`[Codebox auth] token acquired, expires in ${Math.round((exp - Date.now()) / 60000)}min`);
-  codeboxToken = token;
-  codeboxTokenExp = exp;
-  return codeboxToken;
+  return codeboxAuthInFlight;
 }
 
 function codeboxHeaders(token) {
@@ -410,14 +417,13 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
     const token = await getCodeboxToken();
     const today = codeboxDateStr();
     const snInt = parseInt(sn, 10);
-    console.log(`[Codebox] SN=${sn} (parsed=${snInt}), date=${today}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
       headers: codeboxHeaders(token),
       body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: today }),
     });
     const rawText = await cbRes.text();
-    console.log(`[Codebox] status=${cbRes.status} body=${rawText}`);
+    console.log(`[Codebox] SN=${sn} status=${cbRes.status} body=${rawText}`);
     let data;
     try { data = JSON.parse(rawText); } catch (_) { data = rawText; }
     if (!cbRes.ok) return res.status(cbRes.status).json({ error: (typeof data === 'object' ? data?.Message || data?.message : null) || rawText || 'Codebox error' });
@@ -651,14 +657,13 @@ app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async 
     if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) return res.status(503).json({ error: 'Codebox credentials not configured' });
     const token = await getCodeboxToken();
     const snInt = parseInt(serialNumber, 10);
-    console.log(`[Codebox generate] SN=${serialNumber} (parsed=${snInt}), date=${date}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
       headers: codeboxHeaders(token),
       body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: date }),
     });
     const rawText = await cbRes.text();
-    console.log(`[Codebox generate] status=${cbRes.status} body=${rawText}`);
+    console.log(`[Codebox generate] SN=${serialNumber} status=${cbRes.status} body=${rawText}`);
     let data;
     try { data = JSON.parse(rawText); } catch (_) { data = rawText; }
     if (!cbRes.ok) return res.status(cbRes.status).json({ error: (typeof data === 'object' ? data?.Message || data?.message : null) || rawText || 'Codebox error' });
