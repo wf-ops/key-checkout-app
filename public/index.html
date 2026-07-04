@@ -31,7 +31,6 @@
     html, body { height: 100%; background: var(--bg); color: var(--gray-900); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; }
     body { padding-top: var(--header-h); padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); overflow-x: hidden; }
 
-    /* Header */
     .app-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-h); background: #1a1a2e; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 100; }
     .app-header .logo { display: flex; align-items: center; gap: 8px; }
     .app-header .logo img { height: 28px; }
@@ -39,13 +38,11 @@
     .user-pill { background: rgba(255,255,255,.12); border: none; color: #fff; border-radius: 20px; padding: 4px 12px; font-size: .78rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .role-badge { background: var(--primary); border-radius: 4px; padding: 1px 5px; font-size: .68rem; font-weight: 700; letter-spacing: .3px; }
 
-    /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: stretch; z-index: 100; }
     .nav-btn { flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: .65rem; color: var(--gray-600); padding: 0; transition: color .15s; }
     .nav-btn.active { color: var(--primary); }
     .nav-icon { font-size: 1.4rem; line-height: 1; }
 
-    /* More Sheet */
     .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; display: none; }
     .sheet-overlay.open { display: block; }
     .bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 16px 16px 0 0; z-index: 201; padding: 12px 0 calc(16px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform .25s ease; }
@@ -56,40 +53,33 @@
     .sheet-item .sheet-icon { font-size: 1.3rem; width: 28px; text-align: center; }
     .sheet-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
-    /* Tabs */
-    .tab { display: none; padding: 16px; }
+    .tab { display: none; padding: 12px; }
     .tab.active { display: block; }
 
-    /* Cards */
-    .card { background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    .card h3 { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 12px; }
+    .card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .card h3 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 10px; }
 
-    /* Spinner */
-    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin: 40px auto; }
+    .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Empty state */
-    .empty { text-align: center; color: var(--gray-400); padding: 32px 16px; font-size: .9rem; }
+    .empty { text-align: center; color: var(--gray-400); padding: 24px 16px; font-size: .9rem; }
 
-    /* Search */
-    .search-box { position: relative; margin-bottom: 12px; }
-    .search-box input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--gray-900); font-size: .95rem; outline: none; }
+    .search-box { position: relative; margin-bottom: 10px; }
+    .search-box input { width: 100%; padding: 9px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--gray-900); font-size: .95rem; outline: none; }
     .search-box input:focus { border-color: var(--primary); }
     .search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; z-index: 50; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
-    .search-result-item { padding: 10px 14px; cursor: pointer; font-size: .9rem; border-bottom: 1px solid var(--border); }
+    .search-result-item { padding: 9px 14px; cursor: pointer; font-size: .9rem; border-bottom: 1px solid var(--border); }
     .search-result-item:last-child { border-bottom: none; }
     .search-result-item:hover { background: var(--bg); }
     .result-code { font-size: .75rem; color: var(--gray-600); margin-top: 2px; }
-    .selected-prop { display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: .9rem; font-weight: 600; }
+    .selected-prop { display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-size: .9rem; font-weight: 600; }
     .selected-prop button { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--gray-600); padding: 0 4px; }
 
-    /* Login user dropdown */
     .login-user-list { border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; overflow: hidden; display: none; }
     .login-user-item { padding: 10px 12px; cursor: pointer; font-size: .9rem; border-bottom: 1px solid var(--border); background: var(--surface); }
     .login-user-item:last-child { border-bottom: none; }
     .login-user-item:hover, .login-user-item:active { background: var(--bg); }
 
-    /* Buttons */
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: .9rem; font-weight: 600; transition: background .15s; }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:hover { background: var(--primary-dark); }
@@ -98,26 +88,22 @@
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn-full { width: 100%; }
 
-    /* Form */
     label { display: block; font-size: .8rem; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; margin-top: 12px; }
     input[type=text], input[type=password], input[type=date], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--gray-900); font-size: .9rem; outline: none; font-family: inherit; }
     input:focus, select:focus, textarea:focus { border-color: var(--primary); }
 
-    /* Login */
     #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 300; }
     .login-card { background: var(--surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 340px; box-shadow: 0 4px 24px rgba(0,0,0,.12); }
     .login-card h2 { font-size: 1.3rem; margin-bottom: 4px; }
     .login-card p { font-size: .85rem; color: var(--gray-600); margin-bottom: 20px; }
 
-    /* Dashboard */
-    .dash-stat { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .dash-stat { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .dash-stat:last-child { border-bottom: none; }
-    .dash-stat-icon { font-size: 1.5rem; width: 36px; text-align: center; }
+    .dash-stat-icon { font-size: 1.4rem; width: 32px; text-align: center; }
     .dash-stat-label { font-size: .8rem; color: var(--gray-600); }
-    .dash-stat-value { font-size: 1.1rem; font-weight: 700; }
+    .dash-stat-value { font-size: 1.05rem; font-weight: 700; }
 
-    /* Key list */
-    .key-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .key-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .key-item:last-child { border-bottom: none; }
     .key-tag { background: var(--primary); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: .75rem; font-weight: 700; min-width: 36px; text-align: center; }
     .key-meta { flex: 1; min-width: 0; }
@@ -128,49 +114,45 @@
     .status-out { background: #fff3e0; color: #e65100; }
     .status-maintenance { background: #fce4ec; color: #c62828; }
 
-    /* Log */
-    .log-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .log-item { padding: 9px 0; border-bottom: 1px solid var(--border); }
     .log-item:last-child { border-bottom: none; }
-    .log-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .log-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
     .log-name { font-size: .9rem; font-weight: 600; }
     .log-time { font-size: .75rem; color: var(--gray-600); }
     .log-detail { font-size: .8rem; color: var(--gray-600); }
     .log-action-out { color: var(--orange); font-weight: 700; }
     .log-action-in { color: var(--primary); font-weight: 700; }
 
-    /* Codes */
-    .code-section { margin-bottom: 16px; }
-    .code-section-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 8px; }
-    .code-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+    /* Codes — compact */
+    .code-section { margin-bottom: 10px; }
+    .code-section-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 2px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .code-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); gap: 8px; }
     .code-row:last-child { border-bottom: none; }
-    .code-label { font-size: .8rem; color: var(--gray-600); min-width: 110px; flex-shrink: 0; }
-    .code-value { font-size: .9rem; font-weight: 600; text-align: right; flex: 1; word-break: break-word; }
-    .code-edit-btn { background: none; border: none; cursor: pointer; font-size: .9rem; padding: 0 4px; opacity: .4; flex-shrink: 0; }
-    .code-edit-btn:hover { opacity: 1; }
-    .key-tag-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .code-label { font-size: .78rem; color: var(--gray-600); min-width: 100px; flex-shrink: 0; }
+    .code-value { font-size: .88rem; font-weight: 600; text-align: right; flex: 1; word-break: break-word; }
+    .code-edit-btn { background: none; border: none; cursor: pointer; font-size: .85rem; padding: 2px 4px; opacity: .75; flex-shrink: 0; border-radius: 4px; }
+    .code-edit-btn:hover { opacity: 1; background: var(--bg); }
+    .key-tag-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
     .key-tag-row:last-child { border-bottom: none; }
-    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; }
+    .key-tag-cut-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 
-    /* Users tab */
-    .user-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .user-item:last-child { border-bottom: none; }
-    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem; flex-shrink: 0; }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem; flex-shrink: 0; }
     .user-info { flex: 1; min-width: 0; }
     .user-name { font-size: .9rem; font-weight: 600; }
     .user-username { font-size: .75rem; color: var(--gray-600); }
     .user-role-badge { font-size: .68rem; font-weight: 700; border-radius: 4px; padding: 2px 6px; background: var(--bg); color: var(--gray-600); border: 1px solid var(--border); }
 
-    /* Lockbox */
-    .lockbox-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .lockbox-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
     .lockbox-item:last-child { border-bottom: none; }
-    .lockbox-name { font-size: .95rem; font-weight: 600; margin-bottom: 2px; }
-    .lockbox-address { font-size: .8rem; color: var(--gray-600); margin-bottom: 8px; }
-    .lockbox-code-display { background: var(--bg); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .lockbox-name { font-size: .92rem; font-weight: 600; margin-bottom: 2px; }
+    .lockbox-address { font-size: .78rem; color: var(--gray-600); margin-bottom: 6px; }
+    .lockbox-code-display { background: var(--bg); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
     .lockbox-code-val { font-size: 1.4rem; font-weight: 700; letter-spacing: 4px; color: var(--primary); font-variant-numeric: tabular-nums; }
     .lockbox-code-label { font-size: .7rem; color: var(--gray-600); text-align: right; }
     .lockbox-loading { color: var(--gray-400); font-size: .85rem; }
 
-    /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 360px; }
     .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
@@ -180,7 +162,6 @@
 </head>
 <body>
 
-<!-- Login Screen -->
 <div id="login-screen">
   <div class="login-card">
     <h2>KRB Key Manager</h2>
@@ -197,7 +178,6 @@
   </div>
 </div>
 
-<!-- App Header -->
 <header class="app-header" id="app-header" style="display:none">
   <div class="logo">
     <img src="/keyrenter-logo.png" alt="Keyrenter" onerror="this.style.display='none'" />
@@ -209,7 +189,6 @@
   </button>
 </header>
 
-<!-- More Bottom Sheet -->
 <div class="sheet-overlay" id="more-overlay" onclick="closeMoreSheet()"></div>
 <div class="bottom-sheet" id="more-sheet">
   <div class="sheet-handle"></div>
@@ -228,7 +207,6 @@
   </button>
 </div>
 
-<!-- Bottom Nav -->
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
   <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">
     <span class="nav-icon">🏠</span><span>Home</span>
@@ -247,7 +225,6 @@
   </button>
 </nav>
 
-<!-- Dashboard Tab -->
 <div class="tab active" id="tab-dashboard">
   <div class="card">
     <h3>Key Inventory</h3>
@@ -259,7 +236,6 @@
   </div>
 </div>
 
-<!-- Check Out Tab -->
 <div class="tab" id="tab-checkout">
   <div class="card">
     <h3>Check Out Key</h3>
@@ -277,11 +253,10 @@
       <label>Staff</label>
       <select id="co-staff-dd"></select>
     </div>
-    <button class="btn btn-primary btn-full" style="margin-top:16px;display:none" id="co-btn" onclick="doCheckout()">Check Out</button>
+    <button class="btn btn-primary btn-full" style="margin-top:14px;display:none" id="co-btn" onclick="doCheckout()">Check Out</button>
   </div>
 </div>
 
-<!-- Check In Tab -->
 <div class="tab" id="tab-checkin">
   <div class="card">
     <h3>Check In Key</h3>
@@ -295,11 +270,10 @@
       <label>Key</label>
       <select id="ci-key-dd"></select>
     </div>
-    <button class="btn btn-primary btn-full" style="margin-top:16px;display:none" id="ci-btn" onclick="doCheckin()">Check In</button>
+    <button class="btn btn-primary btn-full" style="margin-top:14px;display:none" id="ci-btn" onclick="doCheckin()">Check In</button>
   </div>
 </div>
 
-<!-- Codes Tab -->
 <div class="tab" id="tab-codes">
   <div class="card">
     <h3>Property Codes</h3>
@@ -312,7 +286,6 @@
   </div>
 </div>
 
-<!-- Lockboxes Tab -->
 <div class="tab" id="tab-lockboxes">
   <div class="card">
     <h3>Lockbox Day Codes</h3>
@@ -320,7 +293,6 @@
   </div>
 </div>
 
-<!-- Users Tab -->
 <div class="tab" id="tab-users">
   <div class="card">
     <h3>Staff Users</h3>
@@ -340,12 +312,9 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// Login user dropdown
 let loginUsers = [];
 async function loadLoginUsers() {
-  try {
-    loginUsers = await fetch('/api/user-list').then(r => r.json());
-  } catch (_) { loginUsers = []; }
+  try { loginUsers = await fetch('/api/user-list').then(r => r.json()); } catch (_) { loginUsers = []; }
 }
 function showLoginUserList() {
   const list = document.getElementById('login-user-list');
@@ -363,8 +332,7 @@ function showLoginUserList() {
   list.style.display = 'block';
 }
 function selectLoginUser(username, name) {
-  const inp = document.getElementById('login-username');
-  inp.value = username;
+  document.getElementById('login-username').value = username;
   document.getElementById('login-user-list').style.display = 'none';
   document.getElementById('login-pin').focus();
 }
@@ -379,8 +347,7 @@ function showLogin() {
   document.getElementById('bottom-nav').style.display = 'none';
   document.getElementById('login-username').value = '';
   document.getElementById('login-pin').value = '';
-  currentUser = null;
-  window.currentUser = null;
+  currentUser = null; window.currentUser = null;
   loadLoginUsers();
 }
 
@@ -390,9 +357,7 @@ async function initAuth() {
     currentUser = await api('/api/me');
     window.currentUser = currentUser;
     onLogin(currentUser);
-  } catch (_) {
-    showLogin();
-  }
+  } catch (_) { showLogin(); }
 }
 
 async function doLogin() {
@@ -403,13 +368,9 @@ async function doLogin() {
   if (!username || !pin) { err.textContent = 'Enter username and PIN'; err.style.display = 'block'; return; }
   try {
     const user = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, pin }) });
-    currentUser = user;
-    window.currentUser = user;
+    currentUser = user; window.currentUser = user;
     onLogin(user);
-  } catch (e) {
-    err.textContent = e.message;
-    err.style.display = 'block';
-  }
+  } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
 }
 
 async function doLogout() {
@@ -420,9 +381,7 @@ async function doLogout() {
 let currentUser = null;
 window.currentUser = null;
 
-function userRole() {
-  return (currentUser?.role || '').toLowerCase();
-}
+function userRole() { return (currentUser?.role || '').toLowerCase(); }
 function isAdmin() { return userRole() === 'admin'; }
 function isManager() { return userRole() === 'manager'; }
 function isAdminOrManager() { return isAdmin() || isManager(); }
@@ -460,9 +419,8 @@ function showTab(name) {
   if (name === 'users') loadUsers();
 }
 
-// ── Properties search (shared) ────────────────────────────────────────────
+// ── Property search ───────────────────────────────────────────────────
 let propSearchTimers = {};
-
 function searchProps(prefix) {
   const q = document.getElementById(prefix + '-prop-search').value.trim();
   const res = document.getElementById(prefix + '-prop-results');
@@ -489,7 +447,6 @@ function searchProps(prefix) {
     } catch (_) { res.style.display = 'none'; }
   }, 300);
 }
-
 function selectProp(prefix, id, name) {
   document.getElementById(prefix + '-prop-search').value = '';
   document.getElementById(prefix + '-prop-results').style.display = 'none';
@@ -504,34 +461,18 @@ async function loadDashboard() {
   const available = keys.filter(k => k.status === 'Available').length;
   const out = keys.filter(k => k.status === 'Checked Out').length;
   document.getElementById('dash-stats').innerHTML = `
-    <div class="dash-stat">
-      <span class="dash-stat-icon">🗝️</span>
-      <div><div class="dash-stat-label">Available</div><div class="dash-stat-value">${available}</div></div>
-    </div>
-    <div class="dash-stat">
-      <span class="dash-stat-icon">📤</span>
-      <div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div>
-    </div>
-    <div class="dash-stat">
-      <span class="dash-stat-icon">📋</span>
-      <div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div>
-    </div>
+    <div class="dash-stat"><span class="dash-stat-icon">🗝️</span><div><div class="dash-stat-label">Available</div><div class="dash-stat-value">${available}</div></div></div>
+    <div class="dash-stat"><span class="dash-stat-icon">📤</span><div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div></div>
+    <div class="dash-stat"><span class="dash-stat-icon">📋</span><div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div></div>
   `;
   document.getElementById('dash-log').innerHTML = log.length
     ? log.map(l => `
         <div class="log-item">
-          <div class="log-item-header">
-            <span class="log-name">${l.propertyName}</span>
-            <span class="log-time">${fmtTime(l.timestamp)}</span>
-          </div>
-          <div class="log-detail">
-            <span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span>
-            · ${l.staffName} · Key ${l.keyTag}
-          </div>
+          <div class="log-item-header"><span class="log-name">${l.propertyName}</span><span class="log-time">${fmtTime(l.timestamp)}</span></div>
+          <div class="log-detail"><span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span> · ${l.staffName} · Key ${l.keyTag}</div>
         </div>`).join('')
     : '<div class="empty">No recent activity</div>';
 }
-
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -544,8 +485,7 @@ let coSelectedProp = null;
 async function selectPropForCheckout(id, name) {
   coSelectedProp = { id, name };
   document.getElementById('co-selected-prop').style.display = 'flex';
-  document.getElementById('co-selected-prop').innerHTML =
-    `<span>${name}</span><button onclick="clearPropSelection('co')">✕</button>`;
+  document.getElementById('co-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearPropSelection('co')">✕</button>`;
   document.getElementById('co-key-select').style.display = 'none';
   document.getElementById('co-staff-select').style.display = 'none';
   document.getElementById('co-btn').style.display = 'none';
@@ -558,22 +498,18 @@ async function selectPropForCheckout(id, name) {
   document.getElementById('co-key-select').style.display = avail.length ? 'block' : 'none';
   if (avail.length) {
     const staff = await api('/api/staff');
-    document.getElementById('co-staff-dd').innerHTML = staff.map(s =>
-      `<option value="${s.id}">${s.name}</option>`).join('');
+    document.getElementById('co-staff-dd').innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     document.getElementById('co-staff-select').style.display = 'block';
     document.getElementById('co-btn').style.display = 'block';
   }
 }
-
 async function doCheckout() {
   const keyId = document.getElementById('co-key-dd').value;
   const staffId = document.getElementById('co-staff-dd').value;
   if (!keyId || !staffId || !coSelectedProp) return;
   try {
     await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id }) });
-    clearPropSelection('co');
-    loadDashboard();
-    showTab('dashboard');
+    clearPropSelection('co'); loadDashboard(); showTab('dashboard');
   } catch (e) { alert('Checkout failed: ' + e.message); }
 }
 
@@ -582,8 +518,7 @@ let ciSelectedProp = null;
 async function selectPropForCheckin(id, name) {
   ciSelectedProp = { id, name };
   document.getElementById('ci-selected-prop').style.display = 'flex';
-  document.getElementById('ci-selected-prop').innerHTML =
-    `<span>${name}</span><button onclick="clearPropSelection('ci')">✕</button>`;
+  document.getElementById('ci-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearPropSelection('ci')">✕</button>`;
   document.getElementById('ci-key-select').style.display = 'none';
   document.getElementById('ci-btn').style.display = 'none';
   const keys = await api('/api/keys?propertyId=' + id);
@@ -595,18 +530,14 @@ async function selectPropForCheckin(id, name) {
   document.getElementById('ci-key-select').style.display = out.length ? 'block' : 'none';
   document.getElementById('ci-btn').style.display = out.length ? 'block' : 'none';
 }
-
 async function doCheckin() {
   const keyId = document.getElementById('ci-key-dd').value;
   if (!keyId || !ciSelectedProp) return;
   try {
     await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId, propertyId: ciSelectedProp.id }) });
-    clearPropSelection('ci');
-    loadDashboard();
-    showTab('dashboard');
+    clearPropSelection('ci'); loadDashboard(); showTab('dashboard');
   } catch (e) { alert('Checkin failed: ' + e.message); }
 }
-
 function clearPropSelection(prefix) {
   if (prefix === 'co') { coSelectedProp = null; document.getElementById('co-key-select').style.display = 'none'; document.getElementById('co-staff-select').style.display = 'none'; document.getElementById('co-btn').style.display = 'none'; }
   if (prefix === 'ci') { ciSelectedProp = null; document.getElementById('ci-key-select').style.display = 'none'; document.getElementById('ci-btn').style.display = 'none'; }
@@ -614,16 +545,13 @@ function clearPropSelection(prefix) {
   document.getElementById(prefix + '-prop-search').value = '';
 }
 
-// ── Codes Tab ──────────────────────────────────────────────────────────────────────
+// ── Codes ────────────────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
-function canEditCodes() {
-  return isAdminOrManager();
-}
+function canEditCodes() { return isAdminOrManager(); }
 
 async function selectPropForCodes(id, name) {
   codesCurrentPropertyId = id;
-  document.getElementById('codes-selected-prop').innerHTML =
-    `<span>${name}</span><button onclick="clearCodesSelection()">✕</button>`;
+  document.getElementById('codes-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearCodesSelection()">✕</button>`;
   document.getElementById('codes-selected-prop').style.display = 'flex';
   document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
   try {
@@ -633,7 +561,6 @@ async function selectPropForCodes(id, name) {
     document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
 }
-
 function clearCodesSelection() {
   codesCurrentPropertyId = null;
   document.getElementById('codes-selected-prop').style.display = 'none';
@@ -643,7 +570,7 @@ function clearCodesSelection() {
 
 function codeRow(label, field, value) {
   const editBtn = canEditCodes()
-    ? `<button class="code-edit-btn" onclick="editCodeField(${JSON.stringify(field)},${JSON.stringify(value||'')},${JSON.stringify(label)})">✏️</button>`
+    ? `<button class="code-edit-btn" title="Edit" onclick="editCodeField(${JSON.stringify(field)},${JSON.stringify(value||'')},${JSON.stringify(label)})">✏️</button>`
     : '';
   return `<div class="code-row">
     <span class="code-label">${label}</span>
@@ -668,35 +595,31 @@ function renderCodes(data) {
   html += codeRow('Location', 'mailboxLocation', codes.mailboxLocation);
   html += '</div>';
 
+  html += '<div class="code-section"><div class="code-section-title">Other Systems</div>';
+  html += codeRow('Other Systems', 'otherSystems', codes.otherSystems);
+  html += '</div>';
+
   html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
   if (keys && keys.length) {
     keys.forEach(k => {
       const cutEdit = canEditCodes()
-        ? `<button class="code-edit-btn" onclick="editKwiksetCut(${JSON.stringify(k.id)},${JSON.stringify(k.kwiksetCut||'')})">✏️</button>`
+        ? `<button class="code-edit-btn" title="Edit" onclick="editKwiksetCut(${JSON.stringify(k.id)},${JSON.stringify(k.kwiksetCut||'')})">✏️</button>`
         : '';
       html += `<div class="key-tag-row">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
           <span class="key-tag">${k.tag || '?'}</span>
-          <span style="font-size:.85rem;font-weight:600">${k.name || ''}</span>
+          <span style="font-size:.82rem;font-weight:600">${k.name || ''}</span>
         </div>
         <div class="key-tag-cut-row">
-          <span style="font-size:.8rem;color:var(--gray-600)">Kwikset Cut:</span>
-          <span style="font-size:.85rem;font-weight:600;flex:1">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>
+          <span style="font-size:.76rem;color:var(--gray-600)">Kwikset Cut:</span>
+          <span style="font-size:.82rem;font-weight:600;flex:1">${k.kwiksetCut || '<span style="color:var(--gray-400)">—</span>'}</span>
           ${cutEdit}
         </div>
       </div>`;
     });
   } else {
-    html += '<div class="empty" style="padding:12px 0">No keys linked</div>';
+    html += '<div class="empty" style="padding:8px 0">No keys linked</div>';
   }
-  html += '</div>';
-
-  html += '<div class="code-section"><div class="code-section-title">Other Systems</div>';
-  html += codeRow('Other Systems', 'otherSystems', codes.otherSystems);
-  html += '</div>';
-
-  html += '<div class="code-section"><div class="code-section-title">Maintenance Notes</div>';
-  html += codeRow('Notes', 'maintenanceNotes', codes.maintenanceNotes);
   html += '</div>';
 
   document.getElementById('codes-content').innerHTML = html;
@@ -712,7 +635,6 @@ async function editCodeField(field, currentValue, label) {
     } catch (e) { alert('Save failed: ' + e.message); }
   });
 }
-
 async function editKwiksetCut(keyId, currentValue) {
   showEditModal('Kwikset Cut Code', currentValue, async (newVal) => {
     try {
@@ -722,16 +644,15 @@ async function editKwiksetCut(keyId, currentValue) {
     } catch (e) { alert('Save failed: ' + e.message); }
   });
 }
-
 function showEditModal(label, currentValue, onSave) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  const isMultiline = ['Notes', 'Other Systems', 'Maintenance Notes'].some(s => label.includes(s));
+  const isMultiline = ['Other Systems'].some(s => label.includes(s));
   overlay.innerHTML = `
     <div class="modal-card">
       <h3>Edit ${label}</h3>
       ${isMultiline
-        ? `<textarea id="edit-modal-input" rows="4" style="resize:vertical">${currentValue || ''}</textarea>`
+        ? `<textarea id="edit-modal-input" rows="3" style="resize:vertical">${currentValue || ''}</textarea>`
         : `<input type="text" id="edit-modal-input" value="${(currentValue || '').replace(/"/g, '&quot;')}" />`
       }
       <div class="modal-actions">
@@ -742,7 +663,7 @@ function showEditModal(label, currentValue, onSave) {
   document.body.appendChild(overlay);
   const input = overlay.querySelector('#edit-modal-input');
   input.focus();
-  if (input.tagName === 'INPUT') { input.select(); }
+  if (input.tagName === 'INPUT') input.select();
   overlay.querySelector('#edit-modal-save').addEventListener('click', async () => {
     const newVal = input.value;
     overlay.remove();
@@ -763,11 +684,7 @@ async function loadLockboxes() {
         <div class="lockbox-name">${b.propertyName || ('Lockbox ' + b.sn)}</div>
         <div class="lockbox-address">SN: ${b.sn}${b.krbBox ? ' · Box #' + b.krbBox : ''}</div>
         <div class="lockbox-code-display">
-          <div>
-            <div class="lockbox-code-val" id="lbcode-${b.id}">
-              <span class="lockbox-loading">Loading…</span>
-            </div>
-          </div>
+          <div><div class="lockbox-code-val" id="lbcode-${b.id}"><span class="lockbox-loading">Loading…</span></div></div>
           <div class="lockbox-code-label">Today's<br>Code</div>
         </div>
       </div>`).join('');
@@ -789,17 +706,14 @@ async function loadUsers() {
       ? users.map(u => `
           <div class="user-item">
             <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
-            <div class="user-info">
-              <div class="user-name">${u.name}</div>
-              <div class="user-username">@${u.username}</div>
-            </div>
+            <div class="user-info"><div class="user-name">${u.name}</div><div class="user-username">@${u.username}</div></div>
             <span class="user-role-badge">${u.role}</span>
           </div>`).join('')
       : '<div class="empty">No users found</div>';
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN Modal ──────────────────────────────────────────────────────────────
+// ── Change PIN ──────────────────────────────────────────────────────────────
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -822,7 +736,6 @@ function showChangePinModal() {
   overlay.querySelector('#pin-current').focus();
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
-
 async function doChangePin(btn) {
   const current = document.getElementById('pin-current').value;
   const newPin = document.getElementById('pin-new').value;
@@ -834,11 +747,7 @@ async function doChangePin(btn) {
   try {
     await api('/api/change-pin', { method: 'POST', body: JSON.stringify({ currentPin: current, newPin }) });
     btn.closest('.modal-overlay').remove();
-  } catch (e) {
-    err.textContent = e.message;
-    err.style.display = 'block';
-    btn.disabled = false;
-  }
+  } catch (e) { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; }
 }
 
 initAuth();

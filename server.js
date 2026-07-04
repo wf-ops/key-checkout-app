@@ -28,7 +28,8 @@ function requireAuth(req, res, next) {
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!roles.includes(req.session.user.role)) return res.status(403).json({ error: 'Insufficient permissions' });
+    const userRole = (req.session.user.role || '').toLowerCase();
+    if (!roles.map(r => r.toLowerCase()).includes(userRole)) return res.status(403).json({ error: 'Insufficient permissions' });
     next();
   };
 }
@@ -90,28 +91,14 @@ function notionHeaders() {
 }
 
 async function notionPost(url, body) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: notionHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Notion API ${res.status}: ${text}`);
-  }
+  const res = await fetch(url, { method: 'POST', headers: notionHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) { const text = await res.text(); throw new Error(`Notion API ${res.status}: ${text}`); }
   return res.json();
 }
 
 async function notionPatch(url, body) {
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: notionHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Notion API ${res.status}: ${text}`);
-  }
+  const res = await fetch(url, { method: 'PATCH', headers: notionHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) { const text = await res.text(); throw new Error(`Notion API ${res.status}: ${text}`); }
   return res.json();
 }
 
@@ -137,44 +124,20 @@ function extractRichText(prop) {
   if (prop.type === 'number') return prop.number != null ? String(prop.number) : '';
   return '';
 }
-
 function extractSelect(prop) {
   if (!prop || prop.type !== 'select') return '';
   return prop.select?.name || '';
 }
-
 function extractMultiSelect(prop) {
   if (!prop || prop.type !== 'multi_select') return [];
   return prop.multi_select.map(s => s.name);
 }
 
-function extractRelation(prop) {
-  if (!prop || prop.type !== 'relation') return [];
-  return prop.relation.map(r => `https://www.notion.so/${r.id.replace(/-/g, '')}`);
-}
-
-function extractDate(prop, field) {
-  if (!prop || prop.type !== 'date') return null;
-  return prop.date?.[field] || null;
-}
-
-function extractPeople(prop) {
-  if (!prop || prop.type !== 'people') return [];
-  return prop.people.map(p => p.id);
-}
-
 const MT_TZ = 'America/Boise';
+function mtDateStr(date = new Date()) { return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); }
+function mtTimestamp(date = new Date()) { return date.toLocaleString('en-US', { timeZone: MT_TZ }); }
 
-function mtDateStr(date = new Date()) {
-  return date.toLocaleDateString('en-CA', { timeZone: MT_TZ });
-}
-
-function mtTimestamp(date = new Date()) {
-  return date.toLocaleString('en-US', { timeZone: MT_TZ });
-}
-
-// --- API Routes ---
-
+// --- Auth ---
 app.post('/api/login', async (req, res) => {
   try {
     const { username, pin } = req.body;
@@ -182,11 +145,9 @@ app.post('/api/login', async (req, res) => {
     const rows = await queryAll(DB.staff, { property: 'Username', rich_text: { equals: username.toLowerCase().trim() } });
     if (rows.length === 0) return res.status(401).json({ error: 'Invalid username or PIN' });
     const user = rows[0];
-    const active = user.properties['Active']?.checkbox;
-    if (!active) return res.status(401).json({ error: 'Account is inactive' });
+    if (!user.properties['Active']?.checkbox) return res.status(401).json({ error: 'Account is inactive' });
     const hash = user.properties['PIN Hash']?.rich_text?.[0]?.plain_text || '';
-    const valid = await bcrypt.compare(pin, hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid username or PIN' });
+    if (!await bcrypt.compare(pin, hash)) return res.status(401).json({ error: 'Invalid username or PIN' });
     req.session.user = {
       id: user.id,
       name: user.properties['Name']?.title?.[0]?.plain_text || username,
@@ -195,17 +156,10 @@ app.post('/api/login', async (req, res) => {
       notionPersonId: user.properties['Notion Person ID']?.rich_text?.[0]?.plain_text || '',
     };
     res.json({ success: true, user: req.session.user });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
-
+app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 app.get('/api/me', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
   res.json(req.session.user);
@@ -219,15 +173,11 @@ app.post('/api/change-pin', requireAuth, async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const user = rows[0];
     const hash = user.properties['PIN Hash']?.rich_text?.[0]?.plain_text || '';
-    const valid = await bcrypt.compare(currentPin, hash);
-    if (!valid) return res.status(401).json({ error: 'Current PIN is incorrect' });
+    if (!await bcrypt.compare(currentPin, hash)) return res.status(401).json({ error: 'Current PIN is incorrect' });
     const newHash = await bcrypt.hash(newPin, 10);
     await notionPatch(`https://api.notion.com/v1/pages/${user.id}`, { properties: { 'PIN Hash': { rich_text: [{ text: { content: newHash } }] } } });
     res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/user-list', async (req, res) => {
@@ -238,9 +188,7 @@ app.get('/api/user-list', async (req, res) => {
       name: extractRichText(r.properties['Name']),
     })).filter(u => u.username);
     res.json(users);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/users', requireRole('Admin'), async (req, res) => {
@@ -255,9 +203,7 @@ app.get('/api/users', requireRole('Admin'), async (req, res) => {
       notionPersonId: u.properties['Notion Person ID']?.rich_text?.[0]?.plain_text || '',
     }));
     res.json(users);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/users', requireRole('Admin'), async (req, res) => {
@@ -277,10 +223,7 @@ app.post('/api/users', requireRole('Admin'), async (req, res) => {
       },
     });
     res.json({ success: true, id: page.id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/users/:id', requireRole('Admin'), async (req, res) => {
@@ -295,40 +238,29 @@ app.patch('/api/users/:id', requireRole('Admin'), async (req, res) => {
     if (notionPersonId !== undefined) props['Notion Person ID'] = { rich_text: [{ text: { content: notionPersonId } }] };
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: props });
     res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/users/:id', requireRole('Admin'), async (req, res) => {
   try {
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: { 'Active': { checkbox: false } } });
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/properties — list all properties
+// GET /api/properties
 app.get('/api/properties', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.properties, null, [{ property: 'Property Code', direction: 'ascending' }]);
     const props = rows.map(r => {
       const p = r.properties;
-      return {
-        id: r.id,
-        name: extractRichText(p['Street Address - Property']) || extractRichText(p['Property Code']),
-        code: extractRichText(p['Property Code']),
-      };
+      return { id: r.id, name: extractRichText(p['Street Address - Property']) || extractRichText(p['Property Code']), code: extractRichText(p['Property Code']) };
     }).filter(p => p.name);
     res.json(props);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/search-properties?q= — fast live search by address or property code
+// GET /api/search-properties?q=
 app.get('/api/search-properties', requireAuth, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
@@ -341,51 +273,34 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
     }, [{ property: 'Property Code', direction: 'ascending' }]);
     const results = rows.map(r => {
       const p = r.properties;
-      return {
-        id: r.id,
-        address: extractRichText(p['Street Address - Property']),
-        propertyCode: extractRichText(p['Property Code']),
-      };
+      return { id: r.id, address: extractRichText(p['Street Address - Property']), propertyCode: extractRichText(p['Property Code']) };
     }).filter(p => p.address || p.propertyCode);
     res.json(results);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/keys — list keys, optionally filtered by ?propertyId=
+// GET /api/keys
 app.get('/api/keys', requireAuth, async (req, res) => {
   try {
     const { propertyId } = req.query;
-    const filter = propertyId
-      ? { property: 'Rental Matrix', relation: { contains: propertyId } }
-      : undefined;
+    const filter = propertyId ? { property: 'Rental Matrix', relation: { contains: propertyId } } : undefined;
     const rows = await queryAll(DB.keys, filter);
     const keys = rows.map(row => {
       const p = row.properties;
       const rawStatus = extractSelect(p['Status']);
       const keyTypes = extractMultiSelect(p['Key Types']);
-      return {
-        id: row.id,
-        tag: extractRichText(p['Key Slot #']),
-        name: keyTypes.join(', ') || 'Key',
-        status: rawStatus === 'In Office' ? 'Available' : rawStatus,
-        keyTypes,
-      };
+      return { id: row.id, tag: extractRichText(p['Key Slot #']), name: keyTypes.join(', ') || 'Key', status: rawStatus === 'In Office' ? 'Available' : rawStatus, keyTypes };
     });
     res.json(keys);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/log — list recent log entries for the dashboard
+// GET /api/log
 app.get('/api/log', requireAuth, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const rows = await queryAll(DB.log, null, [{ property: 'Date Out', direction: 'descending' }]);
-    const recent = rows.slice(0, limit);
-    const entries = await Promise.all(recent.map(async row => {
+    const entries = await Promise.all(rows.slice(0, limit).map(async row => {
       const p = row.properties;
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
       const keyTagMatch = title.match(/Key #?([^\s-]+)/);
@@ -398,26 +313,16 @@ app.get('/api/log', requireAuth, async (req, res) => {
       if (propRelation.length > 0) {
         try {
           const propPage = await fetch(`https://api.notion.com/v1/pages/${propRelation[0].id}`, { headers: notionHeaders() }).then(r => r.json());
-          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) ||
-                         extractRichText(propPage.properties?.['Property Code']) || '';
+          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) || extractRichText(propPage.properties?.['Property Code']) || '';
         } catch (_) {}
       }
-      return {
-        id: row.id,
-        propertyName: propertyName || title,
-        keyTag,
-        staffName,
-        timestamp: dateReturned || dateOut,
-        action: dateReturned ? 'Check In' : 'Check Out',
-      };
+      return { id: row.id, propertyName: propertyName || title, keyTag, staffName, timestamp: dateReturned || dateOut, action: dateReturned ? 'Check In' : 'Check Out' };
     }));
     res.json(entries);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/staff — list active staff for checkout assignment dropdown
+// GET /api/staff
 app.get('/api/staff', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
@@ -427,21 +332,17 @@ app.get('/api/staff', requireAuth, async (req, res) => {
       name: r.properties['Name']?.title?.[0]?.plain_text || '',
     })).filter(s => s.name);
     res.json(staff);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/lockbox-code/:id — get today's day code for a lockbox by Notion page ID
+// GET /api/lockbox-code/:id
 app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   try {
     const lockboxPage = await fetch(`https://api.notion.com/v1/pages/${req.params.id}`, { headers: notionHeaders() }).then(r => r.json());
     if (lockboxPage.object === 'error') return res.status(404).json({ error: 'Lockbox not found' });
     const sn = extractRichText(lockboxPage.properties?.['Lockbox SN']);
     if (!sn) return res.status(404).json({ error: 'Lockbox serial number not found' });
-    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) {
-      return res.status(503).json({ error: 'Codebox credentials not configured' });
-    }
+    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) return res.status(503).json({ error: 'Codebox credentials not configured' });
     const token = await getCodeboxToken();
     const today = mtDateStr();
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
@@ -452,10 +353,7 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
     const data = await cbRes.json();
     if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
     res.json({ code: data.Code || data.code || String(data) });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 const PROPERTY_CODE_FIELDS = {
@@ -465,32 +363,20 @@ const PROPERTY_CODE_FIELDS = {
   mailboxNumber: 'Mailbox #',
   mailboxLocation: 'Mailbox Location',
   otherSystems: 'Other Property Systems',
-  maintenanceNotes: 'Maintenance Notes',
 };
 
 // GET /api/property-codes/:propertyId
 app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   try {
     const [propPage, keyRows] = await Promise.all([
-      fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-        headers: notionHeaders(),
-      }).then(r => r.json()),
-      queryAll(DB.keys, {
-        property: 'Rental Matrix',
-        relation: { contains: req.params.propertyId },
-      }),
+      fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { headers: notionHeaders() }).then(r => r.json()),
+      queryAll(DB.keys, { property: 'Rental Matrix', relation: { contains: req.params.propertyId } }),
     ]);
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
     const keys = keyRows.map(row => {
       const kp = row.properties;
-      return {
-        id: row.id,
-        tag: extractRichText(kp['Key Slot #']),
-        kwiksetCut: extractRichText(kp['Kwikset Cut']),
-        status: extractSelect(kp['Status']),
-        keyTypes: extractMultiSelect(kp['Key Types']),
-      };
+      return { id: row.id, tag: extractRichText(kp['Key Slot #']), kwiksetCut: extractRichText(kp['Kwikset Cut']), status: extractSelect(kp['Status']), keyTypes: extractMultiSelect(kp['Key Types']) };
     });
     res.json({
       address: extractRichText(p['Street Address - Property']),
@@ -501,16 +387,12 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
       mailboxNumber: extractRichText(p['Mailbox #']) || (p['Mailbox #']?.number != null ? String(p['Mailbox #'].number) : ''),
       mailboxLocation: extractRichText(p['Mailbox Location']),
       otherSystems: extractRichText(p['Other Property Systems']),
-      maintenanceNotes: extractRichText(p['Maintenance Notes']),
       keys,
     });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/property-codes/:propertyId — update a single property code field
+// PATCH /api/property-codes/:propertyId
 app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { field, value } = req.body;
@@ -520,13 +402,10 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
       properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
     });
     res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/keys/:keyId — update key fields (kwikset cut, etc.)
+// PATCH /api/keys/:keyId
 app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { kwiksetCut } = req.body;
@@ -535,36 +414,24 @@ app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) 
     if (Object.keys(props).length === 0) return res.status(400).json({ error: 'No valid fields provided' });
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.keyId}`, { properties: props });
     res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/checkout — check out a key
+// POST /api/checkout
 app.post('/api/checkout', requireAuth, async (req, res) => {
   try {
     const { keyId, staffId, propertyId } = req.body;
     if (!keyId || !propertyId) return res.status(400).json({ error: 'keyId and propertyId required' });
-
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
     const keyTag = extractRichText(keyPage.properties?.['Key Slot #']) || '?';
     const existingLogRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
-
-    const logTitle = `Key #${keyTag} - ${mtTimestamp()}`;
     const logProps = {
-      'Log Entry': { title: [{ text: { content: logTitle } }] },
+      'Log Entry': { title: [{ text: { content: `Key #${keyTag} - ${mtTimestamp()}` } }] },
       'Date Out': { date: { start: mtDateStr() } },
       'Property': { relation: [{ id: propertyId }] },
     };
-    if (staffId) {
-      try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {}
-    }
-    const logPage = await notionPost('https://api.notion.com/v1/pages', {
-      parent: { database_id: DB.log },
-      properties: logProps,
-    });
-
+    if (staffId) { try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {} }
+    const logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
       properties: {
         'Status': { select: { name: 'Checked Out' } },
@@ -572,18 +439,14 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       },
     });
     res.json({ success: true, logId: logPage.id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/checkin — check in a key
+// POST /api/checkin
 app.post('/api/checkin', requireAuth, async (req, res) => {
   try {
     const { keyId } = req.body;
     if (!keyId) return res.status(400).json({ error: 'keyId required' });
-
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
     const logRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
     let activeLogId = null;
@@ -593,51 +456,25 @@ app.post('/api/checkin', requireAuth, async (req, res) => {
         if (!logPage.properties?.['Date Returned']?.date) { activeLogId = rel.id; break; }
       } catch (_) {}
     }
-
-    const today = mtDateStr();
-    const updates = [
-      notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
-        properties: { 'Status': { select: { name: 'In Office' } } },
-      }),
-    ];
-    if (activeLogId) {
-      updates.push(notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, {
-        properties: { 'Date Returned': { date: { start: today } } },
-      }));
-    }
+    const updates = [notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } })];
+    if (activeLogId) updates.push(notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, { properties: { 'Date Returned': { date: { start: mtDateStr() } } } }));
     await Promise.all(updates);
     res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
-
 async function sendSlackAlert(message) {
   if (!SLACK_WEBHOOK_URL) return;
-  try {
-    await fetch(SLACK_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: message }),
-    });
-  } catch (e) {
-    console.error('Slack alert failed:', e.message);
-  }
+  try { await fetch(SLACK_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: message }) }); }
+  catch (e) { console.error('Slack alert failed:', e.message); }
 }
 
 async function checkOverdueKeys() {
   if (!SLACK_WEBHOOK_URL) return;
   try {
     const today = mtDateStr();
-    const rows = await queryAll(DB.log, {
-      and: [
-        { property: 'Date Returned', date: { is_empty: true } },
-        { property: 'Date Out', date: { before: today } },
-      ],
-    });
+    const rows = await queryAll(DB.log, { and: [{ property: 'Date Returned', date: { is_empty: true } }, { property: 'Date Out', date: { before: today } }] });
     const overdue = rows.filter(row => {
       const p = row.properties;
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
@@ -651,31 +488,20 @@ async function checkOverdueKeys() {
       const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start || '';
       const daysLate = Math.floor((new Date(today) - new Date(dateDue)) / 86400000);
       const who = p['Checked Out By']?.people?.map(u => u.name).join(', ') || '?';
-      const purpose = p['Purpose']?.select?.name || '';
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || 'Unknown key';
-      return `• *${title}* — checked out by ${who} | Purpose: ${purpose} | Due: ${dateDue} *(${daysLate} day${daysLate !== 1 ? 's' : ''} overdue)*`;
+      return `• *${title}* — checked out by ${who} | Due: ${dateDue} *(${daysLate} day${daysLate !== 1 ? 's' : ''} overdue)*`;
     });
-    const msg = `🔑 *KRB Overdue Key Alert* — ${overdue.length} key${overdue.length !== 1 ? 's' : ''} past due:\n${lines.join('\n')}`;
-    await sendSlackAlert(msg);
+    await sendSlackAlert(`🔑 *KRB Overdue Key Alert* — ${overdue.length} key${overdue.length !== 1 ? 's' : ''} past due:\n${lines.join('\n')}`);
     console.log(`Slack: sent overdue alert for ${overdue.length} key(s)`);
-  } catch (e) {
-    console.error('checkOverdueKeys error:', e.message);
-  }
+  } catch (e) { console.error('checkOverdueKeys error:', e.message); }
 }
 
 function scheduleDailyOverdueCheck() {
   const now = new Date();
-  const mtParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: MT_TZ, hour: 'numeric', minute: 'numeric', hour12: false,
-  }).formatToParts(now);
+  const mtParts = new Intl.DateTimeFormat('en-US', { timeZone: MT_TZ, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now);
   const mtHour = parseInt(mtParts.find(p => p.type === 'hour').value);
-  const mtMin  = parseInt(mtParts.find(p => p.type === 'minute').value);
-  let secsUntil;
-  if (mtHour < 8) {
-    secsUntil = (8 - mtHour) * 3600 - mtMin * 60;
-  } else {
-    secsUntil = (24 - mtHour + 8) * 3600 - mtMin * 60;
-  }
+  const mtMin = parseInt(mtParts.find(p => p.type === 'minute').value);
+  const secsUntil = mtHour < 8 ? (8 - mtHour) * 3600 - mtMin * 60 : (24 - mtHour + 8) * 3600 - mtMin * 60;
   console.log(`Daily overdue check scheduled in ${Math.round(secsUntil / 60)} min (next 8 AM MT)`);
   setTimeout(async () => {
     await checkOverdueKeys().catch(e => console.error('Daily overdue check failed:', e.message));
@@ -684,36 +510,21 @@ function scheduleDailyOverdueCheck() {
 }
 
 app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
-  try {
-    await sendSlackAlert('✅ KRB Key App Slack connection test — working!');
-    res.json({ success: true, message: 'Test message sent to #maintenance-general' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  try { await sendSlackAlert('✅ KRB Key App Slack connection test — working!'); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Lockboxes ──────────────────────────────────────────────
-
+// Lockboxes
 app.get('/api/lockboxes', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.lockboxes, null, [{ property: 'Lockbox SN', direction: 'ascending' }]);
     const boxes = rows.map(r => {
       const p = r.properties;
       const propRel = p['Last Known Property']?.relation || [];
-      return {
-        id: r.id,
-        sn: extractRichText(p['Lockbox SN']),
-        krbBox: p['KRB Key Box #']?.number || null,
-        status: p['Status']?.select?.name || 'Unassigned',
-        propertyId: propRel[0]?.id || null,
-        propertyName: extractRichText(p['Merge']) || null,
-        notes: extractRichText(p['Notes']),
-      };
+      return { id: r.id, sn: extractRichText(p['Lockbox SN']), krbBox: p['KRB Key Box #']?.number || null, status: p['Status']?.select?.name || 'Unassigned', propertyId: propRel[0]?.id || null, propertyName: extractRichText(p['Merge']) || null, notes: extractRichText(p['Notes']) };
     }).filter(b => b.sn);
     res.json(boxes);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager'), async (req, res) => {
@@ -721,25 +532,17 @@ app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager'), async (req, res
     const { status, propertyId } = req.body;
     const props = {};
     if (status) props['Status'] = { select: { name: status } };
-    if (propertyId !== undefined) {
-      props['Last Known Property'] = propertyId
-        ? { relation: [{ id: propertyId }] }
-        : { relation: [] };
-    }
+    if (propertyId !== undefined) props['Last Known Property'] = propertyId ? { relation: [{ id: propertyId }] } : { relation: [] };
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.id}`, { properties: props });
     res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { serialNumber, date } = req.body;
     if (!serialNumber || !date) return res.status(400).json({ error: 'serialNumber and date required' });
-    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) {
-      return res.status(503).json({ error: 'Codebox credentials not configured' });
-    }
+    if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) return res.status(503).json({ error: 'Codebox credentials not configured' });
     const token = await getCodeboxToken();
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
@@ -749,9 +552,7 @@ app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async 
     const data = await cbRes.json();
     if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
     res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 const PORT = process.env.PORT || 3000;
