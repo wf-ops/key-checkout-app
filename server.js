@@ -132,6 +132,10 @@ function extractMultiSelect(prop) {
   if (!prop || prop.type !== 'multi_select') return [];
   return prop.multi_select.map(s => s.name);
 }
+function extractNumber(prop) {
+  if (!prop || prop.type !== 'number') return null;
+  return prop.number;
+}
 
 const MT_TZ = 'America/Boise';
 function mtDateStr(date = new Date()) { return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); }
@@ -289,7 +293,13 @@ app.get('/api/keys', requireAuth, async (req, res) => {
       const p = row.properties;
       const rawStatus = extractSelect(p['Status']);
       const keyTypes = extractMultiSelect(p['Key Types']);
-      return { id: row.id, tag: extractRichText(p['Key Slot #']), name: keyTypes.join(', ') || 'Key', status: rawStatus === 'In Office' ? 'Available' : rawStatus, keyTypes };
+      return {
+        id: row.id,
+        tag: extractRichText(p['Key Tag #']),
+        name: keyTypes.join(', ') || 'Key',
+        status: rawStatus === 'In Office' ? 'Available' : rawStatus,
+        keyTypes,
+      };
     });
     res.json(keys);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -376,7 +386,15 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     const p = propPage.properties;
     const keys = keyRows.map(row => {
       const kp = row.properties;
-      return { id: row.id, tag: extractRichText(kp['Key Slot #']), kwiksetCut: extractRichText(kp['Kwikset Cut']), status: extractSelect(kp['Status']), keyTypes: extractMultiSelect(kp['Key Types']) };
+      const garageCodeNum = extractNumber(kp['Garage Code']);
+      return {
+        id: row.id,
+        tag: extractRichText(kp['Key Tag #']),
+        kwiksetCut: extractSelect(kp['Kwikset Cut']),
+        garageCode: garageCodeNum != null ? String(garageCodeNum) : '',
+        status: extractSelect(kp['Status']),
+        keyTypes: extractMultiSelect(kp['Key Types']),
+      };
     });
     res.json({
       address: extractRichText(p['Street Address - Property']),
@@ -410,7 +428,10 @@ app.patch('/api/keys/:keyId', requireRole('Admin', 'Manager'), async (req, res) 
   try {
     const { kwiksetCut } = req.body;
     const props = {};
-    if (kwiksetCut !== undefined) props['Kwikset Cut'] = { rich_text: [{ text: { content: kwiksetCut || '' } }] };
+    if (kwiksetCut !== undefined) {
+      // Kwikset Cut is a select field in Notion
+      props['Kwikset Cut'] = kwiksetCut ? { select: { name: String(kwiksetCut) } } : { select: null };
+    }
     if (Object.keys(props).length === 0) return res.status(400).json({ error: 'No valid fields provided' });
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.keyId}`, { properties: props });
     res.json({ success: true });
@@ -423,7 +444,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
     const { keyId, staffId, propertyId } = req.body;
     if (!keyId || !propertyId) return res.status(400).json({ error: 'keyId and propertyId required' });
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
-    const keyTag = extractRichText(keyPage.properties?.['Key Slot #']) || '?';
+    const keyTag = extractRichText(keyPage.properties?.['Key Tag #']) || '?';
     const existingLogRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
     const logProps = {
       'Log Entry': { title: [{ text: { content: `Key #${keyTag} - ${mtTimestamp()}` } }] },
