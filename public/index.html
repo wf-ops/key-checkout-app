@@ -420,17 +420,22 @@ async function doLogout() {
 let currentUser = null;
 window.currentUser = null;
 
+function userRole() {
+  return (currentUser?.role || '').toLowerCase();
+}
+function isAdmin() { return userRole() === 'admin'; }
+function isManager() { return userRole() === 'manager'; }
+function isAdminOrManager() { return isAdmin() || isManager(); }
+
 function onLogin(user) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
   document.getElementById('bottom-nav').style.display = 'flex';
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-role-display').textContent = user.role;
-  const isAdmin = user.role === 'Admin';
-  const isMgr = user.role === 'Manager';
-  document.getElementById('sheet-lockboxes').style.display = (isAdmin || isMgr) ? 'flex' : 'none';
-  document.getElementById('sheet-users').style.display = isAdmin ? 'flex' : 'none';
-  document.getElementById('sheet-divider').style.display = (isAdmin || isMgr) ? 'block' : 'none';
+  document.getElementById('sheet-lockboxes').style.display = isAdminOrManager() ? 'flex' : 'none';
+  document.getElementById('sheet-users').style.display = isAdmin() ? 'flex' : 'none';
+  document.getElementById('sheet-divider').style.display = isAdminOrManager() ? 'block' : 'none';
   showTab('dashboard');
   loadDashboard();
 }
@@ -612,7 +617,7 @@ function clearPropSelection(prefix) {
 // ── Codes Tab ──────────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
 function canEditCodes() {
-  return currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager');
+  return isAdminOrManager();
 }
 
 async function selectPropForCodes(id, name) {
