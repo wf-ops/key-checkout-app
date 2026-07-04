@@ -19,14 +19,7 @@
       --header-h: 52px;
     }
     @media (prefers-color-scheme: dark) {
-      :root {
-        --surface: #1e1e1e;
-        --bg: #121212;
-        --border: #333;
-        --gray-400: #666;
-        --gray-600: #aaa;
-        --gray-900: #f0f0f0;
-      }
+      :root { --surface: #1e1e1e; --bg: #121212; --border: #333; --gray-400: #666; --gray-600: #aaa; --gray-900: #f0f0f0; }
     }
     html, body { height: 100%; background: var(--bg); color: var(--gray-900); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; }
     body { padding-top: var(--header-h); padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); overflow-x: hidden; }
@@ -55,13 +48,11 @@
 
     .tab { display: none; padding: 12px; max-width: 560px; margin: 0 auto; }
     .tab.active { display: block; }
-
     .card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .card h3 { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-600); margin-bottom: 10px; }
 
     .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; margin: 32px auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
     .empty { text-align: center; color: var(--gray-400); padding: 24px 16px; font-size: .9rem; }
 
     .search-box { position: relative; margin-bottom: 10px; }
@@ -104,7 +95,6 @@
     .dash-stat-icon { font-size: 1.4rem; width: 32px; text-align: center; }
     .dash-stat-label { font-size: .8rem; color: var(--gray-600); }
     .dash-stat-value { font-size: 1.05rem; font-weight: 700; }
-
     .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .quick-action-btn { flex: 1; min-width: 120px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--gray-900); font-size: .85rem; font-weight: 600; cursor: pointer; }
     .quick-action-btn:hover { background: var(--border); }
@@ -125,7 +115,6 @@
     .log-action-out { color: var(--orange); font-weight: 700; }
     .log-action-in { color: var(--primary); font-weight: 700; }
 
-    /* Codes */
     .codes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .codes-header-title { font-size: .82rem; font-weight: 600; color: var(--gray-600); }
     .codes-actions { display: flex; gap: 8px; }
@@ -138,7 +127,6 @@
     .code-edit-input { flex: 1; padding: 4px 8px !important; font-size: .85rem !important; margin: 0 !important; width: auto !important; }
     .key-tag-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
     .key-tag-row:last-child { border-bottom: none; }
-
     .missing-badge { font-size: .72rem; font-weight: 700; border-radius: 4px; padding: 2px 6px; flex-shrink: 0; }
     .missing-badge-warn { background: #fff3e0; color: var(--orange); }
     .missing-badge-alert { background: #ffebee; color: var(--red); }
@@ -176,20 +164,33 @@
     .ci-key-name { font-size: .9rem; font-weight: 600; }
     .ci-key-prop { font-size: .75rem; color: var(--gray-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
-    .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
-    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    /* Photo capture */
+    .photo-capture-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: 2px dashed var(--border); border-radius: 10px; background: var(--bg); color: var(--gray-600); font-size: .9rem; font-weight: 600; cursor: pointer; margin-top: 4px; transition: border-color .15s, color .15s; }
+    .photo-capture-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .photo-preview { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: none; border: 1px solid var(--border); }
+    .photo-retake { font-size: .78rem; color: var(--gray-600); text-align: center; margin-top: 4px; cursor: pointer; text-decoration: underline; display: none; }
+
+    /* AI verify result */
+    .verify-result { border-radius: 8px; padding: 10px 12px; font-size: .85rem; line-height: 1.5; margin-top: 12px; }
+    .verify-ok { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; }
+    .verify-warn { background: #fff8e1; border: 1px solid #ffe082; color: #5d4037; }
+    .verify-skip { background: var(--bg); border: 1px solid var(--border); color: var(--gray-600); }
+    @media (prefers-color-scheme: dark) {
+      .verify-ok { background: #0d2a14; border-color: #1b5e20; color: #a5d6a7; }
+      .verify-warn { background: #332900; border-color: #665500; color: #ffd54f; }
+    }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal-card { background: var(--surface); border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; max-height: 90vh; overflow-y: auto; }
+    .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
     .modal-actions .btn { flex: 1; }
 
     .kw-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
     .kw-info-label { color: var(--gray-600); font-size: .78rem; }
     .kw-info-val { font-weight: 700; }
     .kw-warning { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: .82rem; color: #5d4037; margin-top: 12px; line-height: 1.4; }
-    @media (prefers-color-scheme: dark) {
-      .kw-warning { background: #332900; border-color: #665500; color: #ffd54f; }
-    }
-
+    @media (prefers-color-scheme: dark) { .kw-warning { background: #332900; border-color: #665500; color: #ffd54f; } }
     .modal-search-wrap { position: relative; }
     .modal-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
     .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); padding: 9px 14px; cursor: pointer; font-size: .9rem; }
@@ -300,6 +301,13 @@
       <label>Staff</label>
       <select id="co-staff-dd"></select>
     </div>
+    <div id="co-photo-section" style="display:none">
+      <label>📷 Photo of keys being checked out</label>
+      <label class="photo-capture-btn" for="co-photo-input">📷 Take Photo</label>
+      <input type="file" id="co-photo-input" accept="image/*" capture="environment" style="display:none" onchange="onCoPhotoSelected()" />
+      <img id="co-photo-preview" class="photo-preview" alt="Key photo preview" />
+      <div class="photo-retake" id="co-photo-retake" onclick="document.getElementById('co-photo-input').click()">Retake photo</div>
+    </div>
     <button class="btn btn-primary btn-full" style="margin-top:14px;display:none" id="co-btn" onclick="doCheckout()">Check Out</button>
   </div>
 </div>
@@ -349,6 +357,16 @@ async function api(path, opts = {}) {
   return data;
 }
 
+async function uploadPhoto(file) {
+  const fd = new FormData();
+  fd.append('photo', file);
+  const res = await fetch('/api/upload-photo', { method: 'POST', body: fd });
+  if (res.status === 401) { showLogin(); throw new Error('Not authenticated'); }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data; // { fileId, url }
+}
+
 let loginUsers = [];
 async function loadLoginUsers() {
   try { loginUsers = await fetch('/api/user-list').then(r => r.json()); } catch (_) { loginUsers = []; }
@@ -368,7 +386,7 @@ function showLoginUserList() {
   });
   list.style.display = 'block';
 }
-function selectLoginUser(username, name) {
+function selectLoginUser(username) {
   document.getElementById('login-username').value = username;
   document.getElementById('login-user-list').style.display = 'none';
   document.getElementById('login-pin').focus();
@@ -419,7 +437,6 @@ let currentUser = null;
 window.currentUser = null;
 
 function onLogin(user) {
-  console.log('[KRB] signed in:', user.name, '| role:', user.role);
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
   document.getElementById('bottom-nav').style.display = 'flex';
@@ -450,7 +467,6 @@ function showTab(name) {
   if (name === 'users') loadUsers();
 }
 
-// ── Property search ─────────────────────────────────────────────────────
 let propSearchTimers = {};
 function searchProps(prefix) {
   const q = document.getElementById(prefix + '-prop-search').value.trim();
@@ -485,14 +501,13 @@ function selectProp(prefix, id, name) {
   else if (prefix === 'codes') selectPropForCodes(id, name);
 }
 
-// ── Dashboard ────────────────────────────────────────────────────────────────────────────
+// ── Dashboard
 async function loadDashboard() {
   const [keys, log, missing] = await Promise.all([
     api('/api/keys'),
     api('/api/log?limit=5'),
     api('/api/missing-keys').catch(() => []),
   ]);
-
   const available = keys.filter(k => k.status === 'Available').length;
   const out = keys.filter(k => k.status === 'Checked Out').length;
   document.getElementById('dash-stats').innerHTML = `
@@ -500,7 +515,6 @@ async function loadDashboard() {
     <div class="dash-stat"><span class="dash-stat-icon">📤</span><div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div></div>
     <div class="dash-stat"><span class="dash-stat-icon">📋</span><div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div></div>
   `;
-
   const missingTitle = document.getElementById('missing-keys-title');
   const missingEl = document.getElementById('dash-missing');
   if (missing.length === 0) {
@@ -512,39 +526,25 @@ async function loadDashboard() {
       const days = m.daysOut != null ? m.daysOut : 0;
       const badgeClass = days > 3 ? 'missing-badge-alert' : 'missing-badge-warn';
       const badgeLabel = days === 0 ? 'Today' : `${days}d out`;
-      return `<div class="key-item">
-        <span class="key-tag">${m.keyTag || '?'}</span>
-        <div class="key-meta">
-          <div class="key-name">${m.propertyName || 'Unknown property'}</div>
-          <div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div>
-        </div>
-        <span class="missing-badge ${badgeClass}">${badgeLabel}</span>
-      </div>`;
+      return `<div class="key-item"><span class="key-tag">${m.keyTag || '?'}</span><div class="key-meta"><div class="key-name">${m.propertyName || 'Unknown property'}</div><div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div></div><span class="missing-badge ${badgeClass}">${badgeLabel}</span></div>`;
     }).join('');
   }
-
   document.getElementById('dash-log').innerHTML = log.length
-    ? log.map(l => `
-        <div class="log-item">
-          <div class="log-item-header"><span class="log-name">${l.propertyName}</span><span class="log-time">${fmtTime(l.timestamp)}</span></div>
-          <div class="log-detail"><span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span> · ${l.staffName} · Key ${l.keyTag}</div>
-        </div>`).join('')
+    ? log.map(l => `<div class="log-item"><div class="log-item-header"><span class="log-name">${l.propertyName}</span><span class="log-time">${fmtTime(l.timestamp)}</span></div><div class="log-detail"><span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span> · ${l.staffName} · Key ${l.keyTag}</div></div>`).join('')
     : '<div class="empty">No recent activity</div>';
 }
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
-    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-// ── Change Kwikset modal ───────────────────────────────────────────────────────────
+// ── Kwikset modal
 let _kwiksetOpts = null;
 async function getKwiksetOptions() {
   if (!_kwiksetOpts) _kwiksetOpts = await api('/api/kwikset-options');
   return _kwiksetOpts;
 }
-
 async function showChangeKwiksetModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -558,14 +558,8 @@ async function showChangeKwiksetModal() {
       </div>
       <div id="kw-body" style="display:none">
         <div style="margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-          <div class="kw-info-row" style="padding:8px 12px">
-            <span class="kw-info-label">Property</span>
-            <span class="kw-info-val" id="kw-prop-name" style="font-size:.85rem"></span>
-          </div>
-          <div class="kw-info-row" style="padding:8px 12px;border-bottom:none">
-            <span class="kw-info-label">Current Kwikset</span>
-            <span class="kw-info-val" id="kw-current-name" style="color:var(--primary)"></span>
-          </div>
+          <div class="kw-info-row" style="padding:8px 12px"><span class="kw-info-label">Property</span><span class="kw-info-val" id="kw-prop-name" style="font-size:.85rem"></span></div>
+          <div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">Current Kwikset</span><span class="kw-info-val" id="kw-current-name" style="color:var(--primary)"></span></div>
         </div>
         <label>Changing to</label>
         <select id="kw-new-select"></select>
@@ -580,12 +574,9 @@ async function showChangeKwiksetModal() {
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-  let kwPropId = null, kwCurrentId = null, kwCurrentName = null;
-  let kwSearchTimer;
+  let kwPropId = null, kwCurrentId = null, kwCurrentName = null, kwSearchTimer;
   const propInput = overlay.querySelector('#kw-prop-input');
   const propResults = overlay.querySelector('#kw-prop-results');
-
   propInput.addEventListener('input', () => {
     const q = propInput.value.trim();
     propResults.style.display = 'none';
@@ -595,29 +586,24 @@ async function showChangeKwiksetModal() {
       try {
         const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
         if (!hits.length) return;
-        propResults.innerHTML = hits.slice(0, 8).map((p, i) =>
-          `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
-        ).join('');
+        propResults.innerHTML = hits.slice(0, 8).map((p, i) => `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`).join('');
         propResults._hits = hits;
         propResults.querySelectorAll('.search-result-item').forEach(el => {
           el.addEventListener('mousedown', async e => {
             e.preventDefault();
             const p = propResults._hits[+el.dataset.idx];
-            propResults.style.display = 'none';
-            propInput.value = '';
+            propResults.style.display = 'none'; propInput.value = '';
             kwPropId = p.id;
             overlay.querySelector('#kw-loading').style.display = 'block';
             overlay.querySelector('#kw-body').style.display = 'none';
             overlay.querySelector('#kw-save-btn').disabled = true;
             try {
               const [opts, codes] = await Promise.all([getKwiksetOptions(), api('/api/property-codes/' + p.id)]);
-              kwCurrentId = codes.kwiksetCutId || '';
-              kwCurrentName = codes.kwiksetCut || '— None —';
+              kwCurrentId = codes.kwiksetCutId || ''; kwCurrentName = codes.kwiksetCut || '— None —';
               overlay.querySelector('#kw-prop-name').textContent = codes.address || p.address || p.propertyCode;
               overlay.querySelector('#kw-current-name').textContent = kwCurrentName;
               const sel = overlay.querySelector('#kw-new-select');
-              sel.innerHTML = `<option value="">— None —</option>` +
-                opts.map(o => `<option value="${o.id}"${o.id === kwCurrentId ? ' selected' : ''}>${o.name}</option>`).join('');
+              sel.innerHTML = `<option value="">— None —</option>` + opts.map(o => `<option value="${o.id}"${o.id === kwCurrentId ? ' selected' : ''}>${o.name}</option>`).join('');
               updateKwWarning(overlay, sel, kwCurrentName);
               sel.addEventListener('change', () => updateKwWarning(overlay, sel, kwCurrentName));
               overlay.querySelector('#kw-loading').style.display = 'none';
@@ -625,7 +611,7 @@ async function showChangeKwiksetModal() {
               overlay.querySelector('#kw-save-btn').disabled = false;
             } catch (err) {
               overlay.querySelector('#kw-loading').style.display = 'none';
-              overlay.querySelector('#kw-error').textContent = 'Error loading data: ' + err.message;
+              overlay.querySelector('#kw-error').textContent = 'Error: ' + err.message;
               overlay.querySelector('#kw-error').style.display = 'block';
             }
           });
@@ -634,47 +620,33 @@ async function showChangeKwiksetModal() {
       } catch (_) {}
     }, 300);
   });
-
   overlay.querySelector('#kw-save-btn')._getState = () => ({ kwPropId, kwCurrentId });
   propInput.focus();
 }
-
 function updateKwWarning(overlay, sel, currentName) {
   const warning = overlay.querySelector('#kw-warning');
-  const newName = sel.options[sel.selectedIndex]?.text || '— None —';
   const newVal = sel.value;
-  if (!newVal && !overlay.querySelector('#kw-save-btn')._getState().kwCurrentId) {
-    warning.style.display = 'none';
-    return;
-  }
+  const newName = sel.options[sel.selectedIndex]?.text || '— None —';
+  if (!newVal && !overlay.querySelector('#kw-save-btn')._getState().kwCurrentId) { warning.style.display = 'none'; return; }
   warning.style.display = 'block';
   const hasCurrent = !!overlay.querySelector('#kw-save-btn')._getState().kwCurrentId;
   const previousNote = hasCurrent ? ` The current cut (<strong>${currentName}</strong>) will be added to Previous Kwiksets.` : '';
   warning.innerHTML = `⚠️ This will set the Kwikset cut to <strong>${newName}</strong>.${previousNote}`;
 }
-
 async function saveKwikset(btn) {
   const overlay = btn.closest('.modal-overlay');
   const { kwPropId, kwCurrentId } = btn._getState();
   if (!kwPropId) return;
   const sel = overlay.querySelector('#kw-new-select');
-  const kwiksetPageId = sel.value || null;
   btn.disabled = true; btn.textContent = 'Saving…';
-  const err = overlay.querySelector('#kw-error');
-  err.style.display = 'none';
+  const err = overlay.querySelector('#kw-error'); err.style.display = 'none';
   try {
-    await api(`/api/property-kwikset/${kwPropId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ kwiksetPageId, previousKwiksetId: kwCurrentId || null }),
-    });
+    await api(`/api/property-kwikset/${kwPropId}`, { method: 'PATCH', body: JSON.stringify({ kwiksetPageId: sel.value || null, previousKwiksetId: kwCurrentId || null }) });
     overlay.remove();
-  } catch (e) {
-    err.textContent = e.message; err.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Confirm Change';
-  }
+  } catch (e) { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Confirm Change'; }
 }
 
-// ── Check Out ──────────────────────────────────────────────────────────────────────────────
+// ── Check Out
 let coSelectedProp = null;
 async function selectPropForCheckout(id, name) {
   coSelectedProp = { id, name };
@@ -682,46 +654,69 @@ async function selectPropForCheckout(id, name) {
   document.getElementById('co-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearPropSelection('co')">✕</button>`;
   document.getElementById('co-key-select').style.display = 'none';
   document.getElementById('co-staff-select').style.display = 'none';
+  document.getElementById('co-photo-section').style.display = 'none';
   document.getElementById('co-btn').style.display = 'none';
   const keys = await api('/api/keys?propertyId=' + id);
   const avail = keys.filter(k => k.status === 'Available');
   const dd = document.getElementById('co-key-dd');
-  dd.innerHTML = avail.length
-    ? avail.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('')
-    : '<option disabled>No keys available</option>';
+  dd.innerHTML = avail.length ? avail.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('') : '<option disabled>No keys available</option>';
   document.getElementById('co-key-select').style.display = avail.length ? 'block' : 'none';
   if (avail.length) {
     const staff = await api('/api/staff');
     document.getElementById('co-staff-dd').innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     document.getElementById('co-staff-select').style.display = 'block';
+    document.getElementById('co-photo-section').style.display = 'block';
     document.getElementById('co-btn').style.display = 'block';
+    document.getElementById('co-btn').disabled = true;
   }
+}
+function onCoPhotoSelected() {
+  const file = document.getElementById('co-photo-input').files[0];
+  if (!file) return;
+  const preview = document.getElementById('co-photo-preview');
+  const retake = document.getElementById('co-photo-retake');
+  const reader = new FileReader();
+  reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; retake.style.display = 'block'; };
+  reader.readAsDataURL(file);
+  document.getElementById('co-btn').disabled = false;
 }
 async function doCheckout() {
   const keyId = document.getElementById('co-key-dd').value;
   const staffId = document.getElementById('co-staff-dd').value;
+  const photoFile = document.getElementById('co-photo-input').files[0];
   if (!keyId || !staffId || !coSelectedProp) return;
+  if (!photoFile) { alert('Please take a photo of the keys first.'); return; }
+  const btn = document.getElementById('co-btn');
+  btn.disabled = true; btn.textContent = 'Uploading photo…';
   try {
-    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id }) });
+    const { fileId } = await uploadPhoto(photoFile);
+    btn.textContent = 'Checking out…';
+    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: fileId }) });
     clearPropSelection('co'); loadDashboard(); showTab('dashboard');
-  } catch (e) { alert('Checkout failed: ' + e.message); }
+  } catch (e) { alert('Checkout failed: ' + e.message); btn.disabled = false; btn.textContent = 'Check Out'; }
 }
 function clearPropSelection(prefix) {
-  if (prefix === 'co') { coSelectedProp = null; document.getElementById('co-key-select').style.display = 'none'; document.getElementById('co-staff-select').style.display = 'none'; document.getElementById('co-btn').style.display = 'none'; }
+  if (prefix === 'co') {
+    coSelectedProp = null;
+    document.getElementById('co-key-select').style.display = 'none';
+    document.getElementById('co-staff-select').style.display = 'none';
+    document.getElementById('co-photo-section').style.display = 'none';
+    document.getElementById('co-photo-preview').style.display = 'none';
+    document.getElementById('co-photo-retake').style.display = 'none';
+    document.getElementById('co-photo-input').value = '';
+    document.getElementById('co-btn').style.display = 'none';
+  }
   document.getElementById(prefix + '-selected-prop').style.display = 'none';
   document.getElementById(prefix + '-prop-search').value = '';
 }
 
-// ── Check In ────────────────────────────────────────────────────────────────────────────────
+// ── Check In
 async function loadCheckinKeys() {
   const el = document.getElementById('ci-key-list');
   el.innerHTML = '<div class="spinner"></div>';
   try {
     const keys = await api('/api/checked-out-keys');
-    if (!keys.length) {
-      el.innerHTML = '<div class="empty">No keys currently checked out</div>';
-      return;
-    }
+    if (!keys.length) { el.innerHTML = '<div class="empty">No keys currently checked out</div>'; return; }
     el.innerHTML = keys.map(k => `
       <div class="ci-key-row">
         <span class="key-tag">${k.tag}</span>
@@ -729,162 +724,174 @@ async function loadCheckinKeys() {
           <div class="ci-key-name">${k.name}</div>
           <div class="ci-key-prop">${k.propertyName || '—'}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="doCheckin('${k.id}', this)">Check In</button>
+        <button class="btn btn-primary btn-sm ci-checkin-btn">Check In</button>
       </div>`).join('');
+    el.querySelectorAll('.ci-key-row').forEach((row, i) => {
+      row.querySelector('.ci-checkin-btn').addEventListener('click', () => openCheckinModal(keys[i]));
+    });
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-async function doCheckin(keyId, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+function openCheckinModal(key) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>📥 Check In Key</h3>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:12px">
+        <span class="key-tag">${key.tag}</span>
+        <div>
+          <div style="font-weight:600;font-size:.9rem">${key.name}</div>
+          <div style="font-size:.75rem;color:var(--gray-600)">${key.propertyName || '—'}</div>
+        </div>
+      </div>
+      <label style="margin-top:0">📷 Photo of keys being returned</label>
+      <label class="photo-capture-btn" for="ci-photo-input-modal">📷 Take Photo</label>
+      <input type="file" id="ci-photo-input-modal" accept="image/*" capture="environment" style="display:none" />
+      <img id="ci-photo-preview-modal" class="photo-preview" alt="Return photo" />
+      <div class="photo-retake" id="ci-photo-retake-modal" onclick="document.getElementById('ci-photo-input-modal').click()">Retake photo</div>
+      <div id="ci-verify-result" style="display:none"></div>
+      <div id="ci-modal-error" style="color:var(--red);font-size:.82rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="ci-submit-btn" disabled>Verify &amp; Check In</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const photoInput = overlay.querySelector('#ci-photo-input-modal');
+  const photoPreview = overlay.querySelector('#ci-photo-preview-modal');
+  const retakeBtn = overlay.querySelector('#ci-photo-retake-modal');
+  const submitBtn = overlay.querySelector('#ci-submit-btn');
+  let selectedFile = null;
+
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => { photoPreview.src = e.target.result; photoPreview.style.display = 'block'; retakeBtn.style.display = 'block'; };
+    reader.readAsDataURL(file);
+    submitBtn.disabled = false;
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    const errEl = overlay.querySelector('#ci-modal-error');
+    const resultEl = overlay.querySelector('#ci-verify-result');
+    errEl.style.display = 'none';
+    resultEl.style.display = 'none';
+    submitBtn.disabled = true; submitBtn.textContent = 'Uploading…';
+    try {
+      const { fileId } = await uploadPhoto(selectedFile);
+      submitBtn.textContent = 'Verifying with AI…';
+      let verifyResult;
+      try {
+        verifyResult = await api('/api/verify-checkin-photo', { method: 'POST', body: JSON.stringify({ keyId: key.id, checkInFileId: fileId }) });
+      } catch (_) {
+        verifyResult = { skipped: true, message: 'AI verification unavailable' };
+      }
+      resultEl.style.display = 'block';
+      if (verifyResult.skipped) {
+        resultEl.innerHTML = `<div class="verify-result verify-skip">ℹ️ ${verifyResult.message}</div>`;
+        await finalizeCheckin(key.id, fileId, overlay, submitBtn);
+      } else if (verifyResult.match === false) {
+        resultEl.innerHTML = `<div class="verify-result verify-warn">⚠️ <strong>Keys may not match</strong><br><span style="font-size:.82rem">${verifyResult.notes || 'AI detected a possible discrepancy.'}</span></div>`;
+        submitBtn.disabled = false; submitBtn.textContent = 'Override &amp; Check In';
+        submitBtn.onclick = () => finalizeCheckin(key.id, fileId, overlay, submitBtn);
+      } else {
+        resultEl.innerHTML = `<div class="verify-result verify-ok">✅ Keys verified — same keys confirmed${verifyResult.notes ? '<br><span style="font-size:.8rem">' + verifyResult.notes + '</span>' : ''}</div>`;
+        await finalizeCheckin(key.id, fileId, overlay, submitBtn);
+      }
+    } catch (e) {
+      errEl.textContent = e.message; errEl.style.display = 'block';
+      submitBtn.disabled = false; submitBtn.textContent = 'Verify &amp; Check In';
+    }
+  });
+}
+
+async function finalizeCheckin(keyId, checkInFileId, overlay, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking in…'; }
   try {
-    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId }) });
+    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId, checkInFileId }) });
+    overlay.remove();
     loadCheckinKeys();
     loadDashboard();
   } catch (e) {
-    alert('Check in failed: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Check In'; }
+    const errEl = overlay.querySelector('#ci-modal-error');
+    if (errEl) { errEl.textContent = 'Check in failed: ' + e.message; errEl.style.display = 'block'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Try Again'; }
   }
 }
 
-// ── Codes ──────────────────────────────────────────────────────────────────────────────────────
-let codesCurrentPropertyId = null;
-let codesCurrentData = null;
-let codesEditMode = false;
-let kwiksetOptions = null;
-
+// ── Codes
+let codesCurrentPropertyId = null, codesCurrentData = null, codesEditMode = false, kwiksetOptions = null;
 async function selectPropForCodes(id, name) {
-  codesCurrentPropertyId = id;
-  codesEditMode = false;
-  kwiksetOptions = null;
+  codesCurrentPropertyId = id; codesEditMode = false; kwiksetOptions = null;
   const label = document.getElementById('codes-selected-prop');
-  label.textContent = name;
-  label.style.display = 'block';
+  label.textContent = name; label.style.display = 'block';
   document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
   try {
     const data = await api('/api/property-codes/' + id);
-    codesCurrentData = data;
-    renderCodes(data);
-  } catch (e) {
-    document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
+    codesCurrentData = data; renderCodes(data);
+  } catch (e) { document.getElementById('codes-content').innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
-
 function viewRow(label, value) {
-  return `<div class="code-row">
-    <span class="code-label">${label}</span>
-    <span class="code-value">${value || '<span style="color:var(--gray-400)">—</span>'}</span>
-  </div>`;
+  return `<div class="code-row"><span class="code-label">${label}</span><span class="code-value">${value || '<span style="color:var(--gray-400)">—</span>'}</span></div>`;
 }
-
 function editRow(label, field, value) {
-  return `<div class="code-row">
-    <span class="code-label">${label}</span>
-    <input type="text" id="edit-${field}" class="code-edit-input" inputmode="numeric" value="${(value||'').replace(/"/g,'&quot;')}" />
-  </div>`;
+  return `<div class="code-row"><span class="code-label">${label}</span><input type="text" id="edit-${field}" class="code-edit-input" inputmode="numeric" value="${(value||'').replace(/"/g,'&quot;')}" /></div>`;
 }
-
 function kwiksetSelectRow(currentId, options) {
-  const opts = (options || []).map(o =>
-    `<option value="${o.id}"${o.id === currentId ? ' selected' : ''}>${o.name}</option>`
-  ).join('');
-  return `<div class="code-row">
-    <span class="code-label">Kwikset Cut</span>
-    <select id="edit-kwiksetCut" class="code-edit-input" style="padding:3px 6px !important">
-      <option value="">— none —</option>
-      ${opts}
-    </select>
-  </div>`;
+  const opts = (options || []).map(o => `<option value="${o.id}"${o.id === currentId ? ' selected' : ''}>${o.name}</option>`).join('');
+  return `<div class="code-row"><span class="code-label">Kwikset Cut</span><select id="edit-kwiksetCut" class="code-edit-input" style="padding:3px 6px !important"><option value="">— none —</option>${opts}</select></div>`;
 }
-
 function renderCodes(data) {
   if (data) codesCurrentData = data;
   const d = codesCurrentData;
   const keys = d.keys || [];
-  let html = '';
-
-  if (codesEditMode) {
-    html += `<div class="codes-header">
-      <span class="codes-header-title">Editing…</span>
-      <div class="codes-actions">
-        <button class="btn btn-outline btn-sm" onclick="cancelEditCodes()">Cancel</button>
-        <button class="btn btn-primary btn-sm" id="codes-save-btn" onclick="saveAllCodes()">Save</button>
-      </div>
-    </div>`;
-  } else {
-    html += `<div class="codes-header">
-      <span class="codes-header-title">&nbsp;</span>
-      <button class="btn btn-outline btn-sm" onclick="startEditCodes()">✏️ Edit</button>
-    </div>`;
-  }
-
+  let html = codesEditMode
+    ? `<div class="codes-header"><span class="codes-header-title">Editing…</span><div class="codes-actions"><button class="btn btn-outline btn-sm" onclick="cancelEditCodes()">Cancel</button><button class="btn btn-primary btn-sm" id="codes-save-btn" onclick="saveAllCodes()">Save</button></div></div>`
+    : `<div class="codes-header"><span class="codes-header-title">&nbsp;</span><button class="btn btn-outline btn-sm" onclick="startEditCodes()">✏️ Edit</button></div>`;
   html += '<div class="code-section"><div class="code-section-title">Entry Codes</div>';
   html += codesEditMode ? editRow('Front Door','frontDoorCode',d.frontDoorCode) : viewRow('Front Door',d.frontDoorCode);
   html += codesEditMode ? editRow('Garage Keypad','garageKeypad',d.garageKeypad) : viewRow('Garage Keypad',d.garageKeypad);
   html += codesEditMode ? editRow('Community Entry','communityEntryCode',d.communityEntryCode) : viewRow('Community Entry',d.communityEntryCode);
   html += codesEditMode ? kwiksetSelectRow(d.kwiksetCutId, kwiksetOptions) : viewRow('Kwikset Cut', d.kwiksetCut);
-  html += '</div>';
-
-  html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
+  html += '</div><div class="code-section"><div class="code-section-title">Key Tags</div>';
   if (keys && keys.length) {
-    keys.forEach(k => {
-      const types = (k.keyTypes || []).join(', ');
-      html += `<div class="key-tag-row" style="display:flex;align-items:center;gap:8px">
-        <span class="key-tag">${k.tag || '?'}</span>
-        <span style="font-size:.82rem;color:var(--gray-600)">${types || ''}</span>
-      </div>`;
-    });
-  } else {
-    html += '<div class="empty" style="padding:8px 0">No keys linked</div>';
-  }
+    keys.forEach(k => { html += `<div class="key-tag-row" style="display:flex;align-items:center;gap:8px"><span class="key-tag">${k.tag || '?'}</span><span style="font-size:.82rem;color:var(--gray-600)">${(k.keyTypes||[]).join(', ')}</span></div>`; });
+  } else { html += '<div class="empty" style="padding:8px 0">No keys linked</div>'; }
   html += '</div>';
-
   document.getElementById('codes-content').innerHTML = html;
 }
-
 async function startEditCodes() {
   codesEditMode = true;
-  if (!kwiksetOptions) {
-    try { kwiksetOptions = await api('/api/kwikset-options'); }
-    catch (_) { kwiksetOptions = []; }
-  }
+  if (!kwiksetOptions) { try { kwiksetOptions = await api('/api/kwikset-options'); } catch (_) { kwiksetOptions = []; } }
   renderCodes();
 }
-function cancelEditCodes() {
-  codesEditMode = false;
-  renderCodes();
-}
+function cancelEditCodes() { codesEditMode = false; renderCodes(); }
 async function saveAllCodes() {
   if (!codesCurrentPropertyId) return;
   const saveBtn = document.getElementById('codes-save-btn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
   try {
-    const fields = ['frontDoorCode','garageKeypad','communityEntryCode'];
-    for (const field of fields) {
+    for (const field of ['frontDoorCode','garageKeypad','communityEntryCode']) {
       const input = document.getElementById('edit-' + field);
-      if (input) {
-        await api(`/api/property-codes/${codesCurrentPropertyId}`, {
-          method: 'PATCH', body: JSON.stringify({ field, value: input.value })
-        });
-      }
+      if (input) await api(`/api/property-codes/${codesCurrentPropertyId}`, { method: 'PATCH', body: JSON.stringify({ field, value: input.value }) });
     }
     const kwiksetSelect = document.getElementById('edit-kwiksetCut');
     if (kwiksetSelect) {
-      const previousKwiksetId = codesCurrentData?.kwiksetCutId || null;
-      await api(`/api/property-kwikset/${codesCurrentPropertyId}`, {
-        method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwiksetSelect.value || null, previousKwiksetId })
-      });
+      await api(`/api/property-kwikset/${codesCurrentPropertyId}`, { method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwiksetSelect.value || null, previousKwiksetId: codesCurrentData?.kwiksetCutId || null }) });
     }
     codesEditMode = false;
     const data = await api('/api/property-codes/' + codesCurrentPropertyId);
-    codesCurrentData = data;
-    renderCodes(data);
-  } catch (e) {
-    alert('Save failed: ' + e.message);
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
-  }
+    codesCurrentData = data; renderCodes(data);
+  } catch (e) { alert('Save failed: ' + e.message); if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; } }
 }
 
-// ── Lockboxes ───────────────────────────────────────────────────────────────────────────────────
+// ── Lockboxes
 function lockboxStatusClass(status) {
   if (!status) return 'lockbox-status-unassigned';
   const s = status.toLowerCase().replace(/\s+/g, '-');
@@ -892,7 +899,6 @@ function lockboxStatusClass(status) {
   if (s === 'in-office') return 'lockbox-status-in-office';
   return 'lockbox-status-unassigned';
 }
-
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -911,47 +917,34 @@ async function loadLockboxes() {
       </div>`).join('');
     boxes.forEach(b => {
       api('/api/lockbox-code/' + b.id)
-        .then(r => {
-          document.getElementById('lbcode-' + b.id).textContent = r.code || '—';
-        })
-        .catch(e => {
-          const wrap = document.getElementById('lbcode-wrap-' + b.id);
-          if (wrap) wrap.innerHTML = `<div class="lockbox-code-err">${e.message}</div>`;
-        });
+        .then(r => { document.getElementById('lbcode-' + b.id).textContent = r.code || '—'; })
+        .catch(e => { const w = document.getElementById('lbcode-wrap-' + b.id); if (w) w.innerHTML = `<div class="lockbox-code-err">${e.message}</div>`; });
     });
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Users ───────────────────────────────────────────────────────────────────────────────────
+// ── Users
 async function loadUsers() {
   const el = document.getElementById('user-list');
   el.innerHTML = '<div class="spinner"></div>';
   try {
     const users = await api('/api/users');
     el.innerHTML = users.length
-      ? users.map(u => `
-          <div class="user-item">
-            <div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div>
-            <div class="user-info"><div class="user-name">${u.name}</div><div class="user-username">@${u.username}</div></div>
-            <span class="user-role-badge">${u.role}</span>
-          </div>`).join('')
+      ? users.map(u => `<div class="user-item"><div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div class="user-info"><div class="user-name">${u.name}</div><div class="user-username">@${u.username}</div></div><span class="user-role-badge">${u.role}</span></div>`).join('')
       : '<div class="empty">No users found</div>';
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN ────────────────────────────────────────────────────────────────
+// ── Change PIN
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-card">
       <h3>Change PIN</h3>
-      <label>Current PIN</label>
-      <input type="password" id="pin-current" inputmode="numeric" placeholder="••••" />
-      <label>New PIN</label>
-      <input type="password" id="pin-new" inputmode="numeric" placeholder="••••" />
-      <label>Confirm New PIN</label>
-      <input type="password" id="pin-confirm" inputmode="numeric" placeholder="••••" />
+      <label>Current PIN</label><input type="password" id="pin-current" inputmode="numeric" placeholder="••••" />
+      <label>New PIN</label><input type="password" id="pin-new" inputmode="numeric" placeholder="••••" />
+      <label>Confirm New PIN</label><input type="password" id="pin-confirm" inputmode="numeric" placeholder="••••" />
       <div id="pin-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
