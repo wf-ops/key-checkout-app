@@ -59,7 +59,7 @@ const DB = {
   log: '6493156c-9348-45a5-9632-0552edda23b5',
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
-  lockboxes: '30a61a46-cdef-80c1-a015-000b55945cbe',
+  lockboxes: '30a61a46-cdef-804e-88fb-fff4404cf3b6',
   kwiksetCuts: '30a61a46-cdef-80b1-aa2b-e6cb42560512',
 };
 
@@ -390,7 +390,6 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
 });
 
 // GET /api/kwikset-options — list all Kwikset Cut options
-// Title field in Kwikset Cuts DB is "Kwikset Key #"
 app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
@@ -403,7 +402,7 @@ app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// Fields editable via PATCH /api/property-codes — all stored as rich_text to preserve leading zeros
+// Fields editable via PATCH /api/property-codes
 const PROPERTY_CODE_FIELDS = {
   frontDoorCode: 'Front Door Code',
   garageKeypad: 'Garage Keypad',
@@ -420,7 +419,6 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
 
-    // Kwikset Cut is a relation on Property Matrix — fetch the title of the linked page
     let kwiksetCut = '';
     let kwiksetCutId = '';
     const kwiksetRel = p['Kwikset Cut']?.relation || [];
@@ -433,7 +431,6 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
       } catch (_) {}
     }
 
-    // Keys: only tag, status, types — code fields moved to Property Matrix
     const keys = keyRows.map(row => {
       const kp = row.properties;
       return {
@@ -463,7 +460,6 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
     const { field, value } = req.body;
     const notionField = PROPERTY_CODE_FIELDS[field];
     if (!notionField) return res.status(400).json({ error: 'Unknown field: ' + field });
-    // Store as rich_text to preserve leading zeros
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
       properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
     });
@@ -472,14 +468,12 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
 });
 
 // PATCH /api/property-kwikset/:propertyId
-// Updates Kwikset Cut relation and appends old value to Previous Kwiksets relation
 app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { kwiksetPageId, previousKwiksetId } = req.body;
     const props = {
       'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] },
     };
-    // Append previous kwikset to the Previous Kwiksets relation (avoid duplicates)
     if (previousKwiksetId) {
       const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { headers: notionHeaders() }).then(r => r.json());
       const existing = propPage.properties?.['Previous Kwiksets']?.relation || [];
