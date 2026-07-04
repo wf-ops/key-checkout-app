@@ -105,6 +105,10 @@
     .dash-stat-label { font-size: .8rem; color: var(--gray-600); }
     .dash-stat-value { font-size: 1.05rem; font-weight: 700; }
 
+    .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .quick-action-btn { flex: 1; min-width: 120px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--gray-900); font-size: .85rem; font-weight: 600; cursor: pointer; }
+    .quick-action-btn:hover { background: var(--border); }
+
     .key-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .key-item:last-child { border-bottom: none; }
     .key-tag { background: var(--primary); color: #fff; border-radius: 6px; padding: 2px 8px; font-size: .75rem; font-weight: 700; min-width: 36px; text-align: center; }
@@ -161,6 +165,12 @@
     .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
     .modal-actions .btn { flex: 1; }
+
+    /* inline modal search results */
+    .modal-search-wrap { position: relative; }
+    .modal-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+    .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); }
+    .modal-search-results .search-result-item:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -236,6 +246,12 @@
   <div class="card">
     <h3 id="missing-keys-title">Missing Keys</h3>
     <div id="dash-missing"><div class="spinner"></div></div>
+  </div>
+  <div class="card">
+    <h3>Quick Actions</h3>
+    <div class="quick-actions">
+      <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
+    </div>
   </div>
   <div class="card">
     <h3>Recent Activity</h3>
@@ -506,6 +522,111 @@ function fmtTime(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Change Kwikset modal ───────────────────────────────────────────────────────────
+let _kwiksetOpts = null;
+async function getKwiksetOptions() {
+  if (!_kwiksetOpts) _kwiksetOpts = await api('/api/kwikset-options');
+  return _kwiksetOpts;
+}
+
+async function showChangeKwiksetModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>🔐 Change Kwikset Cut</h3>
+      <label>Property</label>
+      <div class="modal-search-wrap">
+        <input type="text" id="kw-prop-input" placeholder="Search property…" autocomplete="off" />
+        <div class="modal-search-results" id="kw-prop-results"></div>
+      </div>
+      <div id="kw-selected-prop" style="display:none;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:7px 12px;font-size:.88rem;font-weight:600;margin-top:8px"></div>
+      <div id="kw-cut-wrap" style="display:none">
+        <label>Kwikset Cut</label>
+        <select id="kw-cut-select"><option>Loading…</option></select>
+      </div>
+      <div id="kw-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="kw-save-btn" onclick="saveKwikset(this)" disabled>Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  let kwSelectedPropId = null;
+  let kwSearchTimer;
+  const propInput = overlay.querySelector('#kw-prop-input');
+  const propResults = overlay.querySelector('#kw-prop-results');
+
+  propInput.addEventListener('input', () => {
+    const q = propInput.value.trim();
+    propResults.style.display = 'none';
+    if (q.length < 2) return;
+    clearTimeout(kwSearchTimer);
+    kwSearchTimer = setTimeout(async () => {
+      try {
+        const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
+        if (!hits.length) return;
+        propResults.innerHTML = hits.slice(0, 8).map((p, i) =>
+          `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
+        ).join('');
+        propResults._hits = hits;
+        propResults.querySelectorAll('.search-result-item').forEach(el => {
+          el.addEventListener('mousedown', async e => {
+            e.preventDefault();
+            const p = propResults._hits[+el.dataset.idx];
+            propResults.style.display = 'none';
+            propInput.value = '';
+            kwSelectedPropId = p.id;
+            overlay.querySelector('#kw-selected-prop').textContent = p.address || p.propertyCode;
+            overlay.querySelector('#kw-selected-prop').style.display = 'block';
+            const cutWrap = overlay.querySelector('#kw-cut-wrap');
+            cutWrap.style.display = 'block';
+            const sel = overlay.querySelector('#kw-cut-select');
+            sel.innerHTML = '<option>Loading…</option>';
+            try {
+              // Load options + current value in parallel
+              const [opts, codes] = await Promise.all([
+                getKwiksetOptions(),
+                api('/api/property-codes/' + p.id),
+              ]);
+              sel.innerHTML = `<option value="">— none —</option>` +
+                opts.map(o => `<option value="${o.id}"${o.id === codes.kwiksetCutId ? ' selected' : ''}>${o.name}</option>`).join('');
+              overlay.querySelector('#kw-save-btn').disabled = false;
+            } catch (err) {
+              sel.innerHTML = '<option>Error loading options</option>';
+            }
+          });
+        });
+        propResults.style.display = 'block';
+      } catch (_) {}
+    }, 300);
+  });
+
+  overlay.querySelector('#kw-save-btn')._getPropId = () => kwSelectedPropId;
+  propInput.focus();
+}
+
+async function saveKwikset(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const propId = btn._getPropId();
+  if (!propId) return;
+  const kwiksetPageId = overlay.querySelector('#kw-cut-select').value || null;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const err = overlay.querySelector('#kw-error');
+  err.style.display = 'none';
+  try {
+    await api(`/api/property-kwikset/${propId}`, {
+      method: 'PATCH', body: JSON.stringify({ kwiksetPageId })
+    });
+    overlay.remove();
+  } catch (e) {
+    err.textContent = e.message; err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Save';
+  }
 }
 
 // ── Check Out ──────────────────────────────────────────────────────────────────────────────
