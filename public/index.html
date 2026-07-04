@@ -567,13 +567,7 @@ function viewRow(label, value) {
   </div>`;
 }
 
-function editRow(label, field, value, multiline) {
-  if (multiline) {
-    return `<div class="code-row code-row-col">
-      <span class="code-label">${label}</span>
-      <textarea id="edit-${field}" rows="2" style="width:100%;font-size:.85rem;padding:5px 8px;resize:vertical">${value || ''}</textarea>
-    </div>`;
-  }
+function editRow(label, field, value) {
   return `<div class="code-row">
     <span class="code-label">${label}</span>
     <input type="text" id="edit-${field}" class="code-edit-input" value="${(value||'').replace(/"/g,'&quot;')}" />
@@ -606,15 +600,6 @@ function renderCodes(data) {
   html += codesEditMode ? editRow('Front Door','frontDoorCode',codes.frontDoorCode) : viewRow('Front Door',codes.frontDoorCode);
   html += codesEditMode ? editRow('Garage Keypad','garageKeypad',codes.garageKeypad) : viewRow('Garage Keypad',codes.garageKeypad);
   html += codesEditMode ? editRow('Community Entry','communityEntryCode',codes.communityEntryCode) : viewRow('Community Entry',codes.communityEntryCode);
-  html += '</div>';
-
-  html += '<div class="code-section"><div class="code-section-title">Mailbox</div>';
-  html += codesEditMode ? editRow('Mailbox #','mailboxNumber',codes.mailboxNumber) : viewRow('Mailbox #',codes.mailboxNumber);
-  html += codesEditMode ? editRow('Location','mailboxLocation',codes.mailboxLocation) : viewRow('Location',codes.mailboxLocation);
-  html += '</div>';
-
-  html += '<div class="code-section"><div class="code-section-title">Other Systems</div>';
-  html += codesEditMode ? editRow('Other Systems','otherSystems',codes.otherSystems,true) : viewRow('Other Systems',codes.otherSystems);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
@@ -663,7 +648,7 @@ async function saveAllCodes() {
   const saveBtn = document.getElementById('codes-save-btn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
   try {
-    const fields = ['frontDoorCode','garageKeypad','communityEntryCode','mailboxNumber','mailboxLocation','otherSystems'];
+    const fields = ['frontDoorCode','garageKeypad','communityEntryCode'];
     for (const field of fields) {
       const input = document.getElementById('edit-' + field);
       if (input) {
