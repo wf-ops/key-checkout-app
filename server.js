@@ -60,7 +60,7 @@ const DB = {
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
   lockboxes: '30a61a46-cdef-80c1-a015-000b55945cbe',
-  kwiksetCuts: '30a61a46-cdef-8015-8dc4-000ba03f0132',
+  kwiksetCuts: '30a61a46-cdef-80b1-aa2b-e6cb42560512',
 };
 
 const CODEBOX_BASE = 'https://api02.codeboxinc.com';
