@@ -38,7 +38,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 async function uploadToDrive(buffer, originalname, mimetype) {
   const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive.file'] });
+  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
   const drive = google.drive({ version: 'v3', auth });
   const ext = path.extname(originalname) || '.jpg';
   const filename = `key-photo-${Date.now()}${ext}`;
@@ -48,7 +48,17 @@ async function uploadToDrive(buffer, originalname, mimetype) {
     fields: 'id,webViewLink',
   });
   await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
-  return file.data.webViewLink;
+  return { fileId: file.data.id, url: file.data.webViewLink };
+}
+
+async function downloadFileFromDrive(fileId) {
+  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
+  const drive = google.drive({ version: 'v3', auth });
+  const response = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'arraybuffer' });
+  const buffer = Buffer.from(response.data);
+  const mimeType = ((response.headers && response.headers['content-type']) || 'image/jpeg').split(';')[0];
+  return { base64: buffer.toString('base64'), mimeType };
 }
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
@@ -283,7 +293,6 @@ app.delete('/api/users/:id', requireRole('Admin'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/properties
 app.get('/api/properties', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.properties, null, [{ property: 'Property Code', direction: 'ascending' }]);
@@ -295,7 +304,6 @@ app.get('/api/properties', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/search-properties?q=
 app.get('/api/search-properties', requireAuth, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
@@ -314,7 +322,6 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/keys
 app.get('/api/keys', requireAuth, async (req, res) => {
   try {
     const { propertyId } = req.query;
@@ -336,7 +343,6 @@ app.get('/api/keys', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/checked-out-keys
 app.get('/api/checked-out-keys', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, { property: 'Status', select: { equals: 'Checked Out' } });
@@ -358,7 +364,6 @@ app.get('/api/checked-out-keys', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/log
 app.get('/api/log', requireAuth, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
@@ -385,7 +390,6 @@ app.get('/api/log', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/missing-keys
 app.get('/api/missing-keys', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.log, { property: 'Date Returned', date: { is_empty: true } });
@@ -411,7 +415,6 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/staff
 app.get('/api/staff', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
@@ -424,7 +427,88 @@ app.get('/api/staff', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/lockbox-code/:id
+// POST /api/upload-photo — stores photo in Drive, returns fileId
+app.post('/api/upload-photo', requireAuth, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No photo provided' });
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return res.status(503).json({ error: 'Google Drive not configured' });
+    const result = await uploadToDrive(req.file.buffer, req.file.originalname || 'photo.jpg', req.file.mimetype || 'image/jpeg');
+    res.json(result);
+  } catch (e) { console.error('[upload-photo]', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/verify-checkin-photo — AI comparison of checkout vs return photo
+app.post('/api/verify-checkin-photo', requireAuth, async (req, res) => {
+  try {
+    const { keyId, checkInFileId } = req.body;
+    if (!keyId || !checkInFileId) return res.status(400).json({ error: 'keyId and checkInFileId required' });
+
+    // Find the active log entry and retrieve checkout photo file ID
+    const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
+    const logRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
+    let checkoutFileId = null;
+    for (const rel of [...logRelation].reverse()) {
+      try {
+        const logPage = await fetch(`https://api.notion.com/v1/pages/${rel.id}`, { headers: notionHeaders() }).then(r => r.json());
+        if (!logPage.properties?.['Date Returned']?.date) {
+          checkoutFileId = logPage.properties?.['Photo File ID']?.rich_text?.[0]?.plain_text || null;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (!checkoutFileId) {
+      return res.json({ skipped: true, message: 'No checkout photo on file — cannot compare' });
+    }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.json({ skipped: true, message: 'AI verification not configured (ANTHROPIC_API_KEY missing)' });
+    }
+
+    const [checkoutImg, checkInImg] = await Promise.all([
+      downloadFileFromDrive(checkoutFileId),
+      downloadFileFromDrive(checkInFileId),
+    ]);
+
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: checkoutImg.mimeType, data: checkoutImg.base64 } },
+            { type: 'image', source: { type: 'base64', media_type: checkInImg.mimeType, data: checkInImg.base64 } },
+            { type: 'text', text: 'Image 1: keys being checked out. Image 2: keys being returned. Compare them. Do the same keys appear in both? Consider key count, shapes, colors, and any visible tags or labels. Respond with JSON only (no markdown): {"match": true or false, "confidence": "high" or "medium" or "low", "keyCountOut": number or null, "keyCountIn": number or null, "notes": "brief explanation"}' },
+          ],
+        }],
+      }),
+    });
+
+    if (!claudeRes.ok) {
+      const errText = await claudeRes.text();
+      throw new Error('Claude API error: ' + errText.slice(0, 120));
+    }
+
+    const claudeData = await claudeRes.json();
+    const text = claudeData.content?.[0]?.text || '{}';
+    let result;
+    try {
+      const m = text.match(/\{[\s\S]*\}/);
+      result = m ? JSON.parse(m[0]) : { match: true, confidence: 'low', notes: text };
+    } catch (_) {
+      result = { match: true, confidence: 'low', notes: text };
+    }
+    console.log('[verify-checkin-photo] result:', JSON.stringify(result));
+    res.json(result);
+  } catch (e) { console.error('[verify-checkin-photo]', e.message); res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   try {
     const lockboxPage = await fetch(`https://api.notion.com/v1/pages/${req.params.id}`, { headers: notionHeaders() }).then(r => r.json());
@@ -450,7 +534,6 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   } catch (e) { console.error('[Codebox] error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/kwikset-options
 app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
@@ -469,7 +552,6 @@ const PROPERTY_CODE_FIELDS = {
   communityEntryCode: 'Community Entry Code',
 };
 
-// GET /api/property-codes/:propertyId
 app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   try {
     const [propPage, keyRows] = await Promise.all([
@@ -478,7 +560,6 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     ]);
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
-
     let kwiksetCut = '';
     let kwiksetCutId = '';
     const kwiksetRel = p['Kwikset Cut']?.relation || [];
@@ -490,31 +571,21 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
         kwiksetCut = titleProp?.title?.[0]?.plain_text || '';
       } catch (_) {}
     }
-
     const keys = keyRows.map(row => {
       const kp = row.properties;
-      return {
-        id: row.id,
-        tag: extractRichText(kp['Key Tag #']),
-        status: extractSelect(kp['Status']),
-        keyTypes: extractMultiSelect(kp['Key Types']),
-      };
+      return { id: row.id, tag: extractRichText(kp['Key Tag #']), status: extractSelect(kp['Status']), keyTypes: extractMultiSelect(kp['Key Types']) };
     });
-
     res.json({
       address: extractRichText(p['Street Address - Property']),
       propertyCode: extractRichText(p['Property Code']),
       frontDoorCode: extractRichText(p['Front Door Code']),
       garageKeypad: extractRichText(p['Garage Keypad']),
       communityEntryCode: extractRichText(p['Community Entry Code']),
-      kwiksetCut,
-      kwiksetCutId,
-      keys,
+      kwiksetCut, kwiksetCutId, keys,
     });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/property-codes/:propertyId
 app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { field, value } = req.body;
@@ -527,18 +598,14 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/property-kwikset/:propertyId
 app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { kwiksetPageId, previousKwiksetId } = req.body;
-    const props = {
-      'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] },
-    };
+    const props = { 'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] } };
     if (previousKwiksetId) {
       const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { headers: notionHeaders() }).then(r => r.json());
       const existing = propPage.properties?.['Previous Kwiksets']?.relation || [];
-      const alreadyPresent = existing.some(r => r.id === previousKwiksetId);
-      if (!alreadyPresent) {
+      if (!existing.some(r => r.id === previousKwiksetId)) {
         props['Previous Kwiksets'] = { relation: [...existing, { id: previousKwiksetId }] };
       }
     }
@@ -547,10 +614,10 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/checkout
+// POST /api/checkout — requires checkoutFileId (Drive file ID of key photo)
 app.post('/api/checkout', requireAuth, async (req, res) => {
   try {
-    const { keyId, staffId, propertyId } = req.body;
+    const { keyId, staffId, propertyId, checkoutFileId } = req.body;
     if (!keyId || !propertyId) return res.status(400).json({ error: 'keyId and propertyId required' });
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
     const keyTag = extractRichText(keyPage.properties?.['Key Tag #']) || '?';
@@ -561,7 +628,20 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       'Property': { relation: [{ id: propertyId }] },
     };
     if (staffId) { try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {} }
-    const logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
+    // Include checkout photo file ID if provided (graceful — won't fail if field doesn't exist in Notion)
+    if (checkoutFileId) {
+      try { logProps['Photo File ID'] = { rich_text: [{ text: { content: checkoutFileId } }] }; } catch (_) {}
+    }
+    let logPage;
+    try {
+      logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
+    } catch (e) {
+      // If Photo File ID field doesn't exist, retry without it
+      if (checkoutFileId && e.message.includes('Photo File ID')) {
+        delete logProps['Photo File ID'];
+        logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
+      } else { throw e; }
+    }
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
       properties: {
         'Status': { select: { name: 'Checked Out' } },
@@ -572,10 +652,10 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/checkin
+// POST /api/checkin — accepts checkInFileId for return photo storage
 app.post('/api/checkin', requireAuth, async (req, res) => {
   try {
-    const { keyId } = req.body;
+    const { keyId, checkInFileId } = req.body;
     if (!keyId) return res.status(400).json({ error: 'keyId required' });
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
     const logRelation = keyPage.properties?.['Key Check-In/ Check-Out Log']?.relation || [];
@@ -586,9 +666,21 @@ app.post('/api/checkin', requireAuth, async (req, res) => {
         if (!logPage.properties?.['Date Returned']?.date) { activeLogId = rel.id; break; }
       } catch (_) {}
     }
-    const updates = [notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } })];
-    if (activeLogId) updates.push(notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, { properties: { 'Date Returned': { date: { start: mtDateStr() } } } }));
-    await Promise.all(updates);
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: { 'Status': { select: { name: 'In Office' } } } });
+    if (activeLogId) {
+      const logUpdateProps = { 'Date Returned': { date: { start: mtDateStr() } } };
+      if (checkInFileId) {
+        try { logUpdateProps['Return Photo File ID'] = { rich_text: [{ text: { content: checkInFileId } }] }; } catch (_) {}
+      }
+      try {
+        await notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, { properties: logUpdateProps });
+      } catch (e) {
+        // Retry without photo field if it doesn't exist
+        if (checkInFileId && e.message.includes('Return Photo File ID')) {
+          await notionPatch(`https://api.notion.com/v1/pages/${activeLogId}`, { properties: { 'Date Returned': { date: { start: mtDateStr() } } } });
+        } else { throw e; }
+      }
+    }
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -644,7 +736,6 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Lockboxes
 app.get('/api/lockboxes', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.lockboxes, null, [{ property: 'Lockbox SN', direction: 'ascending' }]);
