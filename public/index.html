@@ -153,8 +153,16 @@
 
     .lockbox-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
     .lockbox-item:last-child { border-bottom: none; }
-    .lockbox-name { font-size: .92rem; font-weight: 600; margin-bottom: 2px; }
-    .lockbox-address { font-size: .78rem; color: var(--gray-600); margin-bottom: 6px; }
+    .lockbox-sn { font-size: 1rem; font-weight: 700; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+    .lockbox-status { display: inline-block; font-size: .7rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; margin-bottom: 4px; }
+    .lockbox-status-at-property { background: #e3f2fd; color: #1565c0; }
+    .lockbox-status-in-office { background: #e8f5e9; color: #2e7d32; }
+    .lockbox-status-unassigned { background: var(--bg); color: var(--gray-600); border: 1px solid var(--border); }
+    @media (prefers-color-scheme: dark) {
+      .lockbox-status-at-property { background: #0d2744; color: #90caf9; }
+      .lockbox-status-in-office { background: #0d2a14; color: #a5d6a7; }
+    }
+    .lockbox-location { font-size: .78rem; color: var(--gray-600); margin-bottom: 6px; }
     .lockbox-code-display { background: var(--bg); border-radius: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
     .lockbox-code-val { font-size: 1.4rem; font-weight: 700; letter-spacing: 4px; color: var(--primary); font-variant-numeric: tabular-nums; }
     .lockbox-code-label { font-size: .7rem; color: var(--gray-600); text-align: right; }
@@ -629,7 +637,6 @@ async function showChangeKwiksetModal() {
     }, 300);
   });
 
-  // Store refs for saveKwikset
   overlay.querySelector('#kw-save-btn')._getState = () => ({ kwPropId, kwCurrentId });
   propInput.focus();
 }
@@ -639,7 +646,6 @@ function updateKwWarning(overlay, sel, currentName) {
   const newName = sel.options[sel.selectedIndex]?.text || '— None —';
   const newVal = sel.value;
   if (!newVal && !overlay.querySelector('#kw-save-btn')._getState().kwCurrentId) {
-    // Clearing an already-empty field
     warning.style.display = 'none';
     return;
   }
@@ -874,6 +880,14 @@ async function saveAllCodes() {
 }
 
 // ── Lockboxes ───────────────────────────────────────────────────────────────────────────────────
+function lockboxStatusClass(status) {
+  if (!status) return 'lockbox-status-unassigned';
+  const s = status.toLowerCase().replace(/\s+/g, '-');
+  if (s === 'at-property') return 'lockbox-status-at-property';
+  if (s === 'in-office') return 'lockbox-status-in-office';
+  return 'lockbox-status-unassigned';
+}
+
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -882,8 +896,9 @@ async function loadLockboxes() {
     if (!boxes.length) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
     el.innerHTML = boxes.map(b => `
       <div class="lockbox-item">
-        <div class="lockbox-name">${b.propertyName || ('Lockbox ' + b.sn)}</div>
-        <div class="lockbox-address">SN: ${b.sn}${b.krbBox ? ' · Box #' + b.krbBox : ''}</div>
+        <div class="lockbox-sn">SN: ${b.sn}</div>
+        <div><span class="lockbox-status ${lockboxStatusClass(b.status)}">${b.status || 'Unassigned'}</span></div>
+        <div class="lockbox-location">${b.propertyName || '— No location assigned —'}</div>
         <div class="lockbox-code-display">
           <div><div class="lockbox-code-val" id="lbcode-${b.id}"><span class="lockbox-loading">Loading…</span></div></div>
           <div class="lockbox-code-label">Today's<br>Code</div>
