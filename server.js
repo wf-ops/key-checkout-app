@@ -66,11 +66,10 @@ const DB = {
 const CODEBOX_BASE = 'https://api02.codeboxinc.com';
 let codeboxToken = null;
 let codeboxTokenExp = 0;
-let codeboxAuthInFlight = null; // prevents parallel auth storms
+let codeboxAuthInFlight = null;
 
 async function getCodeboxToken() {
   if (codeboxToken && Date.now() < codeboxTokenExp - 60000) return codeboxToken;
-  // Deduplicate concurrent auth calls
   if (!codeboxAuthInFlight) {
     codeboxAuthInFlight = (async () => {
       const res = await fetch(`${CODEBOX_BASE}/authentication`, {
@@ -81,7 +80,6 @@ async function getCodeboxToken() {
       const rawText = await res.text();
       console.log(`[Codebox auth] status=${res.status} body=${rawText.slice(0, 120)}`);
       if (!res.ok) throw new Error(`Codebox auth failed: ${res.status} ${rawText}`);
-      // Auth response is {"AuthToken":"eyJ..."}
       let token;
       let parsed;
       try { parsed = JSON.parse(rawText); } catch (_) { parsed = null; }
@@ -91,7 +89,6 @@ async function getCodeboxToken() {
       } else {
         token = (typeof parsed === 'string' ? parsed : rawText).trim().replace(/^"|"$/g, '');
       }
-      // Decode JWT expiry if possible
       let exp = Date.now() + 3600000;
       try {
         const parts = token.split('.');
@@ -171,7 +168,6 @@ function extractMultiSelect(prop) {
 const MT_TZ = 'America/Boise';
 function mtDateStr(date = new Date()) { return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); }
 function mtTimestamp(date = new Date()) { return date.toLocaleString('en-US', { timeZone: MT_TZ }); }
-// MM/DD/YYYY format used by Codebox API
 function codeboxDateStr(date = new Date()) {
   return date.toLocaleDateString('en-US', { timeZone: MT_TZ, month: '2-digit', day: '2-digit', year: 'numeric' });
 }
@@ -338,6 +334,28 @@ app.get('/api/keys', requireAuth, async (req, res) => {
     });
     res.json(keys);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/checked-out-keys
+app.get('/api/checked-out-keys', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.keys, { property: 'Status', select: { equals: 'Checked Out' } });
+    const keys = await Promise.all(rows.map(async row => {
+      const p = row.properties;
+      const tag = extractRichText(p['Key Tag #']);
+      const keyTypes = extractMultiSelect(p['Key Types']);
+      let propertyName = '';
+      const propRel = p['Rental Matrix']?.relation || [];
+      if (propRel.length > 0) {
+        try {
+          const propPage = await fetch(`https://api.notion.com/v1/pages/${propRel[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) || extractRichText(propPage.properties?.['Property Code']) || '';
+        } catch (_) {}
+      }
+      return { id: row.id, tag, name: keyTypes.join(', ') || 'Key', keyTypes, propertyName };
+    }));
+    res.json(keys.filter(k => k.tag));
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/log

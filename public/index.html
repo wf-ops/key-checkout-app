@@ -169,6 +169,13 @@
     .lockbox-code-label { font-size: .7rem; color: var(--gray-600); text-align: right; }
     .lockbox-loading { color: var(--gray-400); font-size: .85rem; }
 
+    /* Check-in list */
+    .ci-key-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .ci-key-row:last-child { border-bottom: none; }
+    .ci-key-info { flex: 1; min-width: 0; }
+    .ci-key-name { font-size: .9rem; font-weight: 600; }
+    .ci-key-prop { font-size: .75rem; color: var(--gray-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-card { background: var(--surface); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
     .modal-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
@@ -300,17 +307,7 @@
 <div class="tab" id="tab-checkin">
   <div class="card">
     <h3>Check In Key</h3>
-    <label>Property</label>
-    <div class="search-box">
-      <input type="text" id="ci-prop-search" placeholder="Search property…" oninput="searchProps('ci')" onfocus="searchProps('ci')" />
-      <div class="search-results" id="ci-prop-results"></div>
-    </div>
-    <div id="ci-selected-prop" class="selected-prop" style="display:none"></div>
-    <div id="ci-key-select" style="display:none">
-      <label>Key</label>
-      <select id="ci-key-dd"></select>
-    </div>
-    <button class="btn btn-primary btn-full" style="margin-top:14px;display:none" id="ci-btn" onclick="doCheckin()">Check In</button>
+    <div id="ci-key-list"><div class="spinner"></div></div>
   </div>
 </div>
 
@@ -448,6 +445,7 @@ function showTab(name) {
   if (tab) tab.classList.add('active');
   const btn = document.querySelector(`.nav-btn[data-tab="${name}"]`);
   if (btn) btn.classList.add('active');
+  if (name === 'checkin') loadCheckinKeys();
   if (name === 'lockboxes') loadLockboxes();
   if (name === 'users') loadUsers();
 }
@@ -484,7 +482,6 @@ function selectProp(prefix, id, name) {
   document.getElementById(prefix + '-prop-search').value = '';
   document.getElementById(prefix + '-prop-results').style.display = 'none';
   if (prefix === 'co') selectPropForCheckout(id, name);
-  else if (prefix === 'ci') selectPropForCheckin(id, name);
   else if (prefix === 'codes') selectPropForCodes(id, name);
 }
 
@@ -709,37 +706,44 @@ async function doCheckout() {
     clearPropSelection('co'); loadDashboard(); showTab('dashboard');
   } catch (e) { alert('Checkout failed: ' + e.message); }
 }
-
-// ── Check In ────────────────────────────────────────────────────────────────────────────────
-let ciSelectedProp = null;
-async function selectPropForCheckin(id, name) {
-  ciSelectedProp = { id, name };
-  document.getElementById('ci-selected-prop').style.display = 'flex';
-  document.getElementById('ci-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearPropSelection('ci')">✕</button>`;
-  document.getElementById('ci-key-select').style.display = 'none';
-  document.getElementById('ci-btn').style.display = 'none';
-  const keys = await api('/api/keys?propertyId=' + id);
-  const out = keys.filter(k => k.status === 'Checked Out');
-  const dd = document.getElementById('ci-key-dd');
-  dd.innerHTML = out.length
-    ? out.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('')
-    : '<option disabled>No keys checked out</option>';
-  document.getElementById('ci-key-select').style.display = out.length ? 'block' : 'none';
-  document.getElementById('ci-btn').style.display = out.length ? 'block' : 'none';
-}
-async function doCheckin() {
-  const keyId = document.getElementById('ci-key-dd').value;
-  if (!keyId || !ciSelectedProp) return;
-  try {
-    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId, propertyId: ciSelectedProp.id }) });
-    clearPropSelection('ci'); loadDashboard(); showTab('dashboard');
-  } catch (e) { alert('Checkin failed: ' + e.message); }
-}
 function clearPropSelection(prefix) {
   if (prefix === 'co') { coSelectedProp = null; document.getElementById('co-key-select').style.display = 'none'; document.getElementById('co-staff-select').style.display = 'none'; document.getElementById('co-btn').style.display = 'none'; }
-  if (prefix === 'ci') { ciSelectedProp = null; document.getElementById('ci-key-select').style.display = 'none'; document.getElementById('ci-btn').style.display = 'none'; }
   document.getElementById(prefix + '-selected-prop').style.display = 'none';
   document.getElementById(prefix + '-prop-search').value = '';
+}
+
+// ── Check In ────────────────────────────────────────────────────────────────────────────────
+async function loadCheckinKeys() {
+  const el = document.getElementById('ci-key-list');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const keys = await api('/api/checked-out-keys');
+    if (!keys.length) {
+      el.innerHTML = '<div class="empty">No keys currently checked out</div>';
+      return;
+    }
+    el.innerHTML = keys.map(k => `
+      <div class="ci-key-row">
+        <span class="key-tag">${k.tag}</span>
+        <div class="ci-key-info">
+          <div class="ci-key-name">${k.name}</div>
+          <div class="ci-key-prop">${k.propertyName || '—'}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="doCheckin('${k.id}', this)">Check In</button>
+      </div>`).join('');
+  } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+async function doCheckin(keyId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    await api('/api/checkin', { method: 'POST', body: JSON.stringify({ keyId }) });
+    loadCheckinKeys();
+    loadDashboard();
+  } catch (e) {
+    alert('Check in failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Check In'; }
+  }
 }
 
 // ── Codes ──────────────────────────────────────────────────────────────────────────────────────
