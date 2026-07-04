@@ -60,6 +60,7 @@ const DB = {
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
   lockboxes: '30a61a46-cdef-80c1-a015-000b55945cbe',
+  kwiksetCuts: '30a61a46-cdef-8015-8dc4-000ba03f0132',
 };
 
 const CODEBOX_BASE = 'https://api02.codeboxinc.com';
@@ -328,6 +329,32 @@ app.get('/api/log', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/missing-keys — all log entries with no Date Returned
+app.get('/api/missing-keys', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.log, { property: 'Date Returned', date: { is_empty: true } });
+    const entries = await Promise.all(rows.map(async row => {
+      const p = row.properties;
+      const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
+      const keyTagMatch = title.match(/Key #?([^\s-]+)/);
+      const keyTag = keyTagMatch ? keyTagMatch[1] : '';
+      const staffName = p['Checked Out By']?.people?.[0]?.name || '';
+      const dateOut = p['Date Out']?.date?.start || null;
+      let propertyName = '';
+      const propRelation = p['Property']?.relation || [];
+      if (propRelation.length > 0) {
+        try {
+          const propPage = await fetch(`https://api.notion.com/v1/pages/${propRelation[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+          propertyName = extractRichText(propPage.properties?.['Street Address - Property']) || extractRichText(propPage.properties?.['Property Code']) || '';
+        } catch (_) {}
+      }
+      const daysOut = dateOut ? Math.floor((Date.now() - new Date(dateOut).getTime()) / 86400000) : null;
+      return { id: row.id, keyTag, staffName, dateOut, daysOut, propertyName };
+    }));
+    res.json(entries.filter(e => e.keyTag || e.propertyName));
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/staff
 app.get('/api/staff', requireAuth, async (req, res) => {
   try {
@@ -362,6 +389,19 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/kwikset-options — list all Kwikset Cut options
+app.get('/api/kwikset-options', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Name', direction: 'ascending' }]);
+    const options = rows.map(r => {
+      const titleProp = Object.values(r.properties || {}).find(prop => prop.type === 'title');
+      const name = titleProp?.title?.[0]?.plain_text || '';
+      return { id: r.id, name };
+    }).filter(o => o.name);
+    res.json(options);
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
 // Fields editable via PATCH /api/property-codes — all stored as rich_text to preserve leading zeros
 const PROPERTY_CODE_FIELDS = {
   frontDoorCode: 'Front Door Code',
@@ -379,12 +419,14 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     if (propPage.object === 'error') throw new Error(propPage.message);
     const p = propPage.properties;
 
-    // Kwikset Cut moved to Property Matrix as a relation — fetch the title of the linked page
+    // Kwikset Cut is a relation on Property Matrix — fetch the title of the linked page
     let kwiksetCut = '';
+    let kwiksetCutId = '';
     const kwiksetRel = p['Kwikset Cut']?.relation || [];
     if (kwiksetRel.length > 0) {
+      kwiksetCutId = kwiksetRel[0].id;
       try {
-        const kwPage = await fetch(`https://api.notion.com/v1/pages/${kwiksetRel[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+        const kwPage = await fetch(`https://api.notion.com/v1/pages/${kwiksetCutId}`, { headers: notionHeaders() }).then(r => r.json());
         const titleProp = Object.values(kwPage.properties || {}).find(prop => prop.type === 'title');
         kwiksetCut = titleProp?.title?.[0]?.plain_text || '';
       } catch (_) {}
@@ -408,6 +450,7 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
       garageKeypad: extractRichText(p['Garage Keypad']),
       communityEntryCode: extractRichText(p['Community Entry Code']),
       kwiksetCut,
+      kwiksetCutId,
       keys,
     });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -422,6 +465,18 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
     // Store as rich_text to preserve leading zeros
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
       properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
+    });
+    res.json({ success: true });
+  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// PATCH /api/property-kwikset/:propertyId — update Kwikset Cut relation
+app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { kwiksetPageId } = req.body;
+    const relation = kwiksetPageId ? [{ id: kwiksetPageId }] : [];
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
+      properties: { 'Kwikset Cut': { relation } },
     });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }

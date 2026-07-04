@@ -135,6 +135,10 @@
     .key-tag-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
     .key-tag-row:last-child { border-bottom: none; }
 
+    .missing-badge { font-size: .72rem; font-weight: 700; border-radius: 4px; padding: 2px 6px; flex-shrink: 0; }
+    .missing-badge-warn { background: #fff3e0; color: var(--orange); }
+    .missing-badge-alert { background: #ffebee; color: var(--red); }
+
     .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .user-item:last-child { border-bottom: none; }
     .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem; flex-shrink: 0; }
@@ -228,6 +232,10 @@
   <div class="card">
     <h3>Key Inventory</h3>
     <div id="dash-stats"><div class="spinner"></div></div>
+  </div>
+  <div class="card">
+    <h3 id="missing-keys-title">Missing Keys</h3>
+    <div id="dash-missing"><div class="spinner"></div></div>
   </div>
   <div class="card">
     <h3>Recent Activity</h3>
@@ -449,7 +457,12 @@ function selectProp(prefix, id, name) {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────────────────
 async function loadDashboard() {
-  const [keys, log] = await Promise.all([api('/api/keys'), api('/api/log?limit=5')]);
+  const [keys, log, missing] = await Promise.all([
+    api('/api/keys'),
+    api('/api/log?limit=5'),
+    api('/api/missing-keys').catch(() => []),
+  ]);
+
   const available = keys.filter(k => k.status === 'Available').length;
   const out = keys.filter(k => k.status === 'Checked Out').length;
   document.getElementById('dash-stats').innerHTML = `
@@ -457,6 +470,29 @@ async function loadDashboard() {
     <div class="dash-stat"><span class="dash-stat-icon">📤</span><div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div></div>
     <div class="dash-stat"><span class="dash-stat-icon">📋</span><div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div></div>
   `;
+
+  const missingTitle = document.getElementById('missing-keys-title');
+  const missingEl = document.getElementById('dash-missing');
+  if (missing.length === 0) {
+    missingTitle.textContent = 'Missing Keys';
+    missingEl.innerHTML = '<div class="empty" style="padding:12px 0">All keys accounted for ✓</div>';
+  } else {
+    missingTitle.innerHTML = `Missing Keys <span style="color:var(--red);font-weight:700">(${missing.length})</span>`;
+    missingEl.innerHTML = missing.map(m => {
+      const days = m.daysOut != null ? m.daysOut : 0;
+      const badgeClass = days > 3 ? 'missing-badge-alert' : 'missing-badge-warn';
+      const badgeLabel = days === 0 ? 'Today' : `${days}d out`;
+      return `<div class="key-item">
+        <span class="key-tag">${m.keyTag || '?'}</span>
+        <div class="key-meta">
+          <div class="key-name">${m.propertyName || 'Unknown property'}</div>
+          <div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div>
+        </div>
+        <span class="missing-badge ${badgeClass}">${badgeLabel}</span>
+      </div>`;
+    }).join('');
+  }
+
   document.getElementById('dash-log').innerHTML = log.length
     ? log.map(l => `
         <div class="log-item">
@@ -541,10 +577,12 @@ function clearPropSelection(prefix) {
 let codesCurrentPropertyId = null;
 let codesCurrentData = null;
 let codesEditMode = false;
+let kwiksetOptions = null;
 
 async function selectPropForCodes(id, name) {
   codesCurrentPropertyId = id;
   codesEditMode = false;
+  kwiksetOptions = null;
   const label = document.getElementById('codes-selected-prop');
   label.textContent = name;
   label.style.display = 'block';
@@ -572,13 +610,25 @@ function editRow(label, field, value) {
   </div>`;
 }
 
+function kwiksetSelectRow(currentId, options) {
+  const opts = (options || []).map(o =>
+    `<option value="${o.id}"${o.id === currentId ? ' selected' : ''}>${o.name}</option>`
+  ).join('');
+  return `<div class="code-row">
+    <span class="code-label">Kwikset Cut</span>
+    <select id="edit-kwiksetCut" class="code-edit-input" style="padding:3px 6px !important">
+      <option value="">— none —</option>
+      ${opts}
+    </select>
+  </div>`;
+}
+
 function renderCodes(data) {
   if (data) codesCurrentData = data;
   const d = codesCurrentData;
   const keys = d.keys || [];
   let html = '';
 
-  // Action bar
   if (codesEditMode) {
     html += `<div class="codes-header">
       <span class="codes-header-title">Editing…</span>
@@ -598,8 +648,7 @@ function renderCodes(data) {
   html += codesEditMode ? editRow('Front Door','frontDoorCode',d.frontDoorCode) : viewRow('Front Door',d.frontDoorCode);
   html += codesEditMode ? editRow('Garage Keypad','garageKeypad',d.garageKeypad) : viewRow('Garage Keypad',d.garageKeypad);
   html += codesEditMode ? editRow('Community Entry','communityEntryCode',d.communityEntryCode) : viewRow('Community Entry',d.communityEntryCode);
-  // Kwikset Cut is now a relation on Property Matrix — read-only
-  html += viewRow('Kwikset Cut', d.kwiksetCut);
+  html += codesEditMode ? kwiksetSelectRow(d.kwiksetCutId, kwiksetOptions) : viewRow('Kwikset Cut', d.kwiksetCut);
   html += '</div>';
 
   html += '<div class="code-section"><div class="code-section-title">Key Tags</div>';
@@ -619,8 +668,12 @@ function renderCodes(data) {
   document.getElementById('codes-content').innerHTML = html;
 }
 
-function startEditCodes() {
+async function startEditCodes() {
   codesEditMode = true;
+  if (!kwiksetOptions) {
+    try { kwiksetOptions = await api('/api/kwikset-options'); }
+    catch (_) { kwiksetOptions = []; }
+  }
   renderCodes();
 }
 function cancelEditCodes() {
@@ -640,6 +693,12 @@ async function saveAllCodes() {
           method: 'PATCH', body: JSON.stringify({ field, value: input.value })
         });
       }
+    }
+    const kwiksetSelect = document.getElementById('edit-kwiksetCut');
+    if (kwiksetSelect) {
+      await api(`/api/property-kwikset/${codesCurrentPropertyId}`, {
+        method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwiksetSelect.value || null })
+      });
     }
     codesEditMode = false;
     const data = await api('/api/property-codes/' + codesCurrentPropertyId);
