@@ -74,13 +74,40 @@ async function getCodeboxToken() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ Username: process.env.CODEBOX_USERNAME, Password: process.env.CODEBOX_PASSWORD }),
   });
-  if (!res.ok) throw new Error(`Codebox auth failed: ${res.status}`);
-  const token = await res.text();
-  const clean = token.replace(/^"|"$/g, '');
-  const payload = JSON.parse(Buffer.from(clean.split('.')[1], 'base64').toString());
-  codeboxToken = clean;
-  codeboxTokenExp = payload.exp * 1000;
+  const rawText = await res.text();
+  console.log(`[Codebox auth] status=${res.status} body=${rawText.slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Codebox auth failed: ${res.status} ${rawText}`);
+  // Response may be a raw JWT string (possibly quoted) or a JSON object with a token field
+  let token;
+  try {
+    const parsed = JSON.parse(rawText);
+    token = typeof parsed === 'string' ? parsed : (parsed.token || parsed.Token || parsed.access_token || parsed.AccessToken);
+    if (!token) throw new Error('No token field in response: ' + rawText);
+  } catch (_) {
+    // Already a plain string
+    token = rawText.trim().replace(/^"|"$/g, '');
+  }
+  // Decode JWT expiry if possible
+  let exp = Date.now() + 3600000; // default 1h
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+      if (payload.exp) exp = payload.exp * 1000;
+    }
+  } catch (_) {}
+  console.log(`[Codebox auth] token acquired, expires in ${Math.round((exp - Date.now()) / 60000)}min`);
+  codeboxToken = token;
+  codeboxTokenExp = exp;
   return codeboxToken;
+}
+
+function codeboxHeaders(token) {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    'X-Auth-Token': token,
+  };
 }
 
 function notionHeaders() {
@@ -333,7 +360,7 @@ app.get('/api/log', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/missing-keys — all log entries with no Date Returned
+// GET /api/missing-keys
 app.get('/api/missing-keys', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.log, { property: 'Date Returned', date: { is_empty: true } });
@@ -386,7 +413,7 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
     console.log(`[Codebox] SN=${sn} (parsed=${snInt}), date=${today}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+      headers: codeboxHeaders(token),
       body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: today }),
     });
     const rawText = await cbRes.text();
@@ -399,7 +426,7 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
   } catch (e) { console.error('[Codebox] error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/kwikset-options — list all Kwikset Cut options
+// GET /api/kwikset-options
 app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.kwiksetCuts, null, [{ property: 'Kwikset Key #', direction: 'ascending' }]);
@@ -412,7 +439,6 @@ app.get('/api/kwikset-options', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// Fields editable via PATCH /api/property-codes
 const PROPERTY_CODE_FIELDS = {
   frontDoorCode: 'Front Door Code',
   garageKeypad: 'Garage Keypad',
@@ -628,7 +654,7 @@ app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async 
     console.log(`[Codebox generate] SN=${serialNumber} (parsed=${snInt}), date=${date}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+      headers: codeboxHeaders(token),
       body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: date }),
     });
     const rawText = await cbRes.text();
