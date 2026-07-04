@@ -136,6 +136,9 @@
     .key-tag-row:last-child { border-bottom: none; }
     .key-tag-cut-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 
+    /* Codes selected property — no X, just label */
+    .codes-prop-label { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 7px 12px; margin-bottom: 10px; font-size: .9rem; font-weight: 600; }
+
     .user-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .user-item:last-child { border-bottom: none; }
     .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem; flex-shrink: 0; }
@@ -381,12 +384,13 @@ async function doLogout() {
 let currentUser = null;
 window.currentUser = null;
 
-function userRole() { return (currentUser?.role || '').toLowerCase(); }
-function isAdmin() { return userRole() === 'admin'; }
-function isManager() { return userRole() === 'manager'; }
+function userRole() { return (currentUser?.role || '').toLowerCase().trim(); }
+function isAdmin() { return userRole() === 'admin' || userRole().startsWith('admin'); }
+function isManager() { return userRole() === 'manager' || userRole().startsWith('manager'); }
 function isAdminOrManager() { return isAdmin() || isManager(); }
 
 function onLogin(user) {
+  console.log('[KRB] role raw:', user.role, '| normalized:', (user.role||'').toLowerCase().trim(), '| isAdmin:', isAdmin(), '| isAdminOrManager:', isAdminOrManager());
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-header').style.display = 'flex';
   document.getElementById('bottom-nav').style.display = 'flex';
@@ -419,7 +423,7 @@ function showTab(name) {
   if (name === 'users') loadUsers();
 }
 
-// ── Property search ───────────────────────────────────────────────────
+// ── Property search ─────────────────────────────────────────────────────
 let propSearchTimers = {};
 function searchProps(prefix) {
   const q = document.getElementById(prefix + '-prop-search').value.trim();
@@ -455,7 +459,7 @@ function selectProp(prefix, id, name) {
   else if (prefix === 'codes') selectPropForCodes(id, name);
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────────────────
+// ── Dashboard ──────────────────────────────────────────────────────────────────────────────
 async function loadDashboard() {
   const [keys, log] = await Promise.all([api('/api/keys'), api('/api/log?limit=5')]);
   const available = keys.filter(k => k.status === 'Available').length;
@@ -480,7 +484,7 @@ function fmtTime(iso) {
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-// ── Check Out ────────────────────────────────────────────────────────────────────
+// ── Check Out ────────────────────────────────────────────────────────────────────────────────
 let coSelectedProp = null;
 async function selectPropForCheckout(id, name) {
   coSelectedProp = { id, name };
@@ -513,7 +517,7 @@ async function doCheckout() {
   } catch (e) { alert('Checkout failed: ' + e.message); }
 }
 
-// ── Check In ────────────────────────────────────────────────────────────────────────
+// ── Check In ────────────────────────────────────────────────────────────────────────────────────
 let ciSelectedProp = null;
 async function selectPropForCheckin(id, name) {
   ciSelectedProp = { id, name };
@@ -545,14 +549,17 @@ function clearPropSelection(prefix) {
   document.getElementById(prefix + '-prop-search').value = '';
 }
 
-// ── Codes ────────────────────────────────────────────────────────────────────────────
+// ── Codes ───────────────────────────────────────────────────────────────────────────────────────
 let codesCurrentPropertyId = null;
 function canEditCodes() { return isAdminOrManager(); }
 
 async function selectPropForCodes(id, name) {
   codesCurrentPropertyId = id;
-  document.getElementById('codes-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearCodesSelection()">✕</button>`;
-  document.getElementById('codes-selected-prop').style.display = 'flex';
+  // Show property name as plain label — no X button
+  const label = document.getElementById('codes-selected-prop');
+  label.className = 'codes-prop-label';
+  label.textContent = name;
+  label.style.display = 'block';
   document.getElementById('codes-content').innerHTML = '<div class="spinner"></div>';
   try {
     const data = await api('/api/property-codes/' + id);
@@ -563,7 +570,8 @@ async function selectPropForCodes(id, name) {
 }
 function clearCodesSelection() {
   codesCurrentPropertyId = null;
-  document.getElementById('codes-selected-prop').style.display = 'none';
+  const label = document.getElementById('codes-selected-prop');
+  label.style.display = 'none';
   document.getElementById('codes-prop-search').value = '';
   document.getElementById('codes-content').innerHTML = '<div class="empty">Search for a property above</div>';
 }
@@ -672,7 +680,7 @@ function showEditModal(label, currentValue, onSave) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
-// ── Lockboxes ─────────────────────────────────────────────────────────────────────────
+// ── Lockboxes ─────────────────────────────────────────────────────────────────────────────────────
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -696,7 +704,7 @@ async function loadLockboxes() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Users ─────────────────────────────────────────────────────────────────────────────
+// ── Users ───────────────────────────────────────────────────────────────────────────────────────
 async function loadUsers() {
   const el = document.getElementById('user-list');
   el.innerHTML = '<div class="spinner"></div>';
@@ -713,7 +721,7 @@ async function loadUsers() {
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
-// ── Change PIN ──────────────────────────────────────────────────────────────
+// ── Change PIN ──────────────────────────────────────────────────────────────────────
 function showChangePinModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
