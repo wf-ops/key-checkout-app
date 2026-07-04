@@ -137,6 +137,10 @@ function extractMultiSelect(prop) {
 const MT_TZ = 'America/Boise';
 function mtDateStr(date = new Date()) { return date.toLocaleDateString('en-CA', { timeZone: MT_TZ }); }
 function mtTimestamp(date = new Date()) { return date.toLocaleString('en-US', { timeZone: MT_TZ }); }
+// MM/DD/YYYY format used by Codebox API
+function codeboxDateStr(date = new Date()) {
+  return date.toLocaleDateString('en-US', { timeZone: MT_TZ, month: '2-digit', day: '2-digit', year: 'numeric' });
+}
 
 // --- Auth ---
 app.post('/api/login', async (req, res) => {
@@ -377,16 +381,22 @@ app.get('/api/lockbox-code/:id', requireAuth, async (req, res) => {
     if (!sn) return res.status(404).json({ error: 'Lockbox serial number not found' });
     if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) return res.status(503).json({ error: 'Codebox credentials not configured' });
     const token = await getCodeboxToken();
-    const today = mtDateStr();
+    const today = codeboxDateStr();
+    const snInt = parseInt(sn, 10);
+    console.log(`[Codebox] SN=${sn} (parsed=${snInt}), date=${today}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
-      body: JSON.stringify({ SerialNumber: parseInt(sn), DateOfShowing: today }),
+      body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: today }),
     });
-    const data = await cbRes.json();
-    if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
-    res.json({ code: data.Code || data.code || String(data) });
-  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+    const rawText = await cbRes.text();
+    console.log(`[Codebox] status=${cbRes.status} body=${rawText}`);
+    let data;
+    try { data = JSON.parse(rawText); } catch (_) { data = rawText; }
+    if (!cbRes.ok) return res.status(cbRes.status).json({ error: (typeof data === 'object' ? data?.Message || data?.message : null) || rawText || 'Codebox error' });
+    const code = typeof data === 'object' ? (data.Code || data.code) : null;
+    res.json({ code: code || rawText });
+  } catch (e) { console.error('[Codebox] error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/kwikset-options — list all Kwikset Cut options
@@ -614,14 +624,19 @@ app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async 
     if (!serialNumber || !date) return res.status(400).json({ error: 'serialNumber and date required' });
     if (!process.env.CODEBOX_USERNAME || !process.env.CODEBOX_PASSWORD) return res.status(503).json({ error: 'Codebox credentials not configured' });
     const token = await getCodeboxToken();
+    const snInt = parseInt(serialNumber, 10);
+    console.log(`[Codebox generate] SN=${serialNumber} (parsed=${snInt}), date=${date}`);
     const cbRes = await fetch(`${CODEBOX_BASE}/showing`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
-      body: JSON.stringify({ SerialNumber: parseInt(serialNumber), DateOfShowing: date }),
+      body: JSON.stringify({ SerialNumber: snInt, DateOfShowing: date }),
     });
-    const data = await cbRes.json();
-    if (!cbRes.ok) return res.status(cbRes.status).json({ error: data?.Message || 'Codebox error' });
-    res.json(data);
+    const rawText = await cbRes.text();
+    console.log(`[Codebox generate] status=${cbRes.status} body=${rawText}`);
+    let data;
+    try { data = JSON.parse(rawText); } catch (_) { data = rawText; }
+    if (!cbRes.ok) return res.status(cbRes.status).json({ error: (typeof data === 'object' ? data?.Message || data?.message : null) || rawText || 'Codebox error' });
+    res.json(typeof data === 'object' ? data : { raw: rawText });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
