@@ -573,9 +573,9 @@ app.get('/api/kwikset-options', requireAuth, async (req, res) => {
 });
 
 const PROPERTY_CODE_FIELDS = {
-  frontDoorCode: 'Front Door Code',
-  garageKeypad: 'Garage Keypad',
-  communityEntryCode: 'Community Entry Code',
+  frontDoorCode: { notion: 'Front Door Code', type: 'number' },
+  garageKeypad: { notion: 'Garage Keypad', type: 'text' },
+  communityEntryCode: { notion: 'Community Entry Code', type: 'text' },
 };
 
 app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
@@ -604,7 +604,7 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
     res.json({
       address: extractRichText(p['Street Address - Property']),
       propertyCode: extractRichText(p['Property Code']),
-      frontDoorCode: extractRichText(p['Front Door Code']),
+      frontDoorCode: p['Front Door Code']?.number != null ? String(p['Front Door Code'].number) : extractRichText(p['Front Door Code']),
       garageKeypad: extractRichText(p['Garage Keypad']),
       communityEntryCode: extractRichText(p['Community Entry Code']),
       kwiksetCut, kwiksetCutId, keys,
@@ -615,10 +615,13 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
 app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { field, value } = req.body;
-    const notionField = PROPERTY_CODE_FIELDS[field];
-    if (!notionField) return res.status(400).json({ error: 'Unknown field: ' + field });
+    const fieldDef = PROPERTY_CODE_FIELDS[field];
+    if (!fieldDef) return res.status(400).json({ error: 'Unknown field: ' + field });
+    const propValue = fieldDef.type === 'number'
+      ? { number: value !== '' && value != null ? Number(value) : null }
+      : { rich_text: [{ text: { content: value || '' } }] };
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, {
-      properties: { [notionField]: { rich_text: [{ text: { content: value || '' } }] } },
+      properties: { [fieldDef.notion]: propValue },
     });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
