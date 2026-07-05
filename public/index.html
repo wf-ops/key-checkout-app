@@ -980,15 +980,75 @@ async function loadLockboxes() {
 }
 
 // ── Users
+const USER_ROLES = ['Admin', 'Property Manager', 'Field Manager', 'Member'];
+
 async function loadUsers() {
   const el = document.getElementById('user-list');
   el.innerHTML = '<div class="spinner"></div>';
   try {
     const users = await api('/api/users');
-    el.innerHTML = users.length
-      ? users.map(u => `<div class="user-item"><div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div class="user-info"><div class="user-name">${u.name}</div><div class="user-username">@${u.username}</div></div><span class="user-role-badge">${u.role}</span></div>`).join('')
-      : '<div class="empty">No users found</div>';
+    const isAdmin = currentUser && (currentUser.role || '').toLowerCase() === 'admin';
+    if (!users.length) { el.innerHTML = '<div class="empty">No users found</div>'; return; }
+    el.innerHTML = users.map((u, i) => {
+      const badge = isAdmin
+        ? `<span class="user-role-badge" data-user-idx="${i}" style="cursor:pointer;text-decoration:underline dotted;">${u.role} ✎</span>`
+        : `<span class="user-role-badge">${u.role}</span>`;
+      return `<div class="user-item"><div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div class="user-info"><div class="user-name">${u.name}</div><div class="user-username">@${u.username}</div></div>${badge}</div>`;
+    }).join('');
+    el._usersData = users;
+    if (isAdmin) {
+      el.querySelectorAll('.user-role-badge[data-user-idx]').forEach(badge => {
+        badge.addEventListener('click', () => {
+          const u = el._usersData[+badge.dataset.userIdx];
+          openRolePickerSheet(u, () => loadUsers());
+        });
+      });
+    }
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+function openRolePickerSheet(user, onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;';
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;';
+  sheet.innerHTML = `
+    <div style="font-size:1rem;font-weight:700;margin-bottom:4px;">Change Role</div>
+    <div style="font-size:.85rem;color:var(--gray-600);margin-bottom:16px;">${user.name} (@${user.username})</div>
+    <div id="role-pick-msg" style="display:none;border-radius:8px;padding:10px;font-size:.85rem;margin-bottom:12px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${USER_ROLES.map(role => `
+        <button class="role-pick-btn" data-role="${role}" style="padding:13px 16px;border:2px solid ${role === user.role ? 'var(--primary)' : 'var(--border)'};border-radius:10px;background:${role === user.role ? '#e8f5e9' : 'transparent'};color:var(--gray-900);font-size:.92rem;font-weight:${role === user.role ? '700' : '500'};text-align:left;cursor:pointer;">
+          ${role}${role === user.role ? ' ✓' : ''}
+        </button>`).join('')}
+      <button id="role-cancel-btn" style="padding:11px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--gray-600);font-size:.9rem;cursor:pointer;margin-top:4px;">Cancel</button>
+    </div>
+  `;
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+
+  const msg = sheet.querySelector('#role-pick-msg');
+
+  sheet.querySelectorAll('.role-pick-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const newRole = btn.dataset.role;
+      if (newRole === user.role) { overlay.remove(); return; }
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await api(`/api/users/${user.id}`, { method: 'PATCH', body: JSON.stringify({ role: newRole }) });
+        overlay.remove();
+        onDone();
+      } catch (e) {
+        msg.style.cssText = 'display:block;background:#ffebee;border:1px solid #ef9a9a;color:#b71c1c;border-radius:8px;padding:10px;font-size:.85rem;margin-bottom:12px;';
+        msg.textContent = e.message || 'Failed to update role';
+        btn.disabled = false; btn.textContent = newRole;
+      }
+    });
+  });
+
+  sheet.querySelector('#role-cancel-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Change PIN
