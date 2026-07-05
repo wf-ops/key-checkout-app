@@ -522,12 +522,19 @@ async function loadDashboard() {
     missingEl.innerHTML = '<div class="empty" style="padding:12px 0">All keys accounted for ✓</div>';
   } else {
     missingTitle.innerHTML = `Missing Keys <span style="color:var(--red);font-weight:700">(${missing.length})</span>`;
-    missingEl.innerHTML = missing.map(m => {
+    missingEl.innerHTML = missing.map((m, i) => {
       const days = m.daysOut != null ? m.daysOut : 0;
       const badgeClass = days > 3 ? 'missing-badge-alert' : 'missing-badge-warn';
       const badgeLabel = days === 0 ? 'Today' : `${days}d out`;
-      return `<div class="key-item"><span class="key-tag">${m.keyTag || '?'}</span><div class="key-meta"><div class="key-name">${m.propertyName || 'Unknown property'}</div><div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div></div><span class="missing-badge ${badgeClass}">${badgeLabel}</span></div>`;
+      return `<div class="key-item" data-missing-idx="${i}" style="cursor:pointer;border-radius:8px;transition:background .15s;" onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''"><span class="key-tag">${m.keyTag || '?'}</span><div class="key-meta"><div class="key-name">${m.propertyName || 'Unknown property'}</div><div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div></div><span class="missing-badge ${badgeClass}">${badgeLabel}</span></div>`;
     }).join('');
+    missingEl._missingData = missing;
+    missingEl.querySelectorAll('.key-item[data-missing-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const m = missingEl._missingData[+el.dataset.missingIdx];
+        openResolveMissingModal(m);
+      });
+    });
   }
   document.getElementById('dash-log').innerHTML = log.length
     ? log.map(l => `<div class="log-item"><div class="log-item-header"><span class="log-name">${l.propertyName}</span><span class="log-time">${fmtTime(l.timestamp)}</span></div><div class="log-detail"><span class="log-action-${l.action === 'Check Out' ? 'out' : 'in'}">${l.action}</span> · ${l.staffName} · Key ${l.keyTag}</div></div>`).join('')
@@ -730,6 +737,51 @@ async function loadCheckinKeys() {
       row.querySelector('.ci-checkin-btn').addEventListener('click', () => openCheckinModal(keys[i]));
     });
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+function openResolveMissingModal(m) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;';
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:24px 16px 32px;width:100%;max-width:480px;';
+  const days = m.daysOut != null ? m.daysOut : 0;
+  sheet.innerHTML = `
+    <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px;">Resolve Missing Key</div>
+    <div style="font-size:.85rem;color:var(--gray-600);margin-bottom:16px;">Key ${m.keyTag || '?'} · ${m.propertyName || 'Unknown'} · ${days}d out</div>
+    <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:6px;">Checked out by: ${m.staffName || 'Unknown'}${m.dateOut ? ' on ' + m.dateOut : ''}</div>
+    <div id="resolve-msg" style="display:none;border-radius:8px;padding:10px;font-size:.85rem;margin-bottom:12px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+      <button id="resolve-returned-btn" style="padding:14px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;">✅ Mark as Returned</button>
+      <button id="resolve-lost-btn" style="padding:14px;border:none;border-radius:10px;background:var(--red);color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;">⚠️ Mark as Lost</button>
+      <button id="resolve-cancel-btn" style="padding:12px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--gray-600);font-size:.9rem;cursor:pointer;">Cancel</button>
+    </div>
+  `;
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+
+  const msg = sheet.querySelector('#resolve-msg');
+
+  async function doResolve(resolution) {
+    const btn = sheet.querySelector(resolution === 'returned' ? '#resolve-returned-btn' : '#resolve-lost-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      await api('/api/resolve-missing', { method: 'POST', body: JSON.stringify({ logId: m.id, keyId: m.keyId, resolution }) });
+      overlay.remove();
+      loadDashboard();
+    } catch (e) {
+      msg.style.cssText = 'display:block;background:#ffebee;border:1px solid #ef9a9a;color:#b71c1c;border-radius:8px;padding:10px;font-size:.85rem;margin-bottom:12px;';
+      msg.textContent = e.message || 'Failed to resolve';
+      btn.disabled = false;
+      btn.textContent = resolution === 'returned' ? '✅ Mark as Returned' : '⚠️ Mark as Lost';
+    }
+  }
+
+  sheet.querySelector('#resolve-returned-btn').addEventListener('click', () => doResolve('returned'));
+  sheet.querySelector('#resolve-lost-btn').addEventListener('click', () => doResolve('lost'));
+  sheet.querySelector('#resolve-cancel-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 function openCheckinModal(key) {

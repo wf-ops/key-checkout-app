@@ -409,10 +409,36 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
         } catch (_) {}
       }
       const daysOut = dateOut ? Math.floor((Date.now() - new Date(dateOut).getTime()) / 86400000) : null;
-      return { id: row.id, keyTag, staffName, dateOut, daysOut, propertyName };
+      const keyRelation = p['Key']?.relation || [];
+      const keyId = keyRelation[0]?.id || null;
+      return { id: row.id, keyId, keyTag, staffName, dateOut, daysOut, propertyName };
     }));
     res.json(entries.filter(e => e.keyTag || e.propertyName));
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/resolve-missing — mark a missing key as returned or lost
+app.post('/api/resolve-missing', requireAuth, async (req, res) => {
+  try {
+    const { logId, keyId, resolution } = req.body;
+    if (!logId) return res.status(400).json({ error: 'logId required' });
+    if (!['returned', 'lost'].includes(resolution)) return res.status(400).json({ error: 'resolution must be "returned" or "lost"' });
+
+    // Close the log entry with today's date
+    await notionPatch(`https://api.notion.com/v1/pages/${logId}`, {
+      properties: { 'Date Returned': { date: { start: mtDateStr() } } },
+    });
+
+    // Update key status if we have the key ID
+    if (keyId) {
+      const newStatus = resolution === 'lost' ? 'Lost' : 'In Office';
+      await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
+        properties: { 'Status': { select: { name: newStatus } } },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (e) { console.error('[resolve-missing]', e.message); res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/staff', requireAuth, async (req, res) => {
