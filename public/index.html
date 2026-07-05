@@ -334,6 +334,8 @@
 <div class="tab" id="tab-lockboxes">
   <div class="card">
     <h3>Lockbox Day Codes</h3>
+    <input type="search" id="lockbox-search" placeholder="Search by SN or location…" oninput="filterLockboxes(this.value)"
+      style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;background:var(--bg);color:var(--gray-900);margin-bottom:12px;outline:none;" />
     <div id="lockbox-list"><div class="spinner"></div></div>
   </div>
 </div>
@@ -955,27 +957,47 @@ function lockboxStatusClass(status) {
   if (s === 'in-office') return 'lockbox-status-in-office';
   return 'lockbox-status-unassigned';
 }
+let allLockboxes = [];
+
+function renderLockboxes(boxes) {
+  const el = document.getElementById('lockbox-list');
+  if (!boxes.length) { el.innerHTML = '<div class="empty">No lockboxes match</div>'; return; }
+  el.innerHTML = boxes.map(b => `
+    <div class="lockbox-item">
+      <div class="lockbox-sn">SN: ${b.sn}</div>
+      <div><span class="lockbox-status ${lockboxStatusClass(b.status)}">${b.status || 'Unassigned'}</span></div>
+      <div class="lockbox-location">${b.propertyName || '— No location assigned —'}</div>
+      <div class="lockbox-code-display">
+        <div id="lbcode-wrap-${b.id}"><div class="lockbox-code-val" id="lbcode-${b.id}"><span class="lockbox-loading">Loading…</span></div></div>
+        <div class="lockbox-code-label">Today's<br>Code</div>
+      </div>
+    </div>`).join('');
+  boxes.forEach(b => {
+    if (!document.getElementById('lbcode-' + b.id)) return;
+    api('/api/lockbox-code/' + b.id)
+      .then(r => { const el = document.getElementById('lbcode-' + b.id); if (el) el.textContent = r.code || '—'; })
+      .catch(e => { const w = document.getElementById('lbcode-wrap-' + b.id); if (w) w.innerHTML = `<div class="lockbox-code-err">${e.message}</div>`; });
+  });
+}
+
+function filterLockboxes(q) {
+  const term = q.trim().toLowerCase();
+  const filtered = term ? allLockboxes.filter(b =>
+    (b.sn || '').toLowerCase().includes(term) ||
+    (b.propertyName || '').toLowerCase().includes(term)
+  ) : allLockboxes;
+  renderLockboxes(filtered);
+}
+
 async function loadLockboxes() {
   const el = document.getElementById('lockbox-list');
+  const search = document.getElementById('lockbox-search');
+  if (search) search.value = '';
   el.innerHTML = '<div class="spinner"></div>';
   try {
-    const boxes = await api('/api/lockboxes');
-    if (!boxes.length) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
-    el.innerHTML = boxes.map(b => `
-      <div class="lockbox-item">
-        <div class="lockbox-sn">SN: ${b.sn}</div>
-        <div><span class="lockbox-status ${lockboxStatusClass(b.status)}">${b.status || 'Unassigned'}</span></div>
-        <div class="lockbox-location">${b.propertyName || '— No location assigned —'}</div>
-        <div class="lockbox-code-display">
-          <div id="lbcode-wrap-${b.id}"><div class="lockbox-code-val" id="lbcode-${b.id}"><span class="lockbox-loading">Loading…</span></div></div>
-          <div class="lockbox-code-label">Today's<br>Code</div>
-        </div>
-      </div>`).join('');
-    boxes.forEach(b => {
-      api('/api/lockbox-code/' + b.id)
-        .then(r => { document.getElementById('lbcode-' + b.id).textContent = r.code || '—'; })
-        .catch(e => { const w = document.getElementById('lbcode-wrap-' + b.id); if (w) w.innerHTML = `<div class="lockbox-code-err">${e.message}</div>`; });
-    });
+    allLockboxes = await api('/api/lockboxes');
+    if (!allLockboxes.length) { el.innerHTML = '<div class="empty">No lockboxes found</div>'; return; }
+    renderLockboxes(allLockboxes);
   } catch (e) { el.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
 }
 
