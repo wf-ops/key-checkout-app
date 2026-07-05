@@ -422,7 +422,8 @@ async function doLogin() {
   err.style.display = 'none';
   if (!username || !pin) { err.textContent = 'Enter username and PIN'; err.style.display = 'block'; return; }
   try {
-    const user = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, pin }) });
+    const resp = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, pin }) });
+    const user = resp.user || resp;
     currentUser = user; window.currentUser = user;
     onLogin(user);
   } catch (e) { err.textContent = e.message; err.style.display = 'block'; }
