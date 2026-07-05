@@ -529,7 +529,9 @@ async function loadDashboard() {
       return `<div class="key-item" data-missing-idx="${i}" style="cursor:pointer;border-radius:8px;transition:background .15s;" onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''"><span class="key-tag">${m.keyTag || '?'}</span><div class="key-meta"><div class="key-name">${m.propertyName || 'Unknown property'}</div><div class="key-sub">${m.staffName || 'Unknown'}${m.dateOut ? ' · ' + m.dateOut : ''}</div></div><span class="missing-badge ${badgeClass}">${badgeLabel}</span></div>`;
     }).join('');
     missingEl._missingData = missing;
+    const canResolve = currentUser && ['admin','manager'].includes((currentUser.role || '').toLowerCase());
     missingEl.querySelectorAll('.key-item[data-missing-idx]').forEach(el => {
+      if (!canResolve) { el.style.cursor = 'default'; el.onmouseenter = null; el.onmouseleave = null; return; }
       el.addEventListener('click', () => {
         const m = missingEl._missingData[+el.dataset.missingIdx];
         openResolveMissingModal(m);
