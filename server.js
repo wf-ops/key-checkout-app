@@ -418,7 +418,7 @@ app.get('/api/missing-keys', requireAuth, async (req, res) => {
 });
 
 // POST /api/resolve-missing — mark a missing key as returned or lost
-app.post('/api/resolve-missing', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/resolve-missing', requireRole('Admin', 'Manager', 'Property Manager'), async (req, res) => {
   try {
     const { logId, keyId, resolution } = req.body;
     if (!logId) return res.status(400).json({ error: 'logId required' });
