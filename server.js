@@ -238,7 +238,7 @@ app.get('/api/user-list', async (req, res) => {
 
 app.get('/api/users', requireRole('Admin'), async (req, res) => {
   try {
-    const rows = await queryAll(DB.staff, null);
+    const rows = await queryAll(DB.staff, { property: 'Active', checkbox: { equals: true } });
     const users = rows.map(u => ({
       id: u.id,
       name: u.properties['Name']?.title?.[0]?.plain_text || '',
