@@ -512,7 +512,7 @@ async function loadDashboard() {
   const available = keys.filter(k => k.status === 'Available').length;
   const out = keys.filter(k => k.status === 'Checked Out').length;
   document.getElementById('dash-stats').innerHTML = `
-    <div class="dash-stat"><span class="dash-stat-icon">🗝️</span><div><div class="dash-stat-label">Available</div><div class="dash-stat-value">${available}</div></div></div>
+    <div class="dash-stat"><span class="dash-stat-icon">🗝️</span><div><div class="dash-stat-label">In Office</div><div class="dash-stat-value">${available}</div></div></div>
     <div class="dash-stat"><span class="dash-stat-icon">📤</span><div><div class="dash-stat-label">Checked Out</div><div class="dash-stat-value">${out}</div></div></div>
     <div class="dash-stat"><span class="dash-stat-icon">📋</span><div><div class="dash-stat-label">Total Keys</div><div class="dash-stat-value">${keys.length}</div></div></div>
   `;
