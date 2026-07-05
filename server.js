@@ -768,11 +768,16 @@ app.post('/api/test-slack', requireRole('Admin'), async (req, res) => {
 app.get('/api/lockboxes', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.lockboxes, null, [{ property: 'Lockbox SN', direction: 'ascending' }]);
+    const seen = new Set();
     const boxes = rows.map(r => {
       const p = r.properties;
       const propRel = p['Last Known Property']?.relation || [];
       return { id: r.id, sn: extractRichText(p['Lockbox SN']), krbBox: p['KRB Key Box #']?.number || null, status: p['Status']?.select?.name || 'Unassigned', propertyId: propRel[0]?.id || null, propertyName: extractRichText(p['Merge']) || null, notes: extractRichText(p['Notes']) };
-    }).filter(b => b.sn);
+    }).filter(b => {
+      if (!b.sn || seen.has(b.sn)) return false;
+      seen.add(b.sn);
+      return true;
+    });
     res.json(boxes);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
