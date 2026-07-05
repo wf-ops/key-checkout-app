@@ -21,8 +21,8 @@
     @media (prefers-color-scheme: dark) {
       :root { --surface: #1e1e1e; --bg: #121212; --border: #333; --gray-400: #666; --gray-600: #aaa; --gray-900: #f0f0f0; }
     }
-    html, body { height: 100%; background: var(--bg); color: var(--gray-900); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; }
-    body { padding-top: var(--header-h); padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); overflow-x: hidden; }
+    html { height: 100%; }
+    body { min-height: 100%; background: var(--bg); color: var(--gray-900); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; padding-top: var(--header-h); padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); overflow-x: hidden; }
 
     .app-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-h); background: #1a1a2e; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 100; }
     .app-header .logo { display: flex; align-items: center; gap: 8px; }
