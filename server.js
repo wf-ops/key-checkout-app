@@ -934,8 +934,11 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
   } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
 
   if (!parsed) return { skipped: true, reason: 'Claude returned no JSON' };
-  if (!parsed.lockboxSN) return { skipped: true, reason: 'no SN found', parsed };
-  if (parsed.action === 'unknown') return { skipped: true, reason: 'action unknown (no clear assigned/removed)', parsed };
+  const snVal = parsed.lockboxSN && parsed.lockboxSN !== 'null' ? parsed.lockboxSN : null;
+  if (!snVal) return { skipped: true, reason: 'no SN found', parsed };
+  parsed.lockboxSN = snVal;
+  // Default unknown action to 'assigned' when SN is found — most #lockboxes photos are placements
+  if (parsed.action === 'unknown') parsed.action = 'assigned';
   if (!['high', 'medium'].includes(parsed.confidence)) return { skipped: true, reason: `confidence too low (${parsed.confidence})`, parsed };
 
   const lbRow = lbRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === parsed.lockboxSN);
@@ -1029,12 +1032,10 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       const fileObj = msg.files?.[0] || msg.file || null;
       if (fileObj) {
         const f = fileObj;
-        const CLAUDE_SUPPORTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (f.mimetype?.startsWith('image/')) {
-          // Prefer thumb_720 or thumb_360 (always JPEG) for unsupported formats like HEIC
-          const isSupported = CLAUDE_SUPPORTED.includes(f.mimetype);
-          const imgUrl = (!isSupported && (f.thumb_720 || f.thumb_360)) ? (f.thumb_720 || f.thumb_360) : f.url_private;
-          const mimeToSend = (!isSupported && (f.thumb_720 || f.thumb_360)) ? 'image/jpeg' : (isSupported ? f.mimetype : 'image/jpeg');
+          // Always prefer thumbnails — full images are 5-6MB which exceeds Claude's 5MB base64 limit
+          const imgUrl = f.thumb_720 || f.thumb_360 || f.url_private;
+          const mimeToSend = (f.thumb_720 || f.thumb_360) ? 'image/jpeg' : 'image/jpeg';
           try {
             const imgRes = await fetch(imgUrl, { headers: { Authorization: `Bearer ${botToken}` } });
             if (!imgRes.ok) {
