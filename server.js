@@ -996,7 +996,7 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 
   const oldest = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
-  const results = { updated: 0, skipped: 0, errors: 0, total: 0, skipReasons: {} };
+  const results = { updated: 0, skipped: 0, errors: 0, total: 0, withImage: 0, skipReasons: {} };
 
   // Stream response so it doesn't time out
   res.setHeader('Content-Type', 'application/json');
@@ -1015,8 +1015,9 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       results.total++;
 
       let imageBase64 = null, imageMime = null;
-      if (msg.files?.length > 0) {
-        const f = msg.files[0];
+      const fileObj = msg.files?.[0] || msg.file || null;
+      if (fileObj) {
+        const f = fileObj;
         if (f.mimetype?.startsWith('image/')) {
           try {
             const imgRes = await fetch(f.url_private, { headers: { Authorization: `Bearer ${botToken}` } });
@@ -1031,6 +1032,7 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
               if (contentType.startsWith('image/') || contentType.startsWith('application/octet')) {
                 imageBase64 = buf.toString('base64');
                 imageMime = f.mimetype;
+                results.withImage++;
               } else {
                 console.error('[slack] image fetch got wrong content-type:', contentType);
                 const k = 'image wrong content-type';

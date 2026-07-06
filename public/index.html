@@ -460,7 +460,7 @@ async function runSlackBackfill() {
     const reasons = result.skipReasons && Object.keys(result.skipReasons).length
       ? '\n\nSkip reasons:\n' + Object.entries(result.skipReasons).map(([k,v]) => `  ${k}: ${v}`).join('\n')
       : '';
-    alert(`Sync complete!\n✅ Updated: ${result.updated}\n⏭ Skipped: ${result.skipped}\n📨 Total messages: ${result.total}${reasons}`);
+    alert(`Sync complete!\n✅ Updated: ${result.updated}\n⏭ Skipped: ${result.skipped}\n🖼 With image: ${result.withImage || 0}\n📨 Total messages: ${result.total}${reasons}`);
   } catch (e) {
     alert('Sync failed: ' + e.message);
   } finally {
