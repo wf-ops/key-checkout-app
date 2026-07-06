@@ -814,6 +814,143 @@ app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Slack Events (lockbox location monitoring)
+const crypto = require('crypto');
+
+function verifySlackSignature(req, rawBody) {
+  const secret = process.env.SLACK_SIGNING_SECRET;
+  if (!secret) return false;
+  const ts = req.headers['x-slack-request-timestamp'];
+  if (!ts || Math.abs(Date.now() / 1000 - parseInt(ts)) > 300) return false;
+  const sig = req.headers['x-slack-signature'];
+  const base = `v0:${ts}:${rawBody}`;
+  const expected = 'v0=' + crypto.createHmac('sha256', secret).update(base).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(sig || ''), Buffer.from(expected));
+}
+
+app.post('/api/slack/events', express.raw({ type: '*/*' }), async (req, res) => {
+  const rawBody = req.body.toString();
+  let payload;
+  try { payload = JSON.parse(rawBody); } catch { return res.status(400).send('Bad JSON'); }
+
+  // URL verification challenge from Slack
+  if (payload.type === 'url_verification') {
+    return res.json({ challenge: payload.challenge });
+  }
+
+  // Verify signature
+  if (!verifySlackSignature(req, rawBody)) {
+    return res.status(403).send('Invalid signature');
+  }
+
+  // Acknowledge immediately — Slack requires response within 3s
+  res.sendStatus(200);
+
+  // Process in background
+  const event = payload.event;
+  if (!event || event.type !== 'message' || event.subtype || event.bot_id) return;
+
+  const channelName = process.env.SLACK_LOCKBOX_CHANNEL || 'lockboxes';
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  if (!botToken) return;
+
+  // Check it's the right channel
+  try {
+    const chanRes = await fetch(`https://slack.com/api/conversations.info?channel=${event.channel}`, {
+      headers: { Authorization: `Bearer ${botToken}` },
+    }).then(r => r.json());
+    if (!chanRes.ok || chanRes.channel?.name !== channelName) return;
+  } catch { return; }
+
+  const messageText = event.text || '';
+  const hasFiles = event.files && event.files.length > 0;
+
+  // Download image if present
+  let imageBase64 = null, imageMime = null;
+  if (hasFiles && process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    const file = event.files[0];
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      try {
+        const imgRes = await fetch(file.url_private, { headers: { Authorization: `Bearer ${botToken}` } });
+        const buf = Buffer.from(await imgRes.arrayBuffer());
+        imageBase64 = buf.toString('base64');
+        imageMime = file.mimetype;
+      } catch (e) { console.error('[slack-events] image download failed:', e.message); }
+    }
+  }
+
+  if (!messageText && !imageBase64) return;
+
+  // Fetch lockbox list for context
+  let lockboxSNs = [];
+  try {
+    const rows = await queryAll(DB.lockboxes, null);
+    const seen = new Set();
+    lockboxSNs = rows.map(r => extractRichText(r.properties?.['Lockbox SN'])).filter(sn => { if (!sn || seen.has(sn)) return false; seen.add(sn); return true; });
+  } catch { return; }
+
+  // Ask Claude to parse the message
+  const claudeContent = [];
+  if (imageBase64) claudeContent.push({ type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } });
+  claudeContent.push({ type: 'text', text: `You are helping manage lockbox assignments for a property management company. Known lockbox serial numbers: ${lockboxSNs.join(', ')}.
+
+Slack message: "${messageText}"
+
+Extract lockbox assignment info if present. Return JSON only (no markdown):
+{"action": "assigned" or "removed" or "unknown", "lockboxSN": "the serial number or null", "propertyHint": "address or property name mentioned or null", "confidence": "high" or "low"}
+
+action=assigned means the lockbox is being placed at a property. action=removed means it was taken away. action=unknown if unclear.` });
+
+  let parsed;
+  try {
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: claudeContent }] }),
+    });
+    const claudeData = await claudeRes.json();
+    const text = claudeData.content?.[0]?.text || '{}';
+    const m = text.match(/\{[\s\S]*\}/);
+    parsed = m ? JSON.parse(m[0]) : null;
+  } catch (e) { console.error('[slack-events] Claude parse failed:', e.message); return; }
+
+  if (!parsed || parsed.confidence !== 'high' || !parsed.lockboxSN || parsed.action === 'unknown') {
+    console.log('[slack-events] skipped — low confidence or missing info:', parsed);
+    return;
+  }
+
+  // Find the lockbox in Notion
+  const lbRows = await queryAll(DB.lockboxes, null).catch(() => []);
+  const lbRow = lbRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === parsed.lockboxSN);
+  if (!lbRow) { console.log('[slack-events] lockbox SN not found in Notion:', parsed.lockboxSN); return; }
+
+  // Find the property if hint given
+  let propertyId = null;
+  if (parsed.propertyHint && parsed.action === 'assigned') {
+    const propRows = await queryAll(DB.properties, {
+      or: [
+        { property: 'Street Address - Property', rich_text: { contains: parsed.propertyHint } },
+        { property: 'Property Code', rich_text: { contains: parsed.propertyHint } },
+      ],
+    }).catch(() => []);
+    if (propRows.length > 0) propertyId = propRows[0].id;
+  }
+
+  // Update Notion lockbox
+  const updateProps = {};
+  if (parsed.action === 'assigned') {
+    updateProps['Status'] = { select: { name: 'At Property' } };
+    if (propertyId) updateProps['Last Known Property'] = { relation: [{ id: propertyId }] };
+  } else if (parsed.action === 'removed') {
+    updateProps['Status'] = { select: { name: 'In Office' } };
+  }
+
+  try {
+    await notionPatch(`https://api.notion.com/v1/pages/${lbRow.id}`, { properties: updateProps });
+    console.log(`[slack-events] updated lockbox ${parsed.lockboxSN} → ${parsed.action}${propertyId ? ' at ' + parsed.propertyHint : ''}`);
+  } catch (e) { console.error('[slack-events] Notion update failed:', e.message); }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
