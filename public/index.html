@@ -276,6 +276,7 @@
     <h3>Quick Actions</h3>
     <div class="quick-actions">
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
+      <button class="quick-action-btn" id="backfill-btn" onclick="runSlackBackfill()" style="display:none">📥 Sync Lockboxes</button>
     </div>
   </div>
   <div class="card">
@@ -447,6 +448,21 @@ function onLogin(user) {
   document.getElementById('user-role-display').textContent = user.role;
   showTab('dashboard');
   loadDashboard();
+  const backfillBtn = document.getElementById('backfill-btn');
+  if (backfillBtn && (user.role || '').toLowerCase() === 'admin') backfillBtn.style.display = '';
+}
+
+async function runSlackBackfill() {
+  const btn = document.getElementById('backfill-btn');
+  btn.disabled = true; btn.textContent = '⏳ Syncing…';
+  try {
+    const result = await api('/api/slack/backfill', { method: 'POST' });
+    alert(`Sync complete!\n✅ Updated: ${result.updated}\n⏭ Skipped: ${result.skipped}\n📨 Total messages: ${result.total}`);
+  } catch (e) {
+    alert('Sync failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📥 Sync Lockboxes';
+  }
 }
 
 function openMoreSheet() {

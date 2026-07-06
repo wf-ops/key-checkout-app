@@ -884,21 +884,25 @@ app.post('/api/slack/events', async (req, res) => {
   }
 
   if (!messageText && !imageBase64) return;
+  await processLockboxMessage({ text: messageText, imageBase64, imageMime }, botToken);
+});
+
+// Shared: parse a Slack message and update Notion lockbox accordingly
+async function processLockboxMessage({ text, imageBase64, imageMime }, botToken) {
+  if (!text && !imageBase64) return null;
 
   // Fetch lockbox list for context
-  let lockboxSNs = [];
-  try {
-    const rows = await queryAll(DB.lockboxes, null);
-    const seen = new Set();
-    lockboxSNs = rows.map(r => extractRichText(r.properties?.['Lockbox SN'])).filter(sn => { if (!sn || seen.has(sn)) return false; seen.add(sn); return true; });
-  } catch { return; }
+  let lbRows = [];
+  try { lbRows = await queryAll(DB.lockboxes, null); } catch { return null; }
+  const seen = new Set();
+  const lockboxSNs = lbRows.map(r => extractRichText(r.properties?.['Lockbox SN'])).filter(sn => { if (!sn || seen.has(sn)) return false; seen.add(sn); return true; });
 
   // Ask Claude to parse the message
   const claudeContent = [];
   if (imageBase64) claudeContent.push({ type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } });
   claudeContent.push({ type: 'text', text: `You are helping manage lockbox assignments for a property management company. Known lockbox serial numbers: ${lockboxSNs.join(', ')}.
 
-Slack message: "${messageText}"
+Slack message: "${text}"
 
 Extract lockbox assignment info if present. Return JSON only (no markdown):
 {"action": "assigned" or "removed" or "unknown", "lockboxSN": "the serial number or null", "propertyHint": "address or property name mentioned or null", "confidence": "high" or "low"}
@@ -913,22 +917,18 @@ action=assigned means the lockbox is being placed at a property. action=removed 
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: claudeContent }] }),
     });
     const claudeData = await claudeRes.json();
-    const text = claudeData.content?.[0]?.text || '{}';
-    const m = text.match(/\{[\s\S]*\}/);
+    const t = claudeData.content?.[0]?.text || '{}';
+    const m = t.match(/\{[\s\S]*\}/);
     parsed = m ? JSON.parse(m[0]) : null;
-  } catch (e) { console.error('[slack-events] Claude parse failed:', e.message); return; }
+  } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
 
   if (!parsed || parsed.confidence !== 'high' || !parsed.lockboxSN || parsed.action === 'unknown') {
-    console.log('[slack-events] skipped — low confidence or missing info:', parsed);
-    return;
+    return { skipped: true, reason: 'low confidence or missing info', parsed };
   }
 
-  // Find the lockbox in Notion
-  const lbRows = await queryAll(DB.lockboxes, null).catch(() => []);
   const lbRow = lbRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === parsed.lockboxSN);
-  if (!lbRow) { console.log('[slack-events] lockbox SN not found in Notion:', parsed.lockboxSN); return; }
+  if (!lbRow) return { skipped: true, reason: 'SN not found in Notion', sn: parsed.lockboxSN };
 
-  // Find the property if hint given
   let propertyId = null;
   if (parsed.propertyHint && parsed.action === 'assigned') {
     const propRows = await queryAll(DB.properties, {
@@ -940,7 +940,6 @@ action=assigned means the lockbox is being placed at a property. action=removed 
     if (propRows.length > 0) propertyId = propRows[0].id;
   }
 
-  // Update Notion lockbox
   const updateProps = {};
   if (parsed.action === 'assigned') {
     updateProps['Status'] = { select: { name: 'At Property' } };
@@ -951,8 +950,75 @@ action=assigned means the lockbox is being placed at a property. action=removed 
 
   try {
     await notionPatch(`https://api.notion.com/v1/pages/${lbRow.id}`, { properties: updateProps });
-    console.log(`[slack-events] updated lockbox ${parsed.lockboxSN} → ${parsed.action}${propertyId ? ' at ' + parsed.propertyHint : ''}`);
-  } catch (e) { console.error('[slack-events] Notion update failed:', e.message); }
+    console.log(`[slack] updated lockbox ${parsed.lockboxSN} → ${parsed.action}${propertyId ? ' at ' + parsed.propertyHint : ''}`);
+    return { updated: true, sn: parsed.lockboxSN, action: parsed.action, property: parsed.propertyHint };
+  } catch (e) {
+    console.error('[slack] Notion update failed:', e.message);
+    return { error: e.message };
+  }
+}
+
+// POST /api/slack/backfill — process last 60 days of #lockboxes messages
+app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  const channelName = process.env.SLACK_LOCKBOX_CHANNEL || 'lockboxes';
+  if (!botToken) return res.status(503).json({ error: 'SLACK_BOT_TOKEN not configured' });
+
+  // Find channel ID by name
+  let channelId;
+  try {
+    const listRes = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200', {
+      headers: { Authorization: `Bearer ${botToken}` },
+    }).then(r => r.json());
+    const chan = listRes.channels?.find(c => c.name === channelName);
+    if (!chan) return res.status(404).json({ error: `Channel #${channelName} not found` });
+    channelId = chan.id;
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+
+  const oldest = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
+  const results = { updated: 0, skipped: 0, errors: 0, total: 0 };
+
+  // Stream response so it doesn't time out
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Transfer-Encoding', 'chunked');
+
+  let cursor;
+  let done = false;
+  while (!done) {
+    let url = `https://slack.com/api/conversations.history?channel=${channelId}&oldest=${oldest}&limit=100`;
+    if (cursor) url += `&cursor=${cursor}`;
+    const histRes = await fetch(url, { headers: { Authorization: `Bearer ${botToken}` } }).then(r => r.json());
+    if (!histRes.ok) { results.errors++; break; }
+
+    for (const msg of (histRes.messages || [])) {
+      if (msg.subtype || msg.bot_id) continue;
+      results.total++;
+
+      let imageBase64 = null, imageMime = null;
+      if (msg.files?.length > 0) {
+        const f = msg.files[0];
+        if (f.mimetype?.startsWith('image/')) {
+          try {
+            const imgRes = await fetch(f.url_private, { headers: { Authorization: `Bearer ${botToken}` } });
+            const buf = Buffer.from(await imgRes.arrayBuffer());
+            imageBase64 = buf.toString('base64');
+            imageMime = f.mimetype;
+          } catch (_) {}
+        }
+      }
+
+      const result = await processLockboxMessage({ text: msg.text || '', imageBase64, imageMime }, botToken);
+      if (!result) { results.skipped++; continue; }
+      if (result.updated) results.updated++;
+      else if (result.skipped) results.skipped++;
+      else results.errors++;
+    }
+
+    cursor = histRes.response_metadata?.next_cursor;
+    if (!cursor) done = true;
+  }
+
+  res.end(JSON.stringify({ success: true, ...results }));
 });
 
 const PORT = process.env.PORT || 3000;
