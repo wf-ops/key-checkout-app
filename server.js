@@ -961,9 +961,15 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
   const updateProps = {};
   if (parsed.action === 'assigned') {
     updateProps['Status'] = { select: { name: 'At Property' } };
-    if (propertyId) updateProps['Last Known Property'] = { relation: [{ id: propertyId }] };
+    if (propertyId) updateProps['LB Location'] = { relation: [{ id: propertyId }] };
   } else if (parsed.action === 'removed') {
     updateProps['Status'] = { select: { name: 'In Office' } };
+    // Move current LB Location → Last Known Property, then clear LB Location
+    const currentLBLocation = lbRow.properties?.['LB Location']?.relation || [];
+    if (currentLBLocation.length > 0) {
+      updateProps['Last Known Property'] = { relation: currentLBLocation };
+    }
+    updateProps['LB Location'] = { relation: [] };
   }
 
   try {
