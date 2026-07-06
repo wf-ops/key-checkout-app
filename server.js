@@ -928,7 +928,10 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
     const claudeData = await claudeRes.json();
     const t = claudeData.content?.[0]?.text || '{}';
     console.log('[claude raw]', t.substring(0, 300), '| hasImage:', !!imageBase64, '| mime:', imageMime);
-    if (claudeData.error) console.error('[claude error]', JSON.stringify(claudeData.error));
+    if (claudeData.error) {
+      console.error('[claude error]', JSON.stringify(claudeData.error));
+      if (claudeData.error.type === 'rate_limit_error') return { skipped: true, reason: 'Claude rate limited' };
+    }
     const m = t.match(/\{[\s\S]*\}/);
     parsed = m ? JSON.parse(m[0]) : null;
   } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
@@ -1058,7 +1061,7 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
                 results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
               } else {
                 imageBase64 = buf.toString('base64');
-                imageMime = usingThumb ? 'image/jpeg' : (contentType.startsWith('image/') ? contentType.split(';')[0] : 'image/jpeg');
+                imageMime = contentType.startsWith('image/') ? contentType.split(';')[0] : 'image/jpeg';
                 results.withImage++;
               }
             }
@@ -1066,7 +1069,8 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
         }
       }
 
-      await new Promise(r => setTimeout(r, 500));
+      // 5 RPM org limit → minimum 12s between calls; use 13s for headroom
+      if (imageBase64) await new Promise(r => setTimeout(r, 13000));
       const result = await processLockboxMessage({ text: msg.text || '', imageBase64, imageMime }, botToken);
       if (!result) { results.skipped++; const k = 'no text or image'; results.skipReasons[k] = (results.skipReasons[k] || 0) + 1; continue; }
       if (result.updated) results.updated++;
