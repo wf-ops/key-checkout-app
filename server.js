@@ -902,12 +902,18 @@ async function processLockboxMessage({ text, imageBase64, imageMime }, botToken)
   if (imageBase64) claudeContent.push({ type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } });
   claudeContent.push({ type: 'text', text: `You are helping manage lockbox assignments for a property management company. Known lockbox serial numbers: ${lockboxSNs.join(', ')}.
 
-Slack message: "${text}"
+Slack message text: "${text || '(no text)'}"
+${imageBase64 ? 'An image is also attached — carefully read any serial number label visible on the lockbox in the photo.' : ''}
 
-Extract lockbox assignment info if present. Return JSON only (no markdown):
-{"action": "assigned" or "removed" or "unknown", "lockboxSN": "the serial number or null", "propertyHint": "address or property name mentioned or null", "confidence": "high" or "low"}
+Your job:
+1. Find the lockbox serial number — check BOTH the message text AND any image label. Serial numbers are 8 digits. Match against the known list if possible.
+2. Find a property address or name mentioned (could be a street address, partial address like "2208 state st", or property name).
+3. Determine if the lockbox is being PLACED at a property (assigned) or REMOVED/picked up (removed). If a photo shows a lockbox at a property with an address mentioned, assume assigned.
 
-action=assigned means the lockbox is being placed at a property. action=removed means it was taken away. action=unknown if unclear.` });
+Return JSON only (no markdown):
+{"action": "assigned" or "removed" or "unknown", "lockboxSN": "serial number string or null", "propertyHint": "address or name or null", "confidence": "high" or "medium" or "low", "snSource": "text" or "image" or null}
+
+Use confidence=high when both SN and property are clear. confidence=medium when SN is clear but property is vague or vice versa. confidence=low when both are uncertain.` });
 
   let parsed;
   try {
@@ -922,7 +928,7 @@ action=assigned means the lockbox is being placed at a property. action=removed 
     parsed = m ? JSON.parse(m[0]) : null;
   } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
 
-  if (!parsed || parsed.confidence !== 'high' || !parsed.lockboxSN || parsed.action === 'unknown') {
+  if (!parsed || !['high', 'medium'].includes(parsed.confidence) || !parsed.lockboxSN || parsed.action === 'unknown') {
     return { skipped: true, reason: 'low confidence or missing info', parsed };
   }
 
