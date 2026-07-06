@@ -1004,7 +1004,7 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
     if (!histRes.ok) { results.errors++; break; }
 
     for (const msg of (histRes.messages || [])) {
-      if (msg.subtype || msg.bot_id) continue;
+      if (msg.bot_id || (msg.subtype && msg.subtype !== 'file_share')) continue;
       results.total++;
 
       let imageBase64 = null, imageMime = null;
