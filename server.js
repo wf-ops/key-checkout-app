@@ -1033,9 +1033,11 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       if (fileObj) {
         const f = fileObj;
         if (f.mimetype?.startsWith('image/')) {
-          // Always prefer thumbnails — full images are 5-6MB which exceeds Claude's 5MB base64 limit
-          const imgUrl = f.thumb_720 || f.thumb_360 || f.url_private;
-          const mimeToSend = (f.thumb_720 || f.thumb_360) ? 'image/jpeg' : 'image/jpeg';
+          // Log available thumb fields to diagnose
+          console.log('[slack] file fields:', JSON.stringify({ mimetype: f.mimetype, has720: !!f.thumb_720, has360: !!f.thumb_360, has480: !!f.thumb_480 }));
+          // Always prefer thumbnails — full images are 5-6MB which exceeds Claude's ~3.5MB usable base64 limit
+          const imgUrl = f.thumb_720 || f.thumb_480 || f.thumb_360 || f.url_private;
+          const usingThumb = !!(f.thumb_720 || f.thumb_480 || f.thumb_360);
           try {
             const imgRes = await fetch(imgUrl, { headers: { Authorization: `Bearer ${botToken}` } });
             if (!imgRes.ok) {
@@ -1044,16 +1046,19 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
             } else {
               const contentType = imgRes.headers.get('content-type') || '';
               const buf = Buffer.from(await imgRes.arrayBuffer());
-              console.log('[slack] img downloaded:', buf.length, 'bytes, content-type:', contentType, 'url:', imgUrl.substring(0, 60));
+              console.log('[slack] img downloaded:', buf.length, 'bytes, thumb:', usingThumb, 'type:', contentType.split(';')[0]);
               if (buf.length < 4096) {
                 const k = 'image too small (likely HTML error)';
+                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              } else if (buf.length > 3_500_000) {
+                const k = 'image too large for Claude (>3.5MB) — no thumbnail available';
                 results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
               } else if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet')) {
                 const k = `image wrong content-type: ${contentType.split(';')[0]}`;
                 results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
               } else {
                 imageBase64 = buf.toString('base64');
-                imageMime = mimeToSend;
+                imageMime = usingThumb ? 'image/jpeg' : (contentType.startsWith('image/') ? contentType.split(';')[0] : 'image/jpeg');
                 results.withImage++;
               }
             }
