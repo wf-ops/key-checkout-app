@@ -1020,10 +1020,24 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
         if (f.mimetype?.startsWith('image/')) {
           try {
             const imgRes = await fetch(f.url_private, { headers: { Authorization: `Bearer ${botToken}` } });
-            const buf = Buffer.from(await imgRes.arrayBuffer());
-            imageBase64 = buf.toString('base64');
-            imageMime = f.mimetype;
-          } catch (_) {}
+            if (!imgRes.ok) {
+              console.error('[slack] image fetch failed:', imgRes.status, f.url_private);
+              results.skipReasons = results.skipReasons || {};
+              const k = `image fetch ${imgRes.status}`;
+              results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+            } else {
+              const contentType = imgRes.headers.get('content-type') || '';
+              const buf = Buffer.from(await imgRes.arrayBuffer());
+              if (contentType.startsWith('image/') || contentType.startsWith('application/octet')) {
+                imageBase64 = buf.toString('base64');
+                imageMime = f.mimetype;
+              } else {
+                console.error('[slack] image fetch got wrong content-type:', contentType);
+                const k = 'image wrong content-type';
+                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              }
+            }
+          } catch (e) { console.error('[slack] image fetch error:', e.message); }
         }
       }
 
