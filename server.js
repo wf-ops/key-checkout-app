@@ -939,7 +939,7 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
   if (!['high', 'medium'].includes(parsed.confidence)) return { skipped: true, reason: `confidence too low (${parsed.confidence})`, parsed };
 
   const lbRow = lbRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === parsed.lockboxSN);
-  if (!lbRow) return { skipped: true, reason: 'SN not found in Notion', sn: parsed.lockboxSN };
+  if (!lbRow) return { skipped: true, reason: `SN not in Notion: ${parsed.lockboxSN}` };
 
   let propertyId = null;
   if (parsed.propertyHint && parsed.action === 'assigned') {
