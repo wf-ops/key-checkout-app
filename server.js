@@ -923,7 +923,7 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: claudeContent }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: claudeContent }] }),
     });
     const claudeData = await claudeRes.json();
     const t = claudeData.content?.[0]?.text || '{}';
@@ -1044,12 +1044,17 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
               } else if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet')) {
                 const k = `image wrong content-type: ${contentType.split(';')[0]}`;
                 results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              } else {
+                imageBase64 = buf.toString('base64');
+                imageMime = mimeToSend;
+                results.withImage++;
               }
             }
           } catch (e) { console.error('[slack] image fetch error:', e.message); }
         }
       }
 
+      await new Promise(r => setTimeout(r, 500));
       const result = await processLockboxMessage({ text: msg.text || '', imageBase64, imageMime }, botToken);
       if (!result) { results.skipped++; const k = 'no text or image'; results.skipReasons[k] = (results.skipReasons[k] || 0) + 1; continue; }
       if (result.updated) results.updated++;
