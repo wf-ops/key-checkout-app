@@ -964,15 +964,22 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
   const channelName = process.env.SLACK_LOCKBOX_CHANNEL || 'lockboxes';
   if (!botToken) return res.status(503).json({ error: 'SLACK_BOT_TOKEN not configured' });
 
-  // Find channel ID by name
+  // Find channel ID by name — paginate through all channels
   let channelId;
   try {
-    const listRes = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200', {
-      headers: { Authorization: `Bearer ${botToken}` },
-    }).then(r => r.json());
-    const chan = listRes.channels?.find(c => c.name === channelName);
-    if (!chan) return res.status(404).json({ error: `Channel #${channelName} not found` });
-    channelId = chan.id;
+    let listCursor;
+    let found = null;
+    do {
+      let url = 'https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200';
+      if (listCursor) url += `&cursor=${listCursor}`;
+      const listRes = await fetch(url, { headers: { Authorization: `Bearer ${botToken}` } }).then(r => r.json());
+      if (!listRes.ok) return res.status(400).json({ error: `Slack API error: ${listRes.error}`, hint: 'Check SLACK_BOT_TOKEN and that the bot has channels:read scope' });
+      found = listRes.channels?.find(c => c.name === channelName);
+      listCursor = listRes.response_metadata?.next_cursor;
+      if (found) break;
+    } while (listCursor);
+    if (!found) return res.status(404).json({ error: `Channel #${channelName} not found — make sure the bot is invited to the channel (/invite @BotName in Slack)` });
+    channelId = found.id;
   } catch (e) { return res.status(500).json({ error: e.message }); }
 
   const oldest = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
