@@ -928,9 +928,10 @@ Use confidence=high when both SN and property are clear. confidence=medium when 
     parsed = m ? JSON.parse(m[0]) : null;
   } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
 
-  if (!parsed || !['high', 'medium'].includes(parsed.confidence) || !parsed.lockboxSN || parsed.action === 'unknown') {
-    return { skipped: true, reason: 'low confidence or missing info', parsed };
-  }
+  if (!parsed) return { skipped: true, reason: 'Claude returned no JSON' };
+  if (!parsed.lockboxSN) return { skipped: true, reason: 'no SN found', parsed };
+  if (parsed.action === 'unknown') return { skipped: true, reason: 'action unknown (no clear assigned/removed)', parsed };
+  if (!['high', 'medium'].includes(parsed.confidence)) return { skipped: true, reason: `confidence too low (${parsed.confidence})`, parsed };
 
   const lbRow = lbRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === parsed.lockboxSN);
   if (!lbRow) return { skipped: true, reason: 'SN not found in Notion', sn: parsed.lockboxSN };
