@@ -12,7 +12,11 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-app.use(express.json());
+// Slack events need raw body for signature verification — skip JSON parsing for that route
+app.use((req, res, next) => {
+  if (req.path === '/api/slack/events') return express.raw({ type: '*/*' })(req, res, next);
+  express.json()(req, res, next);
+});
 app.use(session({
   secret: process.env.SESSION_SECRET || 'krb-key-app-secret',
   resave: false,
@@ -828,7 +832,7 @@ function verifySlackSignature(req, rawBody) {
   return crypto.timingSafeEqual(Buffer.from(sig || ''), Buffer.from(expected));
 }
 
-app.post('/api/slack/events', express.raw({ type: '*/*' }), async (req, res) => {
+app.post('/api/slack/events', async (req, res) => {
   const rawBody = req.body.toString();
   let payload;
   try { payload = JSON.parse(rawBody); } catch { return res.status(400).send('Bad JSON'); }
