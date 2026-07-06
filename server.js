@@ -927,6 +927,8 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
     });
     const claudeData = await claudeRes.json();
     const t = claudeData.content?.[0]?.text || '{}';
+    console.log('[claude raw]', t.substring(0, 300), '| hasImage:', !!imageBase64, '| mime:', imageMime);
+    if (claudeData.error) console.error('[claude error]', JSON.stringify(claudeData.error));
     const m = t.match(/\{[\s\S]*\}/);
     parsed = m ? JSON.parse(m[0]) : null;
   } catch (e) { console.error('[slack] Claude parse failed:', e.message); return null; }
@@ -1033,10 +1035,16 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
               const k = `image fetch ${imgRes.status}`;
               results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
             } else {
+              const contentType = imgRes.headers.get('content-type') || '';
               const buf = Buffer.from(await imgRes.arrayBuffer());
-              imageBase64 = buf.toString('base64');
-              imageMime = mimeToSend;
-              results.withImage++;
+              console.log('[slack] img downloaded:', buf.length, 'bytes, content-type:', contentType, 'url:', imgUrl.substring(0, 60));
+              if (buf.length < 4096) {
+                const k = 'image too small (likely HTML error)';
+                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              } else if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet')) {
+                const k = `image wrong content-type: ${contentType.split(';')[0]}`;
+                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              }
             }
           } catch (e) { console.error('[slack] image fetch error:', e.message); }
         }
