@@ -900,20 +900,23 @@ async function processLockboxMessage({ text, imageBase64, imageMime }, botToken)
   // Ask Claude to parse the message
   const claudeContent = [];
   if (imageBase64) claudeContent.push({ type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } });
-  claudeContent.push({ type: 'text', text: `You are helping manage lockbox assignments for a property management company. Known lockbox serial numbers: ${lockboxSNs.join(', ')}.
+  claudeContent.push({ type: 'text', text: `You are helping manage lockbox assignments for a property management company.
 
 Slack message text: "${text || '(no text)'}"
-${imageBase64 ? 'An image is also attached — carefully read any serial number label visible on the lockbox in the photo.' : ''}
 
-Your job:
-1. Find the lockbox serial number — check BOTH the message text AND any image label. Serial numbers are 8 digits. Match against the known list if possible.
-2. Find a property address or name mentioned (could be a street address, partial address like "2208 state st", or property name).
-3. Determine if the lockbox is being PLACED at a property (assigned) or REMOVED/picked up (removed). If a photo shows a lockbox at a property with an address mentioned, assume assigned.
+${imageBase64 ? `IMPORTANT: An image is attached. It shows a physical lockbox device (a CodeBox or similar). There is a white rectangular label sticker on the lockbox body with an 8-digit serial number printed in large black digits (e.g. "10131040" or "20133678"). Read that number carefully from the label — it is the lockboxSN.` : ''}
 
-Return JSON only (no markdown):
-{"action": "assigned" or "removed" or "unknown", "lockboxSN": "serial number string or null", "propertyHint": "address or name or null", "confidence": "high" or "medium" or "low", "snSource": "text" or "image" or null}
+Known lockbox serial numbers for reference: ${lockboxSNs.join(', ')}.
 
-Use confidence=high when both SN and property are clear. confidence=medium when SN is clear but property is vague or vice versa. confidence=low when both are uncertain.` });
+Tasks:
+1. lockboxSN: Read the 8-digit serial number from the image label OR from the message text. Return it as a string. If found in image, prioritize that.
+2. propertyHint: Find any property address or name (street address, partial address like "2208 state st", or property name).
+3. action: "assigned" (lockbox being placed at a property), "removed" (being picked up/returned), or "unknown".
+
+Return ONLY this JSON (no markdown, no explanation):
+{"action":"assigned"|"removed"|"unknown","lockboxSN":"8digits or null","propertyHint":"address or null","confidence":"high"|"medium"|"low","snSource":"text"|"image"|null}
+
+confidence=high: both SN and property clear. confidence=medium: SN clear but property vague (or vice versa). confidence=low: both uncertain.` });
 
   let parsed;
   try {
@@ -1018,26 +1021,22 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       const fileObj = msg.files?.[0] || msg.file || null;
       if (fileObj) {
         const f = fileObj;
+        const CLAUDE_SUPPORTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         if (f.mimetype?.startsWith('image/')) {
+          // Prefer thumb_720 or thumb_360 (always JPEG) for unsupported formats like HEIC
+          const isSupported = CLAUDE_SUPPORTED.includes(f.mimetype);
+          const imgUrl = (!isSupported && (f.thumb_720 || f.thumb_360)) ? (f.thumb_720 || f.thumb_360) : f.url_private;
+          const mimeToSend = (!isSupported && (f.thumb_720 || f.thumb_360)) ? 'image/jpeg' : (isSupported ? f.mimetype : 'image/jpeg');
           try {
-            const imgRes = await fetch(f.url_private, { headers: { Authorization: `Bearer ${botToken}` } });
+            const imgRes = await fetch(imgUrl, { headers: { Authorization: `Bearer ${botToken}` } });
             if (!imgRes.ok) {
-              console.error('[slack] image fetch failed:', imgRes.status, f.url_private);
-              results.skipReasons = results.skipReasons || {};
               const k = `image fetch ${imgRes.status}`;
               results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
             } else {
-              const contentType = imgRes.headers.get('content-type') || '';
               const buf = Buffer.from(await imgRes.arrayBuffer());
-              if (contentType.startsWith('image/') || contentType.startsWith('application/octet')) {
-                imageBase64 = buf.toString('base64');
-                imageMime = f.mimetype;
-                results.withImage++;
-              } else {
-                console.error('[slack] image fetch got wrong content-type:', contentType);
-                const k = 'image wrong content-type';
-                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
-              }
+              imageBase64 = buf.toString('base64');
+              imageMime = mimeToSend;
+              results.withImage++;
             }
           } catch (e) { console.error('[slack] image fetch error:', e.message); }
         }
