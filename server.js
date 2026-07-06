@@ -920,7 +920,7 @@ Use confidence=high when both SN and property are clear. confidence=medium when 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 200, messages: [{ role: 'user', content: claudeContent }] }),
+      body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 300, messages: [{ role: 'user', content: claudeContent }] }),
     });
     const claudeData = await claudeRes.json();
     const t = claudeData.content?.[0]?.text || '{}';
@@ -937,13 +937,19 @@ Use confidence=high when both SN and property are clear. confidence=medium when 
 
   let propertyId = null;
   if (parsed.propertyHint && parsed.action === 'assigned') {
-    const propRows = await queryAll(DB.properties, {
-      or: [
-        { property: 'Street Address - Property', rich_text: { contains: parsed.propertyHint } },
-        { property: 'Property Code', rich_text: { contains: parsed.propertyHint } },
-      ],
-    }).catch(() => []);
-    if (propRows.length > 0) propertyId = propRows[0].id;
+    // Try full hint first, then fall back to just the street number (handles "2208 state st" vs "2208 W State St")
+    const streetNum = (parsed.propertyHint.match(/^\d+/) || [])[0];
+    const searches = [parsed.propertyHint];
+    if (streetNum && streetNum !== parsed.propertyHint) searches.push(streetNum);
+    for (const hint of searches) {
+      const propRows = await queryAll(DB.properties, {
+        or: [
+          { property: 'Street Address - Property', rich_text: { contains: hint } },
+          { property: 'Property Code', rich_text: { contains: hint } },
+        ],
+      }).catch(() => []);
+      if (propRows.length > 0) { propertyId = propRows[0].id; break; }
+    }
   }
 
   const updateProps = {};
@@ -989,7 +995,7 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 
   const oldest = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
-  const results = { updated: 0, skipped: 0, errors: 0, total: 0 };
+  const results = { updated: 0, skipped: 0, errors: 0, total: 0, skipReasons: {} };
 
   // Stream response so it doesn't time out
   res.setHeader('Content-Type', 'application/json');
@@ -1021,9 +1027,14 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       }
 
       const result = await processLockboxMessage({ text: msg.text || '', imageBase64, imageMime }, botToken);
-      if (!result) { results.skipped++; continue; }
+      if (!result) { results.skipped++; const k = 'no text or image'; results.skipReasons[k] = (results.skipReasons[k] || 0) + 1; continue; }
       if (result.updated) results.updated++;
-      else if (result.skipped) results.skipped++;
+      else if (result.skipped) {
+        results.skipped++;
+        const k = result.reason || 'unknown';
+        results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+        if (result.parsed) console.log('[backfill skip]', JSON.stringify(result.parsed));
+      }
       else results.errors++;
     }
 
