@@ -654,11 +654,15 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
 // ── Settings stored in a Notion page JSON code block (like ChapinOS) ─────────
 const SETTINGS_PAGE_ID = process.env.NOTION_SETTINGS_PAGE_ID;
 
+async function getSettingsBlocks() {
+  const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
+  return await blocksRes.json();
+}
+
 async function readSettings() {
   if (!SETTINGS_PAGE_ID) return {};
   try {
-    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
-    const blocks = await blocksRes.json();
+    const blocks = await getSettingsBlocks();
     const codeBlock = (blocks.results || []).find(b => b.type === 'code');
     if (!codeBlock) return {};
     const raw = codeBlock.code?.rich_text?.map(t => t.plain_text).join('') || '{}';
@@ -669,19 +673,28 @@ async function readSettings() {
 async function writeSettings(data) {
   if (!SETTINGS_PAGE_ID) return;
   try {
-    // Find the code block ID
-    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
-    const blocks = await blocksRes.json();
+    const blocks = await getSettingsBlocks();
+    console.log('[settings] blocks:', JSON.stringify((blocks.results || []).map(b => b.type)));
     const codeBlock = (blocks.results || []).find(b => b.type === 'code');
-    if (!codeBlock) return;
-    // Merge with existing and write back
-    const existing = JSON.parse(codeBlock.code?.rich_text?.map(t => t.plain_text).join('') || '{}');
-    const merged = { ...existing, ...data };
-    await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
-      method: 'PATCH',
-      headers: notionHeaders(),
-      body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: JSON.stringify(merged, null, 2) } }], language: 'json' } }),
-    });
+    const merged = { ...(await readSettings()), ...data };
+    const jsonContent = JSON.stringify(merged, null, 2);
+
+    if (codeBlock) {
+      // Update existing code block
+      await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
+        method: 'PATCH',
+        headers: notionHeaders(),
+        body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: jsonContent } }], language: 'json' } }),
+      });
+    } else {
+      // No code block found — append one
+      console.log('[settings] no code block found, creating one');
+      await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, {
+        method: 'PATCH',
+        headers: notionHeaders(),
+        body: JSON.stringify({ children: [{ object: 'block', type: 'code', code: { rich_text: [{ type: 'text', text: { content: jsonContent } }], language: 'json' } }] }),
+      });
+    }
   } catch (e) { console.error('[settings] write error:', e.message); }
 }
 
