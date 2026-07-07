@@ -651,23 +651,57 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
 });
 
 // ── App settings (stored in settings.json next to server.js) ──────────────────
-const SETTINGS_PATH = path.join(__dirname, 'settings.json');
-function readSettings() {
-  try { return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')); } catch { return {}; }
-}
-function writeSettings(data) {
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2));
+// ── Settings stored in Notion (NOTION_SETTINGS_DB_ID) ─────────────────────────
+const SETTINGS_DB_ID = process.env.NOTION_SETTINGS_DB_ID;
+
+async function readSettings() {
+  if (!SETTINGS_DB_ID) return {};
+  try {
+    const rows = await queryAll(SETTINGS_DB_ID, null);
+    const settings = {};
+    for (const row of rows) {
+      const key = row.properties?.Key?.title?.[0]?.plain_text;
+      const val = extractRichText(row.properties?.Value);
+      if (key) settings[key] = val;
+    }
+    return settings;
+  } catch (e) { console.error('[settings] read error:', e.message); return {}; }
 }
 
-app.get('/api/settings', requireRole('Admin'), (req, res) => {
-  res.json(readSettings());
+async function writeSettings(data) {
+  if (!SETTINGS_DB_ID) return;
+  try {
+    const rows = await queryAll(SETTINGS_DB_ID, null);
+    const existing = {};
+    for (const row of rows) {
+      const key = row.properties?.Key?.title?.[0]?.plain_text;
+      if (key) existing[key] = row.id;
+    }
+    for (const [key, value] of Object.entries(data)) {
+      const props = {
+        Key: { title: [{ text: { content: key } }] },
+        Value: { rich_text: [{ text: { content: String(value ?? '') } }] },
+      };
+      if (existing[key]) {
+        await notionPatch(`https://api.notion.com/v1/pages/${existing[key]}`, { properties: props });
+      } else {
+        await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers: notionHeaders(),
+          body: JSON.stringify({ parent: { database_id: SETTINGS_DB_ID }, properties: props }),
+        });
+      }
+    }
+  } catch (e) { console.error('[settings] write error:', e.message); }
+}
+
+app.get('/api/settings', requireRole('Admin'), async (req, res) => {
+  res.json(await readSettings());
 });
 
-app.patch('/api/settings', requireRole('Admin'), (req, res) => {
-  const current = readSettings();
-  const updated = { ...current, ...req.body };
-  writeSettings(updated);
-  res.json(updated);
+app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
+  await writeSettings(req.body);
+  res.json(await readSettings());
 });
 
 // ── Kwikset invoice ────────────────────────────────────────────────────────────
@@ -676,7 +710,7 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
     const { propertyId, kwiksetCut, numKeys, performedBy, includeBase = true } = req.body;
     if (!propertyId || !numKeys) return res.status(400).json({ error: 'propertyId and numKeys required' });
 
-    const settings = readSettings();
+    const settings = await readSettings();
     const baseCharge = includeBase ? (parseFloat(settings.kwiksetBaseCharge) || 0) : 0;
     const perKeyCharge = parseFloat(settings.kwiksetPerKeyCharge) || 0;
     const total = baseCharge + (perKeyCharge * parseInt(numKeys, 10));
