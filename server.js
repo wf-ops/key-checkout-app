@@ -686,10 +686,18 @@ async function writeSettings(data) {
 }
 
 app.get('/api/settings', requireRole('Admin'), async (req, res) => {
+  if (!SETTINGS_PAGE_ID) return res.status(503).json({ error: 'NOTION_SETTINGS_PAGE_ID not configured' });
   res.json(await readSettings());
 });
 
 app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
+  if (!SETTINGS_PAGE_ID) return res.status(503).json({ error: 'NOTION_SETTINGS_PAGE_ID not configured' });
+  // Debug: log block types on write
+  try {
+    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
+    const blocks = await blocksRes.json();
+    console.log('[settings] page blocks:', JSON.stringify((blocks.results || []).map(b => ({ id: b.id, type: b.type }))));
+  } catch (e) { console.error('[settings] debug error:', e.message); }
   await writeSettings(req.body);
   res.json(await readSettings());
 });

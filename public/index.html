@@ -812,8 +812,10 @@ async function saveSettings(btn) {
   const errEl = overlay.querySelector('#set-error'); errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ kwiksetBaseCharge: base, kwiksetPerKeyCharge: perKey, kwiksetFromEmail: fromEmail }) });
+    const result = await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ kwiksetBaseCharge: base, kwiksetPerKeyCharge: perKey, kwiksetFromEmail: fromEmail }) });
+    if (result.error) throw new Error(result.error);
     overlay.remove();
+    alert('✅ Settings saved.');
   } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Save'; }
 }
 
