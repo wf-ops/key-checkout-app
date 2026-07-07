@@ -642,6 +642,10 @@ async function showChangeKwiksetModal() {
         <label style="margin-top:10px">Performed by</label>
         <input type="text" id="kw-performed-by" placeholder="Staff name…" style="margin-bottom:4px" />
         <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:8px;cursor:pointer">
+          <input type="checkbox" id="kw-include-base" checked style="width:auto;margin:0" />
+          Include base charge
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:6px;cursor:pointer">
           <input type="checkbox" id="kw-send-invoice" checked style="width:auto;margin:0" />
           Send invoice to Appfolio
         </label>
@@ -661,13 +665,15 @@ async function showChangeKwiksetModal() {
 
   function updateChargeBreakdown() {
     const n = parseInt(overlay.querySelector('#kw-num-keys').value, 10) || 0;
+    const includeBase = overlay.querySelector('#kw-include-base')?.checked ?? true;
     const base = parseFloat(kwSettings.kwiksetBaseCharge) || 0;
     const perKey = parseFloat(kwSettings.kwiksetPerKeyCharge) || 0;
-    const total = base + perKey * n;
-    overlay.querySelector('#kw-charge-breakdown').innerHTML =
-      `<div style="display:flex;justify-content:space-between"><span>Base re-key charge</span><span>$${base.toFixed(2)}</span></div>` +
-      `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>` +
-      `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+    const total = (includeBase ? base : 0) + perKey * n;
+    let html = '';
+    if (includeBase) html += `<div style="display:flex;justify-content:space-between"><span>Base re-key charge</span><span>$${base.toFixed(2)}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+    overlay.querySelector('#kw-charge-breakdown').innerHTML = html;
   }
 
   const propInput = overlay.querySelector('#kw-prop-input');
@@ -744,6 +750,7 @@ function kwiksetGoToStep2(btn) {
     `<div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">New Cut</span><span class="kw-info-val" style="color:var(--primary)">${kwNewName || '— None —'}</span></div>`;
   overlay._updateCharge();
   overlay.querySelector('#kw-num-keys').addEventListener('input', () => overlay._updateCharge());
+  overlay.querySelector('#kw-include-base').addEventListener('change', () => overlay._updateCharge());
   overlay.querySelector('#kw-step1').style.display = 'none';
   overlay.querySelector('#kw-step2').style.display = '';
 }
@@ -763,7 +770,8 @@ async function saveKwikset(btn) {
     // 2. Send invoice
     if (sendInvoice) {
       btn.textContent = 'Sending invoice…';
-      await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: kwPropId, kwiksetCut: kwNewName, numKeys, performedBy }) });
+      const includeBase = overlay.querySelector('#kw-include-base').checked;
+    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: kwPropId, kwiksetCut: kwNewName, numKeys, includeBase, performedBy }) });
     }
     overlay.remove();
     alert(`✅ Kwikset updated${sendInvoice ? ' and invoice sent to Appfolio' : ''}.`);
@@ -830,7 +838,11 @@ async function showChargeForKeysModal() {
           <input type="number" id="cfk-num-keys" min="0" max="20" value="2" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:1rem" />
           <span style="font-size:.85rem;color:var(--gray-600)">keys</span>
         </div>
-        <div id="cfk-charge-breakdown" style="background:var(--surface-alt,#f8f8f8);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.88rem;margin:10px 0"></div>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;margin-top:10px">
+          <input type="checkbox" id="cfk-include-base" checked style="width:auto;margin:0" />
+          Include base charge
+        </label>
+        <div id="cfk-charge-breakdown" style="background:var(--surface-alt,#f8f8f8);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.88rem;margin:6px 0 10px"></div>
         <label style="margin-top:10px">Performed by</label>
         <input type="text" id="cfk-performed-by" placeholder="Staff name…" />
       </div>
@@ -848,13 +860,15 @@ async function showChargeForKeysModal() {
 
   function updateCfkBreakdown() {
     const n = parseInt(overlay.querySelector('#cfk-num-keys').value, 10) || 0;
+    const includeBase = overlay.querySelector('#cfk-include-base').checked;
     const base = parseFloat(kwSettings.kwiksetBaseCharge) || 0;
     const perKey = parseFloat(kwSettings.kwiksetPerKeyCharge) || 0;
-    const total = base + perKey * n;
-    overlay.querySelector('#cfk-charge-breakdown').innerHTML =
-      `<div style="display:flex;justify-content:space-between"><span>Base charge</span><span>$${base.toFixed(2)}</span></div>` +
-      `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>` +
-      `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+    const total = (includeBase ? base : 0) + perKey * n;
+    let html = '';
+    if (includeBase) html += `<div style="display:flex;justify-content:space-between"><span>Base charge</span><span>$${base.toFixed(2)}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+    overlay.querySelector('#cfk-charge-breakdown').innerHTML = html;
   }
 
   const propInput = overlay.querySelector('#cfk-prop-input');
@@ -889,6 +903,7 @@ async function showChargeForKeysModal() {
               overlay.querySelector('#cfk-save-btn').disabled = false;
               updateCfkBreakdown();
               overlay.querySelector('#cfk-num-keys').addEventListener('input', updateCfkBreakdown);
+              overlay.querySelector('#cfk-include-base').addEventListener('change', updateCfkBreakdown);
             } catch (err) {
               overlay.querySelector('#cfk-loading').style.display = 'none';
               overlay.querySelector('#cfk-error').textContent = 'Error: ' + err.message;
@@ -909,11 +924,12 @@ async function saveChargeForKeys(btn) {
   const { cfkPropId } = overlay._getCfkState();
   if (!cfkPropId) return;
   const numKeys = parseInt(overlay.querySelector('#cfk-num-keys').value, 10) || 0;
+  const includeBase = overlay.querySelector('#cfk-include-base').checked;
   const performedBy = overlay.querySelector('#cfk-performed-by').value.trim();
   const errEl = overlay.querySelector('#cfk-error'); errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: cfkPropId, numKeys, performedBy }) });
+    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: cfkPropId, numKeys, includeBase, performedBy }) });
     overlay.remove();
     alert('✅ Invoice sent to Appfolio.');
   } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Send Invoice'; }

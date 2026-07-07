@@ -673,11 +673,11 @@ app.patch('/api/settings', requireRole('Admin'), (req, res) => {
 // ── Kwikset invoice ────────────────────────────────────────────────────────────
 app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
-    const { propertyId, kwiksetCut, numKeys, performedBy } = req.body;
+    const { propertyId, kwiksetCut, numKeys, performedBy, includeBase = true } = req.body;
     if (!propertyId || !numKeys) return res.status(400).json({ error: 'propertyId and numKeys required' });
 
     const settings = readSettings();
-    const baseCharge = parseFloat(settings.kwiksetBaseCharge) || 0;
+    const baseCharge = includeBase ? (parseFloat(settings.kwiksetBaseCharge) || 0) : 0;
     const perKeyCharge = parseFloat(settings.kwiksetPerKeyCharge) || 0;
     const total = baseCharge + (perKeyCharge * parseInt(numKeys, 10));
 
@@ -747,9 +747,11 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
       doc.moveDown(0.3);
 
       doc.font('Helvetica');
-      doc.text('Re-key base charge', 50, doc.y, { width: 350 });
-      doc.text(`$${baseCharge.toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
-      doc.moveDown(0.3);
+      if (includeBase) {
+        doc.text('Re-key base charge', 50, doc.y, { width: 350 });
+        doc.text(`$${baseCharge.toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
+        doc.moveDown(0.3);
+      }
 
       doc.text(`Keys provided (${numKeys} × $${perKeyCharge.toFixed(2)})`, 50, doc.y, { width: 350 });
       doc.text(`$${(perKeyCharge * parseInt(numKeys, 10)).toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
