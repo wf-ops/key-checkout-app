@@ -12,7 +12,7 @@ const { google } = require('googleapis');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const PDFDocument = require('pdfkit');
-const sgMail = require('@sendgrid/mail');
+const { Resend } = require('resend');
 
 const app = express();
 // Slack events need raw body for signature verification — skip JSON parsing for that route
@@ -772,22 +772,21 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
 
     const pdfBuffer = Buffer.concat(chunks);
 
-    // Send via SendGrid
-    const sgKey = process.env.SENDGRID_API_KEY;
-    if (!sgKey) return res.status(503).json({ error: 'SENDGRID_API_KEY not configured' });
-    sgMail.setApiKey(sgKey);
-    await sgMail.send({
+    // Send via Resend
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!resendKey) return res.status(503).json({ error: 'RESEND_API_KEY not configured' });
+    const resend = new Resend(resendKey);
+    const { error: sendError } = await resend.emails.send({
       to: 'keyrenter078@invoices.appfolio.com',
-      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@keyrenterboise.com',
+      from: process.env.RESEND_FROM_EMAIL || 'invoices@keyrenterboise.com',
       subject: `Re-key Invoice ${invoiceNum} — ${address}`,
       text: `Please find the attached re-key invoice for ${address}.\n\nInvoice #: ${invoiceNum}\nTotal: $${total.toFixed(2)}\nKeys provided: ${numKeys}\nKwikset cut: ${kwiksetCut || 'N/A'}\nPerformed by: ${performedBy || 'Staff'}`,
       attachments: [{
-        content: pdfBuffer.toString('base64'),
+        content: pdfBuffer,
         filename: `invoice-${invoiceNum}.pdf`,
-        type: 'application/pdf',
-        disposition: 'attachment',
       }],
     });
+    if (sendError) throw new Error(sendError.message);
 
     res.json({ success: true, invoiceNum, total, address });
   } catch (e) {
