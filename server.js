@@ -988,13 +988,13 @@ confidence=high: both SN and property clear. confidence=medium: SN clear but pro
   }
 }
 
-// POST /api/slack/backfill — process last 60 days of #lockboxes messages
-app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
-  const botToken = process.env.SLACK_BOT_TOKEN;
-  const channelName = process.env.SLACK_LOCKBOX_CHANNEL || 'lockboxes';
-  if (!botToken) return res.status(503).json({ error: 'SLACK_BOT_TOKEN not configured' });
+// In-memory backfill job state
+let backfillJob = null;
 
-  // Find channel ID by name — paginate through all channels
+async function runBackfill(botToken, channelName) {
+  const job = backfillJob;
+
+  // Find channel ID by name
   let channelId;
   try {
     let listCursor;
@@ -1003,92 +1003,103 @@ app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
       let url = 'https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200';
       if (listCursor) url += `&cursor=${listCursor}`;
       const listRes = await fetch(url, { headers: { Authorization: `Bearer ${botToken}` } }).then(r => r.json());
-      if (!listRes.ok) return res.status(400).json({ error: `Slack API error: ${listRes.error}`, hint: 'Check SLACK_BOT_TOKEN and that the bot has channels:read scope' });
+      if (!listRes.ok) { job.error = `Slack API error: ${listRes.error}`; job.done = true; return; }
       found = listRes.channels?.find(c => c.name === channelName);
       listCursor = listRes.response_metadata?.next_cursor;
       if (found) break;
     } while (listCursor);
-    if (!found) return res.status(404).json({ error: `Channel #${channelName} not found — make sure the bot is invited to the channel (/invite @BotName in Slack)` });
+    if (!found) { job.error = `Channel #${channelName} not found`; job.done = true; return; }
     channelId = found.id;
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+  } catch (e) { job.error = e.message; job.done = true; return; }
 
   const oldest = Math.floor((Date.now() - 60 * 24 * 60 * 60 * 1000) / 1000);
-  const results = { updated: 0, skipped: 0, errors: 0, total: 0, withImage: 0, skipReasons: {} };
-
-  // Stream response so it doesn't time out
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Transfer-Encoding', 'chunked');
-
   let cursor;
   let done = false;
   while (!done) {
     let url = `https://slack.com/api/conversations.history?channel=${channelId}&oldest=${oldest}&limit=100`;
     if (cursor) url += `&cursor=${cursor}`;
     const histRes = await fetch(url, { headers: { Authorization: `Bearer ${botToken}` } }).then(r => r.json());
-    if (!histRes.ok) { results.errors++; break; }
+    if (!histRes.ok) { job.results.errors++; break; }
 
     for (const msg of (histRes.messages || [])) {
       if (msg.bot_id || (msg.subtype && msg.subtype !== 'file_share')) continue;
-      results.total++;
+      job.results.total++;
 
       let imageBase64 = null, imageMime = null;
       const fileObj = msg.files?.[0] || msg.file || null;
       if (fileObj) {
         const f = fileObj;
         if (f.mimetype?.startsWith('image/')) {
-          // Log available thumb fields to diagnose
           console.log('[slack] file fields:', JSON.stringify({ mimetype: f.mimetype, has720: !!f.thumb_720, has360: !!f.thumb_360, has480: !!f.thumb_480 }));
-          // Always prefer thumbnails — full images are 5-6MB which exceeds Claude's ~3.5MB usable base64 limit
           const imgUrl = f.thumb_720 || f.thumb_480 || f.thumb_360 || f.url_private;
           const usingThumb = !!(f.thumb_720 || f.thumb_480 || f.thumb_360);
           try {
             const imgRes = await fetch(imgUrl, { headers: { Authorization: `Bearer ${botToken}` } });
             if (!imgRes.ok) {
               const k = `image fetch ${imgRes.status}`;
-              results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+              job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1;
             } else {
               const contentType = imgRes.headers.get('content-type') || '';
               const buf = Buffer.from(await imgRes.arrayBuffer());
               console.log('[slack] img downloaded:', buf.length, 'bytes, thumb:', usingThumb, 'type:', contentType.split(';')[0]);
               if (buf.length < 4096) {
                 const k = 'image too small (likely HTML error)';
-                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+                job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1;
               } else if (buf.length > 3_500_000) {
                 const k = 'image too large for Claude (>3.5MB) — no thumbnail available';
-                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+                job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1;
               } else if (!contentType.startsWith('image/') && !contentType.startsWith('application/octet')) {
                 const k = `image wrong content-type: ${contentType.split(';')[0]}`;
-                results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+                job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1;
               } else {
                 imageBase64 = buf.toString('base64');
                 imageMime = contentType.startsWith('image/') ? contentType.split(';')[0] : 'image/jpeg';
-                results.withImage++;
+                job.results.withImage++;
               }
             }
           } catch (e) { console.error('[slack] image fetch error:', e.message); }
         }
       }
 
-      // 5 RPM org limit → minimum 12s between calls; use 13s for headroom
+      // 5 RPM org limit → 13s between image calls
       if (imageBase64) await new Promise(r => setTimeout(r, 13000));
       const result = await processLockboxMessage({ text: msg.text || '', imageBase64, imageMime }, botToken);
-      if (!result) { results.skipped++; const k = 'no text or image'; results.skipReasons[k] = (results.skipReasons[k] || 0) + 1; continue; }
-      if (result.updated) results.updated++;
+      if (!result) { job.results.skipped++; const k = 'no text or image'; job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1; continue; }
+      if (result.updated) job.results.updated++;
       else if (result.skipped) {
-        results.skipped++;
+        job.results.skipped++;
         const k = result.reason || 'unknown';
-        results.skipReasons[k] = (results.skipReasons[k] || 0) + 1;
+        job.results.skipReasons[k] = (job.results.skipReasons[k] || 0) + 1;
         if (result.parsed) console.log('[backfill skip]', JSON.stringify(result.parsed));
       }
-      else results.errors++;
+      else job.results.errors++;
     }
 
     cursor = histRes.response_metadata?.next_cursor;
     if (!cursor) done = true;
   }
 
-  res.end(JSON.stringify({ success: true, ...results }));
+  job.done = true;
+}
+
+// POST /api/slack/backfill — start async backfill job
+app.post('/api/slack/backfill', requireRole('Admin'), async (req, res) => {
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  const channelName = process.env.SLACK_LOCKBOX_CHANNEL || 'lockboxes';
+  if (!botToken) return res.status(503).json({ error: 'SLACK_BOT_TOKEN not configured' });
+  if (backfillJob && !backfillJob.done) return res.json({ started: false, message: 'Backfill already running', ...backfillJob.results });
+
+  backfillJob = { done: false, error: null, results: { updated: 0, skipped: 0, errors: 0, total: 0, withImage: 0, skipReasons: {} } };
+  runBackfill(botToken, channelName).catch(e => { backfillJob.error = e.message; backfillJob.done = true; });
+  res.json({ started: true, message: 'Backfill started — poll /api/slack/backfill/status for results' });
 });
+
+// GET /api/slack/backfill/status — poll for backfill progress
+app.get('/api/slack/backfill/status', requireRole('Admin'), (req, res) => {
+  if (!backfillJob) return res.json({ started: false });
+  res.json({ done: backfillJob.done, error: backfillJob.error, success: true, ...backfillJob.results });
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

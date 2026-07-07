@@ -456,7 +456,22 @@ async function runSlackBackfill() {
   const btn = document.getElementById('backfill-btn');
   btn.disabled = true; btn.textContent = '⏳ Syncing…';
   try {
-    const result = await api('/api/slack/backfill', { method: 'POST' });
+    const start = await api('/api/slack/backfill', { method: 'POST' });
+    if (start.started === false && start.message) {
+      // Already running — just poll
+    } else if (!start.started) {
+      throw new Error(start.error || 'Failed to start backfill');
+    }
+    // Poll until done (job can take ~10 min due to rate limits)
+    let result;
+    while (true) {
+      await new Promise(r => setTimeout(r, 5000));
+      result = await api('/api/slack/backfill/status');
+      const prog = `Updated: ${result.updated} | Skipped: ${result.skipped} | Processed: ${result.total}`;
+      btn.textContent = `⏳ ${prog}`;
+      if (result.done) break;
+    }
+    if (result.error) throw new Error(result.error);
     const reasons = result.skipReasons && Object.keys(result.skipReasons).length
       ? '\n\nSkip reasons:\n' + Object.entries(result.skipReasons).map(([k,v]) => `  ${k}: ${v}`).join('\n')
       : '';
