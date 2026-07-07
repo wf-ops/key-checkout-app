@@ -5,11 +5,14 @@ process.on('unhandledRejection', (reason) => {
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const fs = require('fs');
 const { Readable } = require('stream');
 const multer = require('multer');
 const { google } = require('googleapis');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const PDFDocument = require('pdfkit');
+const sgMail = require('@sendgrid/mail');
 
 const app = express();
 // Slack events need raw body for signature verification — skip JSON parsing for that route
@@ -645,6 +648,150 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
     await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── App settings (stored in settings.json next to server.js) ──────────────────
+const SETTINGS_PATH = path.join(__dirname, 'settings.json');
+function readSettings() {
+  try { return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')); } catch { return {}; }
+}
+function writeSettings(data) {
+  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/settings', requireRole('Admin'), (req, res) => {
+  res.json(readSettings());
+});
+
+app.patch('/api/settings', requireRole('Admin'), (req, res) => {
+  const current = readSettings();
+  const updated = { ...current, ...req.body };
+  writeSettings(updated);
+  res.json(updated);
+});
+
+// ── Kwikset invoice ────────────────────────────────────────────────────────────
+app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { propertyId, kwiksetCut, numKeys, performedBy } = req.body;
+    if (!propertyId || !numKeys) return res.status(400).json({ error: 'propertyId and numKeys required' });
+
+    const settings = readSettings();
+    const baseCharge = parseFloat(settings.kwiksetBaseCharge) || 0;
+    const perKeyCharge = parseFloat(settings.kwiksetPerKeyCharge) || 0;
+    const total = baseCharge + (perKeyCharge * parseInt(numKeys, 10));
+
+    // Fetch property details
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+    const p = propPage.properties || {};
+    const address = extractRichText(p['Street Address - Property']) || 'Unknown Property';
+    const propertyCode = extractRichText(p['Property Code']) || '';
+    const tenantRel = p['Tenants']?.relation || p['Tenant']?.relation || [];
+    let tenantName = '';
+    if (tenantRel.length > 0) {
+      try {
+        const tenantPage = await fetch(`https://api.notion.com/v1/pages/${tenantRel[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+        const tp = tenantPage.properties || {};
+        tenantName = extractRichText(Object.values(tp).find(v => v.type === 'title') || {}) ||
+          extractRichText(tp['Name'] || tp['Full Name'] || {});
+      } catch (_) {}
+    }
+
+    const invoiceDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/Denver', year: 'numeric', month: 'long', day: 'numeric' });
+    const invoiceNum = `KRB-${Date.now()}`;
+
+    // Build PDF in memory
+    const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    await new Promise(resolve => {
+      doc.on('end', resolve);
+
+      // Header
+      doc.fontSize(22).font('Helvetica-Bold').text('Keyrenter Boise', { align: 'left' });
+      doc.fontSize(10).font('Helvetica').fillColor('#555')
+        .text('Kwikset Re-key Invoice', { align: 'left' })
+        .moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).strokeColor('#ccc').stroke();
+      doc.moveDown(0.5);
+
+      // Invoice meta
+      doc.fillColor('#000').fontSize(10);
+      const metaY = doc.y;
+      doc.text(`Invoice #: ${invoiceNum}`, 50, metaY);
+      doc.text(`Date: ${invoiceDate}`, 50);
+      doc.moveDown(1);
+
+      // Property block
+      doc.font('Helvetica-Bold').text('Property:', 50);
+      doc.font('Helvetica').text(address, 50);
+      if (propertyCode) doc.text(`Code: ${propertyCode}`, 50);
+      if (tenantName) doc.text(`Resident: ${tenantName}`, 50);
+      doc.moveDown(1);
+
+      // Change details
+      doc.font('Helvetica-Bold').text('Re-key Details:', 50);
+      doc.font('Helvetica').text(`Kwikset Cut: ${kwiksetCut || 'N/A'}`, 50);
+      doc.text(`Keys Provided to Resident: ${numKeys}`, 50);
+      doc.text(`Performed By: ${performedBy || 'Staff'}`, 50);
+      doc.moveDown(1);
+
+      // Line items table
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).strokeColor('#ccc').stroke();
+      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold');
+      doc.text('Description', 50, doc.y, { width: 350 });
+      doc.text('Amount', 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
+      doc.moveDown(0.2);
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).strokeColor('#ccc').stroke();
+      doc.moveDown(0.3);
+
+      doc.font('Helvetica');
+      doc.text('Re-key base charge', 50, doc.y, { width: 350 });
+      doc.text(`$${baseCharge.toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
+      doc.moveDown(0.3);
+
+      doc.text(`Keys provided (${numKeys} × $${perKeyCharge.toFixed(2)})`, 50, doc.y, { width: 350 });
+      doc.text(`$${(perKeyCharge * parseInt(numKeys, 10)).toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
+      doc.moveDown(0.3);
+
+      doc.moveTo(50, doc.y).lineTo(562, doc.y).strokeColor('#ccc').stroke();
+      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold');
+      doc.text('Total', 50, doc.y, { width: 350 });
+      doc.text(`$${total.toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
+
+      doc.moveDown(2);
+      doc.font('Helvetica').fillColor('#555').fontSize(9)
+        .text('Please process this invoice in Appfolio as a charge to the resident.', { align: 'center' });
+
+      doc.end();
+    });
+
+    const pdfBuffer = Buffer.concat(chunks);
+
+    // Send via SendGrid
+    const sgKey = process.env.SENDGRID_API_KEY;
+    if (!sgKey) return res.status(503).json({ error: 'SENDGRID_API_KEY not configured' });
+    sgMail.setApiKey(sgKey);
+    await sgMail.send({
+      to: 'keyrenter078@invoices.appfolio.com',
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@keyrenterboise.com',
+      subject: `Re-key Invoice ${invoiceNum} — ${address}`,
+      text: `Please find the attached re-key invoice for ${address}.\n\nInvoice #: ${invoiceNum}\nTotal: $${total.toFixed(2)}\nKeys provided: ${numKeys}\nKwikset cut: ${kwiksetCut || 'N/A'}\nPerformed by: ${performedBy || 'Staff'}`,
+      attachments: [{
+        content: pdfBuffer.toString('base64'),
+        filename: `invoice-${invoiceNum}.pdf`,
+        type: 'application/pdf',
+        disposition: 'attachment',
+      }],
+    });
+
+    res.json({ success: true, invoiceNum, total, address });
+  } catch (e) {
+    console.error('[invoice]', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST /api/checkout — requires checkoutFileId (Drive file ID of key photo)

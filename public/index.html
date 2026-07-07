@@ -236,6 +236,9 @@
   <button class="sheet-item" id="sheet-users" onclick="closeMoreSheet();showTab('users')">
     <span class="sheet-icon">👥</span> Users
   </button>
+  <button class="sheet-item admin-only" onclick="closeMoreSheet();showSettingsModal()" style="display:none">
+    <span class="sheet-icon">⚙️</span> Settings
+  </button>
   <div class="sheet-divider"></div>
   <button class="sheet-item" onclick="closeMoreSheet();showChangePinModal()">
     <span class="sheet-icon">🔐</span> Change PIN
@@ -449,7 +452,9 @@ function onLogin(user) {
   showTab('dashboard');
   loadDashboard();
   const backfillBtn = document.getElementById('backfill-btn');
-  if (backfillBtn && (user.role || '').toLowerCase() === 'admin') backfillBtn.style.display = '';
+  const isAdminUser = (user.role || '').toLowerCase() === 'admin';
+  if (backfillBtn && isAdminUser) backfillBtn.style.display = '';
+  document.querySelectorAll('.admin-only').forEach(el => { if (isAdminUser) el.style.display = ''; });
 }
 
 async function runSlackBackfill() {
@@ -592,36 +597,78 @@ async function getKwiksetOptions() {
   if (!_kwiksetOpts) _kwiksetOpts = await api('/api/kwikset-options');
   return _kwiksetOpts;
 }
+
 async function showChangeKwiksetModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-card">
       <h3>🔐 Change Kwikset Cut</h3>
-      <label style="margin-top:0">Property</label>
-      <div class="modal-search-wrap">
-        <input type="text" id="kw-prop-input" placeholder="Search property…" autocomplete="off" />
-        <div class="modal-search-results" id="kw-prop-results"></div>
-      </div>
-      <div id="kw-body" style="display:none">
-        <div style="margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-          <div class="kw-info-row" style="padding:8px 12px"><span class="kw-info-label">Property</span><span class="kw-info-val" id="kw-prop-name" style="font-size:.85rem"></span></div>
-          <div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">Current Kwikset</span><span class="kw-info-val" id="kw-current-name" style="color:var(--primary)"></span></div>
+
+      <!-- Step 1: pick property + cut -->
+      <div id="kw-step1">
+        <label style="margin-top:0">Property</label>
+        <div class="modal-search-wrap">
+          <input type="text" id="kw-prop-input" placeholder="Search property…" autocomplete="off" />
+          <div class="modal-search-results" id="kw-prop-results"></div>
         </div>
-        <label>Changing to</label>
-        <select id="kw-new-select"></select>
-        <div class="kw-warning" id="kw-warning" style="display:none"></div>
+        <div id="kw-body" style="display:none">
+          <div style="margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <div class="kw-info-row" style="padding:8px 12px"><span class="kw-info-label">Property</span><span class="kw-info-val" id="kw-prop-name" style="font-size:.85rem"></span></div>
+            <div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">Current Kwikset</span><span class="kw-info-val" id="kw-current-name" style="color:var(--primary)"></span></div>
+          </div>
+          <label>Changing to</label>
+          <select id="kw-new-select"></select>
+          <div class="kw-warning" id="kw-warning" style="display:none"></div>
+        </div>
+        <div id="kw-loading" style="text-align:center;padding:16px 0;color:var(--gray-600);font-size:.88rem;display:none">Loading…</div>
+        <div id="kw-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+          <button class="btn btn-primary" id="kw-next-btn" onclick="kwiksetGoToStep2(this)" disabled>Next →</button>
+        </div>
       </div>
-      <div id="kw-loading" style="text-align:center;padding:16px 0;color:var(--gray-600);font-size:.88rem;display:none">Loading…</div>
-      <div id="kw-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-        <button class="btn btn-primary" id="kw-save-btn" onclick="saveKwikset(this)" disabled>Confirm Change</button>
+
+      <!-- Step 2: keys + charge + invoice -->
+      <div id="kw-step2" style="display:none">
+        <div id="kw-step2-summary" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px"></div>
+        <label>Keys given to resident</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <input type="number" id="kw-num-keys" min="0" max="20" value="2" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:1rem" />
+          <span style="font-size:.85rem;color:var(--gray-600)">keys</span>
+        </div>
+        <div id="kw-charge-breakdown" style="background:var(--surface-alt,#f8f8f8);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.88rem;margin:10px 0"></div>
+        <label style="margin-top:10px">Performed by</label>
+        <input type="text" id="kw-performed-by" placeholder="Staff name…" style="margin-bottom:4px" />
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:8px;cursor:pointer">
+          <input type="checkbox" id="kw-send-invoice" checked style="width:auto;margin:0" />
+          Send invoice to Appfolio
+        </label>
+        <div id="kw-step2-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="document.getElementById('kw-step1').style.display='';document.getElementById('kw-step2').style.display='none'">← Back</button>
+          <button class="btn btn-primary" id="kw-save-btn" onclick="saveKwikset(this)">Confirm &amp; Save</button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  let kwPropId = null, kwCurrentId = null, kwCurrentName = null, kwSearchTimer;
+
+  let kwPropId = null, kwCurrentId = null, kwCurrentName = null, kwNewId = null, kwNewName = null, kwAddress = null, kwSearchTimer;
+  let kwSettings = {};
+  try { kwSettings = await api('/api/settings'); } catch (_) {}
+
+  function updateChargeBreakdown() {
+    const n = parseInt(overlay.querySelector('#kw-num-keys').value, 10) || 0;
+    const base = parseFloat(kwSettings.kwiksetBaseCharge) || 0;
+    const perKey = parseFloat(kwSettings.kwiksetPerKeyCharge) || 0;
+    const total = base + perKey * n;
+    overlay.querySelector('#kw-charge-breakdown').innerHTML =
+      `<div style="display:flex;justify-content:space-between"><span>Base re-key charge</span><span>$${base.toFixed(2)}</span></div>` +
+      `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>` +
+      `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+  }
+
   const propInput = overlay.querySelector('#kw-prop-input');
   const propResults = overlay.querySelector('#kw-prop-results');
   propInput.addEventListener('input', () => {
@@ -640,22 +687,24 @@ async function showChangeKwiksetModal() {
             e.preventDefault();
             const p = propResults._hits[+el.dataset.idx];
             propResults.style.display = 'none'; propInput.value = '';
-            kwPropId = p.id;
+            kwPropId = p.id; kwAddress = p.address || p.propertyCode;
             overlay.querySelector('#kw-loading').style.display = 'block';
             overlay.querySelector('#kw-body').style.display = 'none';
-            overlay.querySelector('#kw-save-btn').disabled = true;
+            overlay.querySelector('#kw-next-btn').disabled = true;
             try {
               const [opts, codes] = await Promise.all([getKwiksetOptions(), api('/api/property-codes/' + p.id)]);
               kwCurrentId = codes.kwiksetCutId || ''; kwCurrentName = codes.kwiksetCut || '— None —';
-              overlay.querySelector('#kw-prop-name').textContent = codes.address || p.address || p.propertyCode;
+              kwAddress = codes.address || kwAddress;
+              overlay.querySelector('#kw-prop-name').textContent = kwAddress;
               overlay.querySelector('#kw-current-name').textContent = kwCurrentName;
               const sel = overlay.querySelector('#kw-new-select');
               sel.innerHTML = `<option value="">— None —</option>` + opts.map(o => `<option value="${o.id}"${o.id === kwCurrentId ? ' selected' : ''}>${o.name}</option>`).join('');
-              updateKwWarning(overlay, sel, kwCurrentName);
-              sel.addEventListener('change', () => updateKwWarning(overlay, sel, kwCurrentName));
+              kwNewId = sel.value; kwNewName = sel.options[sel.selectedIndex]?.text;
+              updateKwWarning(overlay, sel, kwCurrentName, kwCurrentId);
+              sel.addEventListener('change', () => { kwNewId = sel.value; kwNewName = sel.options[sel.selectedIndex]?.text; updateKwWarning(overlay, sel, kwCurrentName, kwCurrentId); });
               overlay.querySelector('#kw-loading').style.display = 'none';
               overlay.querySelector('#kw-body').style.display = 'block';
-              overlay.querySelector('#kw-save-btn').disabled = false;
+              overlay.querySelector('#kw-next-btn').disabled = false;
             } catch (err) {
               overlay.querySelector('#kw-loading').style.display = 'none';
               overlay.querySelector('#kw-error').textContent = 'Error: ' + err.message;
@@ -667,30 +716,96 @@ async function showChangeKwiksetModal() {
       } catch (_) {}
     }, 300);
   });
-  overlay.querySelector('#kw-save-btn')._getState = () => ({ kwPropId, kwCurrentId });
+
+  // expose state for step functions
+  overlay._kwState = () => ({ kwPropId, kwCurrentId, kwNewId, kwNewName, kwAddress });
+  overlay._updateCharge = updateChargeBreakdown;
   propInput.focus();
 }
-function updateKwWarning(overlay, sel, currentName) {
+
+function updateKwWarning(overlay, sel, currentName, currentId) {
   const warning = overlay.querySelector('#kw-warning');
   const newVal = sel.value;
   const newName = sel.options[sel.selectedIndex]?.text || '— None —';
-  if (!newVal && !overlay.querySelector('#kw-save-btn')._getState().kwCurrentId) { warning.style.display = 'none'; return; }
+  if (!newVal && !currentId) { warning.style.display = 'none'; return; }
   warning.style.display = 'block';
-  const hasCurrent = !!overlay.querySelector('#kw-save-btn')._getState().kwCurrentId;
-  const previousNote = hasCurrent ? ` The current cut (<strong>${currentName}</strong>) will be added to Previous Kwiksets.` : '';
+  const previousNote = currentId ? ` The current cut (<strong>${currentName}</strong>) will be added to Previous Kwiksets.` : '';
   warning.innerHTML = `⚠️ This will set the Kwikset cut to <strong>${newName}</strong>.${previousNote}`;
 }
+
+function kwiksetGoToStep2(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const { kwPropId, kwNewId, kwNewName, kwAddress, kwCurrentId } = overlay._kwState();
+  if (!kwPropId) return;
+  // Populate step 2 summary
+  overlay.querySelector('#kw-step2-summary').innerHTML =
+    `<div class="kw-info-row" style="padding:8px 12px"><span class="kw-info-label">Property</span><span class="kw-info-val" style="font-size:.85rem">${kwAddress}</span></div>` +
+    `<div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">New Cut</span><span class="kw-info-val" style="color:var(--primary)">${kwNewName || '— None —'}</span></div>`;
+  overlay._updateCharge();
+  overlay.querySelector('#kw-num-keys').addEventListener('input', () => overlay._updateCharge());
+  overlay.querySelector('#kw-step1').style.display = 'none';
+  overlay.querySelector('#kw-step2').style.display = '';
+}
+
 async function saveKwikset(btn) {
   const overlay = btn.closest('.modal-overlay');
-  const { kwPropId, kwCurrentId } = btn._getState();
+  const { kwPropId, kwCurrentId, kwNewId, kwNewName, kwAddress } = overlay._kwState();
   if (!kwPropId) return;
-  const sel = overlay.querySelector('#kw-new-select');
+  const numKeys = parseInt(overlay.querySelector('#kw-num-keys').value, 10) || 0;
+  const performedBy = overlay.querySelector('#kw-performed-by').value.trim();
+  const sendInvoice = overlay.querySelector('#kw-send-invoice').checked;
+  const errEl = overlay.querySelector('#kw-step2-error'); errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Saving…';
-  const err = overlay.querySelector('#kw-error'); err.style.display = 'none';
   try {
-    await api(`/api/property-kwikset/${kwPropId}`, { method: 'PATCH', body: JSON.stringify({ kwiksetPageId: sel.value || null, previousKwiksetId: kwCurrentId || null }) });
+    // 1. Update Notion
+    await api(`/api/property-kwikset/${kwPropId}`, { method: 'PATCH', body: JSON.stringify({ kwiksetPageId: kwNewId || null, previousKwiksetId: kwCurrentId || null }) });
+    // 2. Send invoice
+    if (sendInvoice) {
+      btn.textContent = 'Sending invoice…';
+      await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: kwPropId, kwiksetCut: kwNewName, numKeys, performedBy }) });
+    }
     overlay.remove();
-  } catch (e) { err.textContent = e.message; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Confirm Change'; }
+    alert(`✅ Kwikset updated${sendInvoice ? ' and invoice sent to Appfolio' : ''}.`);
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Confirm & Save'; }
+}
+
+// ── Settings modal (Admin only)
+async function showSettingsModal() {
+  let settings = {};
+  try { settings = await api('/api/settings'); } catch (_) {}
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>⚙️ Settings</h3>
+      <p style="font-size:.85rem;color:var(--gray-600);margin-top:0">Kwikset Re-key Invoice Charges</p>
+      <label>Base charge per re-key ($)</label>
+      <input type="number" id="set-base" min="0" step="0.01" value="${parseFloat(settings.kwiksetBaseCharge||0).toFixed(2)}" placeholder="e.g. 25.00" />
+      <label>Per-key charge ($)</label>
+      <input type="number" id="set-perkey" min="0" step="0.01" value="${parseFloat(settings.kwiksetPerKeyCharge||0).toFixed(2)}" placeholder="e.g. 5.00" />
+      <label>Invoice from email</label>
+      <input type="email" id="set-from-email" value="${settings.kwiksetFromEmail||''}" placeholder="noreply@keyrenterboise.com" />
+      <div id="set-error" style="color:var(--red);font-size:.85rem;margin-top:6px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings(this)">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function saveSettings(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const base = parseFloat(overlay.querySelector('#set-base').value) || 0;
+  const perKey = parseFloat(overlay.querySelector('#set-perkey').value) || 0;
+  const fromEmail = overlay.querySelector('#set-from-email').value.trim();
+  const errEl = overlay.querySelector('#set-error'); errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ kwiksetBaseCharge: base, kwiksetPerKeyCharge: perKey, kwiksetFromEmail: fromEmail }) });
+    overlay.remove();
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Save'; }
 }
 
 // ── Check Out
