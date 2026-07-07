@@ -279,6 +279,7 @@
     <h3>Quick Actions</h3>
     <div class="quick-actions">
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
+      <button class="quick-action-btn" onclick="showChargeForKeysModal()">🔑 Charge for Keys</button>
       <button class="quick-action-btn" id="backfill-btn" onclick="runSlackBackfill()" style="display:none">📥 Sync Lockboxes</button>
     </div>
   </div>
@@ -806,6 +807,116 @@ async function saveSettings(btn) {
     await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ kwiksetBaseCharge: base, kwiksetPerKeyCharge: perKey, kwiksetFromEmail: fromEmail }) });
     overlay.remove();
   } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+// ── Charge for Keys modal (invoice only, no Kwikset change)
+async function showChargeForKeysModal() {
+  let kwSettings = {};
+  try { kwSettings = await api('/api/settings'); } catch (_) {}
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>🔑 Charge for Keys</h3>
+      <label style="margin-top:0">Property</label>
+      <div class="modal-search-wrap">
+        <input type="text" id="cfk-prop-input" placeholder="Search property…" autocomplete="off" />
+        <div class="modal-search-results" id="cfk-prop-results"></div>
+      </div>
+      <div id="cfk-body" style="display:none">
+        <div id="cfk-prop-summary" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:10px 0 14px"></div>
+        <label>Keys given to resident</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <input type="number" id="cfk-num-keys" min="0" max="20" value="2" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:1rem" />
+          <span style="font-size:.85rem;color:var(--gray-600)">keys</span>
+        </div>
+        <div id="cfk-charge-breakdown" style="background:var(--surface-alt,#f8f8f8);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.88rem;margin:10px 0"></div>
+        <label style="margin-top:10px">Performed by</label>
+        <input type="text" id="cfk-performed-by" placeholder="Staff name…" />
+      </div>
+      <div id="cfk-loading" style="text-align:center;padding:16px 0;color:var(--gray-600);font-size:.88rem;display:none">Loading…</div>
+      <div id="cfk-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="cfk-save-btn" onclick="saveChargeForKeys(this)" disabled>Send Invoice</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  let cfkPropId = null, cfkAddress = null, cfkSearchTimer;
+
+  function updateCfkBreakdown() {
+    const n = parseInt(overlay.querySelector('#cfk-num-keys').value, 10) || 0;
+    const base = parseFloat(kwSettings.kwiksetBaseCharge) || 0;
+    const perKey = parseFloat(kwSettings.kwiksetPerKeyCharge) || 0;
+    const total = base + perKey * n;
+    overlay.querySelector('#cfk-charge-breakdown').innerHTML =
+      `<div style="display:flex;justify-content:space-between"><span>Base charge</span><span>$${base.toFixed(2)}</span></div>` +
+      `<div style="display:flex;justify-content:space-between"><span>Keys (${n} × $${perKey.toFixed(2)})</span><span>$${(perKey*n).toFixed(2)}</span></div>` +
+      `<div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+  }
+
+  const propInput = overlay.querySelector('#cfk-prop-input');
+  const propResults = overlay.querySelector('#cfk-prop-results');
+  propInput.addEventListener('input', () => {
+    const q = propInput.value.trim();
+    propResults.style.display = 'none';
+    if (q.length < 2) return;
+    clearTimeout(cfkSearchTimer);
+    cfkSearchTimer = setTimeout(async () => {
+      try {
+        const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
+        if (!hits.length) return;
+        propResults.innerHTML = hits.slice(0, 8).map((p, i) => `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`).join('');
+        propResults._hits = hits;
+        propResults.querySelectorAll('.search-result-item').forEach(el => {
+          el.addEventListener('mousedown', async e => {
+            e.preventDefault();
+            const p = propResults._hits[+el.dataset.idx];
+            propResults.style.display = 'none'; propInput.value = '';
+            cfkPropId = p.id; cfkAddress = p.address || p.propertyCode;
+            overlay.querySelector('#cfk-loading').style.display = 'block';
+            overlay.querySelector('#cfk-body').style.display = 'none';
+            overlay.querySelector('#cfk-save-btn').disabled = true;
+            try {
+              const codes = await api('/api/property-codes/' + p.id);
+              cfkAddress = codes.address || cfkAddress;
+              overlay.querySelector('#cfk-prop-summary').innerHTML =
+                `<div class="kw-info-row" style="padding:8px 12px;border-bottom:none"><span class="kw-info-label">Property</span><span class="kw-info-val" style="font-size:.85rem">${cfkAddress}</span></div>`;
+              overlay.querySelector('#cfk-loading').style.display = 'none';
+              overlay.querySelector('#cfk-body').style.display = 'block';
+              overlay.querySelector('#cfk-save-btn').disabled = false;
+              updateCfkBreakdown();
+              overlay.querySelector('#cfk-num-keys').addEventListener('input', updateCfkBreakdown);
+            } catch (err) {
+              overlay.querySelector('#cfk-loading').style.display = 'none';
+              overlay.querySelector('#cfk-error').textContent = 'Error: ' + err.message;
+              overlay.querySelector('#cfk-error').style.display = 'block';
+            }
+          });
+        });
+        propResults.style.display = 'block';
+      } catch (_) {}
+    }, 300);
+  });
+  propInput.focus();
+  overlay._getCfkState = () => ({ cfkPropId, cfkAddress });
+}
+
+async function saveChargeForKeys(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const { cfkPropId } = overlay._getCfkState();
+  if (!cfkPropId) return;
+  const numKeys = parseInt(overlay.querySelector('#cfk-num-keys').value, 10) || 0;
+  const performedBy = overlay.querySelector('#cfk-performed-by').value.trim();
+  const errEl = overlay.querySelector('#cfk-error'); errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: cfkPropId, numKeys, performedBy }) });
+    overlay.remove();
+    alert('✅ Invoice sent to Appfolio.');
+  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Send Invoice'; }
 }
 
 // ── Check Out
