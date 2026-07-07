@@ -778,7 +778,7 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
     const resend = new Resend(resendKey);
     const { error: sendError } = await resend.emails.send({
       to: 'keyrenter078@invoices.appfolio.com',
-      from: process.env.RESEND_FROM_EMAIL || 'invoices@keyrenterboise.com',
+      from: process.env.RESEND_FROM_EMAIL || 'noreply@bills.gokrb.com',
       subject: `Re-key Invoice ${invoiceNum} — ${address}`,
       text: `Please find the attached re-key invoice for ${address}.\n\nInvoice #: ${invoiceNum}\nTotal: $${total.toFixed(2)}\nKeys provided: ${numKeys}\nKwikset cut: ${kwiksetCut || 'N/A'}\nPerformed by: ${performedBy || 'Staff'}`,
       attachments: [{
