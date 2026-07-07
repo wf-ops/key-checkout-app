@@ -651,47 +651,37 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
 });
 
 // ── App settings (stored in settings.json next to server.js) ──────────────────
-// ── Settings stored in Notion (NOTION_SETTINGS_DB_ID) ─────────────────────────
-const SETTINGS_DB_ID = process.env.NOTION_SETTINGS_DB_ID;
+// ── Settings stored in a Notion page JSON code block (like ChapinOS) ─────────
+const SETTINGS_PAGE_ID = process.env.NOTION_SETTINGS_PAGE_ID;
 
 async function readSettings() {
-  if (!SETTINGS_DB_ID) return {};
+  if (!SETTINGS_PAGE_ID) return {};
   try {
-    const rows = await queryAll(SETTINGS_DB_ID, null);
-    const settings = {};
-    for (const row of rows) {
-      const key = row.properties?.Key?.title?.[0]?.plain_text;
-      const val = extractRichText(row.properties?.Value);
-      if (key) settings[key] = val;
-    }
-    return settings;
+    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
+    const blocks = await blocksRes.json();
+    const codeBlock = (blocks.results || []).find(b => b.type === 'code');
+    if (!codeBlock) return {};
+    const raw = codeBlock.code?.rich_text?.map(t => t.plain_text).join('') || '{}';
+    return JSON.parse(raw);
   } catch (e) { console.error('[settings] read error:', e.message); return {}; }
 }
 
 async function writeSettings(data) {
-  if (!SETTINGS_DB_ID) return;
+  if (!SETTINGS_PAGE_ID) return;
   try {
-    const rows = await queryAll(SETTINGS_DB_ID, null);
-    const existing = {};
-    for (const row of rows) {
-      const key = row.properties?.Key?.title?.[0]?.plain_text;
-      if (key) existing[key] = row.id;
-    }
-    for (const [key, value] of Object.entries(data)) {
-      const props = {
-        Key: { title: [{ text: { content: key } }] },
-        Value: { rich_text: [{ text: { content: String(value ?? '') } }] },
-      };
-      if (existing[key]) {
-        await notionPatch(`https://api.notion.com/v1/pages/${existing[key]}`, { properties: props });
-      } else {
-        await fetch('https://api.notion.com/v1/pages', {
-          method: 'POST',
-          headers: notionHeaders(),
-          body: JSON.stringify({ parent: { database_id: SETTINGS_DB_ID }, properties: props }),
-        });
-      }
-    }
+    // Find the code block ID
+    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
+    const blocks = await blocksRes.json();
+    const codeBlock = (blocks.results || []).find(b => b.type === 'code');
+    if (!codeBlock) return;
+    // Merge with existing and write back
+    const existing = JSON.parse(codeBlock.code?.rich_text?.map(t => t.plain_text).join('') || '{}');
+    const merged = { ...existing, ...data };
+    await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
+      method: 'PATCH',
+      headers: notionHeaders(),
+      body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: JSON.stringify(merged, null, 2) } }], language: 'json' } }),
+    });
   } catch (e) { console.error('[settings] write error:', e.message); }
 }
 
