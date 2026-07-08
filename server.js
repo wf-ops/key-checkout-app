@@ -651,66 +651,52 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), 
 });
 
 // ── App settings (stored in settings.json next to server.js) ──────────────────
-// ── Settings stored in a Notion page JSON code block (like ChapinOS) ─────────
-const SETTINGS_PAGE_ID = process.env.NOTION_SETTINGS_PAGE_ID;
-
-async function getSettingsBlocks() {
-  const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
-  return await blocksRes.json();
-}
+// ── Settings stored in Notion database (db1956d8-2980-407e-86cb-0ef6c91a71c9) ─
+const SETTINGS_DB_ID = 'db1956d8-2980-407e-86cb-0ef6c91a71c9';
 
 async function readSettings() {
-  if (!SETTINGS_PAGE_ID) return {};
   try {
-    const blocks = await getSettingsBlocks();
-    const codeBlock = (blocks.results || []).find(b => b.type === 'code');
-    if (!codeBlock) return {};
-    const raw = codeBlock.code?.rich_text?.map(t => t.plain_text).join('') || '{}';
-    return JSON.parse(raw);
+    const rows = await queryAll(SETTINGS_DB_ID, null);
+    const settings = {};
+    for (const row of rows) {
+      const key = row.properties?.Setting?.title?.[0]?.plain_text;
+      const val = extractRichText(row.properties?.Value);
+      if (key) settings[key] = val;
+    }
+    return settings;
   } catch (e) { console.error('[settings] read error:', e.message); return {}; }
 }
 
 async function writeSettings(data) {
-  if (!SETTINGS_PAGE_ID) return;
   try {
-    const blocks = await getSettingsBlocks();
-    console.log('[settings] blocks:', JSON.stringify((blocks.results || []).map(b => b.type)));
-    const codeBlock = (blocks.results || []).find(b => b.type === 'code');
-    const merged = { ...(await readSettings()), ...data };
-    const jsonContent = JSON.stringify(merged, null, 2);
-
-    if (codeBlock) {
-      // Update existing code block
-      await fetch(`https://api.notion.com/v1/blocks/${codeBlock.id}`, {
-        method: 'PATCH',
-        headers: notionHeaders(),
-        body: JSON.stringify({ code: { rich_text: [{ type: 'text', text: { content: jsonContent } }], language: 'json' } }),
-      });
-    } else {
-      // No code block found — append one
-      console.log('[settings] no code block found, creating one');
-      await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, {
-        method: 'PATCH',
-        headers: notionHeaders(),
-        body: JSON.stringify({ children: [{ object: 'block', type: 'code', code: { rich_text: [{ type: 'text', text: { content: jsonContent } }], language: 'json' } }] }),
-      });
+    const rows = await queryAll(SETTINGS_DB_ID, null);
+    const existing = {};
+    for (const row of rows) {
+      const key = row.properties?.Setting?.title?.[0]?.plain_text;
+      if (key) existing[key] = row.id;
+    }
+    for (const [key, value] of Object.entries(data)) {
+      const props = {
+        Setting: { title: [{ text: { content: key } }] },
+        Value: { rich_text: [{ text: { content: String(value ?? '') } }] },
+      };
+      if (existing[key]) {
+        await notionPatch(`https://api.notion.com/v1/pages/${existing[key]}`, { properties: props });
+      } else {
+        await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST', headers: notionHeaders(),
+          body: JSON.stringify({ parent: { database_id: SETTINGS_DB_ID }, properties: props }),
+        });
+      }
     }
   } catch (e) { console.error('[settings] write error:', e.message); }
 }
 
 app.get('/api/settings', requireRole('Admin'), async (req, res) => {
-  if (!SETTINGS_PAGE_ID) return res.status(503).json({ error: 'NOTION_SETTINGS_PAGE_ID not configured' });
   res.json(await readSettings());
 });
 
 app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
-  if (!SETTINGS_PAGE_ID) return res.status(503).json({ error: 'NOTION_SETTINGS_PAGE_ID not configured' });
-  // Debug: log block types on write
-  try {
-    const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${SETTINGS_PAGE_ID}/children`, { headers: notionHeaders() });
-    const blocks = await blocksRes.json();
-    console.log('[settings] page blocks:', JSON.stringify((blocks.results || []).map(b => ({ id: b.id, type: b.type }))));
-  } catch (e) { console.error('[settings] debug error:', e.message); }
   await writeSettings(req.body);
   res.json(await readSettings());
 });
