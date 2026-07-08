@@ -657,6 +657,10 @@ const SETTINGS_DB_ID = 'db1956d8-2980-407e-86cb-0ef6c91a71c9';
 async function readSettings() {
   try {
     const rows = await queryAll(SETTINGS_DB_ID, null);
+    console.log('[settings] readSettings rows:', rows.length, rows.map(r => ({
+      key: r.properties?.Setting?.title?.[0]?.plain_text,
+      valueProp: JSON.stringify(r.properties?.Value),
+    })));
     const settings = {};
     for (const row of rows) {
       const key = row.properties?.Setting?.title?.[0]?.plain_text;
@@ -664,41 +668,51 @@ async function readSettings() {
       if (key) settings[key] = val;
     }
     return settings;
-  } catch (e) { console.error('[settings] read error:', e.message); return {}; }
+  } catch (e) { console.error('[settings] read error:', e.message, e.stack); return {}; }
 }
 
 async function writeSettings(data) {
-  try {
-    const rows = await queryAll(SETTINGS_DB_ID, null);
-    const existing = {};
-    for (const row of rows) {
-      const key = row.properties?.Setting?.title?.[0]?.plain_text;
-      if (key) existing[key] = row.id;
+  const rows = await queryAll(SETTINGS_DB_ID, null);
+  console.log('[settings] writeSettings existing rows:', rows.length);
+  const existing = {};
+  for (const row of rows) {
+    const key = row.properties?.Setting?.title?.[0]?.plain_text;
+    if (key) existing[key] = row.id;
+  }
+  for (const [key, value] of Object.entries(data)) {
+    const props = {
+      Setting: { title: [{ text: { content: key } }] },
+      Value: { rich_text: [{ text: { content: String(value ?? '') } }] },
+    };
+    if (existing[key]) {
+      console.log('[settings] patching', key, '=', value, 'id:', existing[key]);
+      const r = await notionPatch(`https://api.notion.com/v1/pages/${existing[key]}`, { properties: props });
+      console.log('[settings] patch result:', JSON.stringify(r).slice(0, 200));
+    } else {
+      console.log('[settings] creating new row for', key, '=', value);
+      const r = await fetch('https://api.notion.com/v1/pages', {
+        method: 'POST', headers: notionHeaders(),
+        body: JSON.stringify({ parent: { database_id: SETTINGS_DB_ID }, properties: props }),
+      }).then(x => x.json());
+      console.log('[settings] create result:', JSON.stringify(r).slice(0, 200));
     }
-    for (const [key, value] of Object.entries(data)) {
-      const props = {
-        Setting: { title: [{ text: { content: key } }] },
-        Value: { rich_text: [{ text: { content: String(value ?? '') } }] },
-      };
-      if (existing[key]) {
-        await notionPatch(`https://api.notion.com/v1/pages/${existing[key]}`, { properties: props });
-      } else {
-        await fetch('https://api.notion.com/v1/pages', {
-          method: 'POST', headers: notionHeaders(),
-          body: JSON.stringify({ parent: { database_id: SETTINGS_DB_ID }, properties: props }),
-        });
-      }
-    }
-  } catch (e) { console.error('[settings] write error:', e.message); }
+  }
 }
 
 app.get('/api/settings', requireRole('Admin'), async (req, res) => {
-  res.json(await readSettings());
+  try {
+    res.json(await readSettings());
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
-  await writeSettings(req.body);
-  res.json(await readSettings());
+  try {
+    await writeSettings(req.body);
+    res.json(await readSettings());
+  } catch (e) {
+    console.error('[settings] patch endpoint error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Kwikset invoice ────────────────────────────────────────────────────────────
