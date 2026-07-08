@@ -1357,10 +1357,10 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
         method: 'PATCH',
         headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ children: [
-          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `🔑 Key Return — ${today}` } }] } },
+          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `Key Return — ${today}` } }] } },
           { type: 'paragraph', paragraph: { rich_text: [{ text: { content: `Keys handed to: ${givenTo}` } }] } },
           { type: 'image', image: { type: 'external', external: { url: notionFileUrl } } },
-        ]}},
+        ]}),
       });
     } else {
       // No hosted URL — at least log the note as a block
@@ -1368,10 +1368,10 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
         method: 'PATCH',
         headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ children: [
-          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `🔑 Key Return — ${today}` } }] } },
+          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `Key Return — ${today}` } }] } },
           { type: 'paragraph', paragraph: { rich_text: [{ text: { content: `Keys handed to: ${givenTo}` } }] } },
           { type: 'callout', callout: { icon: { type: 'emoji', emoji: '📷' }, rich_text: [{ text: { content: 'Photo was captured but could not be uploaded to Notion automatically. Please attach manually.' } }] } },
-        ]}},
+        ]}),
       });
     }
 
