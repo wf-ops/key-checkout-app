@@ -280,7 +280,7 @@
     <div class="quick-actions">
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
       <button class="quick-action-btn" onclick="showChargeForKeysModal()">🔑 Charge for Keys</button>
-      <button class="quick-action-btn" id="backfill-btn" onclick="runSlackBackfill()" style="display:none">📥 Sync Lockboxes</button>
+      <button class="quick-action-btn admin-only" onclick="showRemovePropertyModal()" style="display:none">🏠 Remove Property</button>
     </div>
   </div>
   <div class="card">
@@ -452,40 +452,39 @@ function onLogin(user) {
   document.getElementById('user-role-display').textContent = user.role;
   showTab('dashboard');
   loadDashboard();
-  const backfillBtn = document.getElementById('backfill-btn');
   const isAdminUser = (user.role || '').toLowerCase() === 'admin';
-  if (backfillBtn && isAdminUser) backfillBtn.style.display = '';
   document.querySelectorAll('.admin-only').forEach(el => { if (isAdminUser) el.style.display = ''; });
 }
 
-async function runSlackBackfill() {
-  const btn = document.getElementById('backfill-btn');
-  btn.disabled = true; btn.textContent = '⏳ Syncing…';
+async function runSlackBackfill(btn) {
+  const statusEl = btn?.closest('.modal-card')?.querySelector('#set-backfill-status');
+  const origText = btn?.textContent || '📥 Sync Lockboxes from Slack';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting…'; }
+  if (statusEl) { statusEl.style.display = ''; statusEl.textContent = 'Starting sync…'; }
   try {
     const start = await api('/api/slack/backfill', { method: 'POST' });
-    if (start.started === false && start.message) {
-      // Already running — just poll
-    } else if (!start.started) {
-      throw new Error(start.error || 'Failed to start backfill');
-    }
-    // Poll until done (job can take ~10 min due to rate limits)
+    if (!start.started && !start.message) throw new Error(start.error || 'Failed to start backfill');
     let result;
     while (true) {
       await new Promise(r => setTimeout(r, 5000));
       result = await api('/api/slack/backfill/status');
       const prog = `Updated: ${result.updated} | Skipped: ${result.skipped} | Processed: ${result.total}`;
-      btn.textContent = `⏳ ${prog}`;
+      if (btn) btn.textContent = `⏳ ${prog}`;
+      if (statusEl) statusEl.textContent = prog;
       if (result.done) break;
     }
     if (result.error) throw new Error(result.error);
     const reasons = result.skipReasons && Object.keys(result.skipReasons).length
       ? '\n\nSkip reasons:\n' + Object.entries(result.skipReasons).map(([k,v]) => `  ${k}: ${v}`).join('\n')
       : '';
-    alert(`Sync complete!\n✅ Updated: ${result.updated}\n⏭ Skipped: ${result.skipped}\n🖼 With image: ${result.withImage || 0}\n📨 Total messages: ${result.total}${reasons}`);
+    const msg = `Sync complete!\n✅ Updated: ${result.updated}\n⏭ Skipped: ${result.skipped}\n🖼 With image: ${result.withImage || 0}\n📨 Total messages: ${result.total}${reasons}`;
+    if (statusEl) statusEl.textContent = `✅ Done — Updated: ${result.updated}, Skipped: ${result.skipped}`;
+    alert(msg);
   } catch (e) {
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
     alert('Sync failed: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '📥 Sync Lockboxes';
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
   }
 }
 
@@ -806,6 +805,10 @@ async function showSettingsModal() {
         <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
         <button class="btn btn-primary" onclick="saveSettings(this)">Save</button>
       </div>
+      <hr style="margin:18px 0;border:none;border-top:1px solid var(--border)" />
+      <p style="font-size:.85rem;color:var(--gray-600);margin:0 0 10px">Lockbox Sync</p>
+      <button class="btn btn-outline" id="backfill-btn" onclick="runSlackBackfill(this)" style="width:100%">📥 Sync Lockboxes from Slack</button>
+      <div id="set-backfill-status" style="font-size:.8rem;color:var(--gray-600);margin-top:6px;display:none"></div>
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
@@ -959,6 +962,136 @@ async function saveChargeForKeys(btn) {
     overlay.remove();
     alert('✅ Invoice sent to Appfolio.');
   } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Send Invoice'; }
+}
+
+// ── Remove Property modal ─────────────────────────────────────────────────────
+function showRemovePropertyModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>🏠 Remove Property</h3>
+      <p style="font-size:.85rem;color:var(--red);margin-top:0;font-weight:600">This will disassociate all keys and archive the property in Notion.</p>
+      <label>Property</label>
+      <div class="modal-search-wrap">
+        <input type="text" id="rp-prop-input" placeholder="Search property…" autocomplete="off" />
+        <div class="modal-search-results" id="rp-prop-results"></div>
+      </div>
+      <div id="rp-body" style="display:none">
+        <div id="rp-prop-name" style="font-weight:600;margin-bottom:12px;padding:8px 12px;background:var(--surface-alt,#f8f8f8);border-radius:8px;border:1px solid var(--border)"></div>
+        <label>Keys being given to</label>
+        <div style="display:flex;gap:12px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer">
+            <input type="radio" name="rp-given-to" value="Landlord" checked style="width:auto;margin:0" /> Landlord
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer">
+            <input type="radio" name="rp-given-to" value="New Property Manager" style="width:auto;margin:0" /> New Property Manager
+          </label>
+        </div>
+        <label>Photo of keys <span style="color:var(--red)">*</span></label>
+        <input type="file" id="rp-photo" accept="image/*" capture="environment" style="margin-bottom:4px" />
+        <div id="rp-photo-preview" style="display:none;margin-bottom:8px">
+          <img id="rp-photo-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border)" />
+        </div>
+        <p style="font-size:.78rem;color:var(--gray-600);margin:2px 0 10px">A photo of the keys is required before proceeding.</p>
+      </div>
+      <div id="rp-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="rp-confirm-btn" onclick="confirmRemoveProperty(this)" disabled style="background:var(--red,#d9534f)">Remove Property</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  let rpPropId = null;
+  let rpSearchTimer;
+  const propInput = overlay.querySelector('#rp-prop-input');
+  const resultsEl = overlay.querySelector('#rp-prop-results');
+  const bodyEl = overlay.querySelector('#rp-body');
+  const confirmBtn = overlay.querySelector('#rp-confirm-btn');
+  const photoInput = overlay.querySelector('#rp-photo');
+
+  propInput.addEventListener('input', () => {
+    clearTimeout(rpSearchTimer);
+    const q = propInput.value.trim();
+    if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+    rpSearchTimer = setTimeout(async () => {
+      const results = await api('/api/properties/search?q=' + encodeURIComponent(q));
+      resultsEl.innerHTML = results.map(p =>
+        `<div class="modal-search-item" onclick="rpSelectProp('${p.id}','${(p.address||p.propertyCode||'').replace(/'/g,"\\'")}',this)">${p.address || p.propertyCode}</div>`
+      ).join('') || '<div class="modal-search-item" style="color:var(--gray-600)">No results</div>';
+    }, 300);
+  });
+
+  overlay._rpSelectProp = (id, address) => {
+    rpPropId = id;
+    propInput.value = address;
+    resultsEl.innerHTML = '';
+    bodyEl.style.display = '';
+    overlay.querySelector('#rp-prop-name').textContent = address;
+    checkRpReady();
+  };
+
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        overlay.querySelector('#rp-photo-img').src = e.target.result;
+        overlay.querySelector('#rp-photo-preview').style.display = '';
+      };
+      reader.readAsDataURL(file);
+      checkRpReady();
+    }
+  });
+
+  function checkRpReady() {
+    confirmBtn.disabled = !(rpPropId && photoInput.files.length > 0);
+  }
+
+  overlay._getRpState = () => ({ rpPropId });
+  propInput.focus();
+}
+
+window.rpSelectProp = function(id, address, el) {
+  const overlay = el.closest('.modal-overlay');
+  overlay._rpSelectProp(id, address);
+};
+
+async function confirmRemoveProperty(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const { rpPropId } = overlay._getRpState();
+  if (!rpPropId) return;
+  const photoFile = overlay.querySelector('#rp-photo').files[0];
+  if (!photoFile) { overlay.querySelector('#rp-error').textContent = 'Photo is required.'; overlay.querySelector('#rp-error').style.display = ''; return; }
+  const givenTo = overlay.querySelector('input[name="rp-given-to"]:checked')?.value || 'Landlord';
+  const propName = overlay.querySelector('#rp-prop-name').textContent;
+
+  if (!confirm(`Remove "${propName}"?\n\nThis will:\n• Disassociate all linked keys\n• Archive the property in Notion\n• Record the key return photo\n\nThis cannot be undone from the app.`)) return;
+
+  const errEl = overlay.querySelector('#rp-error'); errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Removing…';
+
+  const formData = new FormData();
+  formData.append('propertyId', rpPropId);
+  formData.append('givenTo', givenTo);
+  formData.append('photo', photoFile);
+
+  try {
+    const result = await fetch('/api/remove-property', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData,
+    }).then(r => r.json());
+    if (result.error) throw new Error(result.error);
+    overlay.remove();
+    alert(`✅ Property removed.\n${result.keysCleared} key(s) disassociated.\nProperty archived in Notion.`);
+    loadDashboard();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = '';
+    btn.disabled = false; btn.textContent = 'Remove Property';
+  }
 }
 
 // ── Check Out

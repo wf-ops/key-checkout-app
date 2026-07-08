@@ -1298,6 +1298,104 @@ app.get('/api/slack/backfill/status', requireRole('Admin'), (req, res) => {
   res.json({ done: backfillJob.done, error: backfillJob.error, success: true, ...backfillJob.results });
 });
 
+// ── Remove Property ───────────────────────────────────────────────────────────
+// Accepts multipart: propertyId, givenTo, photo (file)
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), async (req, res) => {
+  try {
+    const { propertyId, givenTo } = req.body;
+    if (!propertyId) return res.status(400).json({ error: 'propertyId required' });
+    if (!givenTo) return res.status(400).json({ error: 'givenTo required' });
+    if (!req.file) return res.status(400).json({ error: 'Photo is required' });
+
+    // 1. Upload photo to Notion via file upload API
+    let notionFileUrl = null;
+    try {
+      // Step 1: create file upload session
+      const createRes = await fetch('https://api.notion.com/v1/files', {
+        method: 'POST',
+        headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent: { type: 'page_id', page_id: propertyId }, name: req.file.originalname || 'key-return-photo.jpg' }),
+      });
+      const createData = await createRes.json();
+      if (createData.upload_url) {
+        // Step 2: PUT binary to the presigned URL
+        await fetch(createData.upload_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': req.file.mimetype },
+          body: req.file.buffer,
+        });
+        // Step 3: retrieve hosted URL from file object
+        if (createData.url) notionFileUrl = createData.url;
+      }
+    } catch (uploadErr) {
+      console.warn('[remove-property] Notion file upload failed:', uploadErr.message);
+    }
+
+    // 2. Get property info
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+    if (propPage.object === 'error') throw new Error(propPage.message);
+
+    // 3. Update property page: set Key Return Notes, Key Return Date, archive it
+    const today = mtDateStr();
+    const notes = `Keys returned to: ${givenTo} on ${today}`;
+    const returnProps = {
+      'Key Return Notes': { rich_text: [{ text: { content: notes } }] },
+      'Key Return Date': { date: { start: today } },
+    };
+    // Attach photo as external file if we got a URL, otherwise skip files property
+    if (notionFileUrl) {
+      returnProps['Key Return Photo'] = { files: [{ type: 'external', external: { url: notionFileUrl }, name: req.file.originalname || 'key-return-photo.jpg' }] };
+    }
+    await notionPatch(`https://api.notion.com/v1/pages/${propertyId}`, { properties: returnProps });
+
+    // 4. Append image block to property page (always — shows photo even if file property didn't work)
+    // Upload as base64 data URI in an image block (Notion doesn't support data URIs, so use external only if we have URL)
+    if (notionFileUrl) {
+      await fetch(`https://api.notion.com/v1/blocks/${propertyId}/children`, {
+        method: 'PATCH',
+        headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ children: [
+          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `🔑 Key Return — ${today}` } }] } },
+          { type: 'paragraph', paragraph: { rich_text: [{ text: { content: `Keys handed to: ${givenTo}` } }] } },
+          { type: 'image', image: { type: 'external', external: { url: notionFileUrl } } },
+        ]}},
+      });
+    } else {
+      // No hosted URL — at least log the note as a block
+      await fetch(`https://api.notion.com/v1/blocks/${propertyId}/children`, {
+        method: 'PATCH',
+        headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ children: [
+          { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `🔑 Key Return — ${today}` } }] } },
+          { type: 'paragraph', paragraph: { rich_text: [{ text: { content: `Keys handed to: ${givenTo}` } }] } },
+          { type: 'callout', callout: { icon: { type: 'emoji', emoji: '📷' }, rich_text: [{ text: { content: 'Photo was captured but could not be uploaded to Notion automatically. Please attach manually.' } }] } },
+        ]}},
+      });
+    }
+
+    // 5. Find all keys linked to this property and clear their Rental Matrix relation
+    const keyRows = await queryAll(DB.keys, { property: 'Rental Matrix', relation: { contains: propertyId } });
+    await Promise.all(keyRows.map(row =>
+      notionPatch(`https://api.notion.com/v1/pages/${row.id}`, {
+        properties: {
+          'Rental Matrix': { relation: [] },
+          'Status': { select: { name: 'In Office' } },
+        },
+      })
+    ));
+
+    // 6. Archive the property page in Notion
+    await notionPatch(`https://api.notion.com/v1/pages/${propertyId}`, { archived: true });
+
+    res.json({ success: true, keysCleared: keyRows.length });
+  } catch (e) {
+    console.error('[remove-property] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
