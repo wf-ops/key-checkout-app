@@ -1375,8 +1375,14 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
       });
     }
 
-    // 5. Find all keys linked to this property and clear their Rental Matrix relation
-    const keyRows = await queryAll(DB.keys, { property: 'Rental Matrix', relation: { contains: propertyId } });
+    // 5. Find all keys linked to this property — by Rental Matrix relation OR MF Unit Property Code
+    const [keysByRelation, keysByMFCode] = await Promise.all([
+      queryAll(DB.keys, { property: 'Rental Matrix', relation: { contains: propertyId } }),
+      propertyCode ? queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { equals: propertyCode } }) : Promise.resolve([]),
+    ]);
+    const seen = new Set();
+    const keyRows = [...keysByRelation, ...keysByMFCode].filter(r => seen.has(r.id) ? false : seen.add(r.id));
+
     await Promise.all(keyRows.map(row =>
       notionPatch(`https://api.notion.com/v1/pages/${row.id}`, {
         properties: {
