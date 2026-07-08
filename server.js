@@ -330,6 +330,21 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Debug: inspect first key page's property names
+app.get('/api/debug-key-fields', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.keys, {});
+    if (!rows.length) return res.json({ error: 'no keys' });
+    const fields = Object.entries(rows[0].properties).map(([k, v]) => ({ name: k, type: v.type }));
+    // Also find any with MF-related content
+    const mfRows = rows.filter(r => {
+      const keys = Object.keys(r.properties);
+      return keys.some(k => k.toLowerCase().includes('mf') || k.toLowerCase().includes('unit'));
+    });
+    res.json({ fields, mfRowCount: mfRows.length, mfRowSample: mfRows[0]?.properties ? Object.keys(mfRows[0].properties) : [] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Search MF Unit Property Codes — for common-area keys not linked via Rental Matrix relation
 app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
   try {
@@ -1373,6 +1388,7 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
     // 2. Get property info
     const propPage = await fetch(`https://api.notion.com/v1/pages/${propertyId}`, { headers: notionHeaders() }).then(r => r.json());
     if (propPage.object === 'error') throw new Error(propPage.message);
+    const propertyCode = extractRichText(propPage.properties?.['Property Code']) || '';
 
     // 3. Update property page: set Key Return Notes, Key Return Date, archive it
     const today = mtDateStr();
@@ -1436,6 +1452,89 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
   }
 });
 
+
+// ── Receive Keys ──────────────────────────────────────────────────────────────
+// Accepts multipart: propertyId, photo (file)
+app.post('/api/receive-keys', requireAuth, uploadMemory.single('photo'), async (req, res) => {
+  try {
+    const { propertyId } = req.body;
+    if (!propertyId) return res.status(400).json({ error: 'propertyId required' });
+    if (!req.file) return res.status(400).json({ error: 'Photo is required' });
+
+    // 1. Get AI description of keys in the photo
+    let aiDescription = 'No description available';
+    if (process.env.ANTHROPIC_API_KEY) {
+      try {
+        const base64 = req.file.buffer.toString('base64');
+        const mime = req.file.mimetype || 'image/jpeg';
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 400,
+            messages: [{ role: 'user', content: [
+              { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+              { type: 'text', text: 'You are helping a property management company inventory keys they just received. Describe exactly what keys you see in this photo: how many keys, any key tag numbers visible, any labels, key types (house key, mailbox key, etc.), and any other identifying details. Be concise and specific. If you cannot see keys clearly, say so.' },
+            ]}],
+          }),
+        });
+        const claudeData = await claudeRes.json();
+        aiDescription = claudeData.content?.[0]?.text || aiDescription;
+      } catch (aiErr) {
+        console.warn('[receive-keys] AI description failed:', aiErr.message);
+      }
+    }
+
+    // 2. Get property info
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+    if (propPage.object === 'error') throw new Error(propPage.message);
+    const address = extractRichText(propPage.properties?.['Street Address - Property']) || 'Unknown Property';
+
+    // 3. Upload photo to Notion
+    let notionFileUrl = null;
+    try {
+      const createRes = await fetch('https://api.notion.com/v1/files', {
+        method: 'POST',
+        headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent: { type: 'page_id', page_id: propertyId }, name: req.file.originalname || 'received-keys.jpg' }),
+      });
+      const createData = await createRes.json();
+      if (createData.upload_url) {
+        await fetch(createData.upload_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': req.file.mimetype },
+          body: req.file.buffer,
+        });
+        if (createData.url) notionFileUrl = createData.url;
+      }
+    } catch (uploadErr) {
+      console.warn('[receive-keys] Notion file upload failed:', uploadErr.message);
+    }
+
+    // 4. Append inventory block to property page
+    const today = mtDateStr();
+    const children = [
+      { type: 'heading_3', heading_3: { rich_text: [{ text: { content: `Keys Received — ${today}` } }] } },
+      { type: 'paragraph', paragraph: { rich_text: [{ text: { content: `AI Inventory: ${aiDescription}` } }] } },
+    ];
+    if (notionFileUrl) {
+      children.push({ type: 'image', image: { type: 'external', external: { url: notionFileUrl } } });
+    } else {
+      children.push({ type: 'callout', callout: { icon: { type: 'emoji', emoji: '📷' }, rich_text: [{ text: { content: 'Photo captured but could not be uploaded automatically. Please attach manually.' } }] } });
+    }
+    await fetch(`https://api.notion.com/v1/blocks/${propertyId}/children`, {
+      method: 'PATCH',
+      headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ children }),
+    });
+
+    res.json({ success: true, address, aiDescription });
+  } catch (e) {
+    console.error('[receive-keys] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

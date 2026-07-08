@@ -280,6 +280,7 @@
     <div class="quick-actions">
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
       <button class="quick-action-btn" onclick="showChargeForKeysModal()">🔑 Charge for Keys</button>
+      <button class="quick-action-btn" onclick="showReceiveKeysModal()">📥 Receive Keys</button>
       <button class="quick-action-btn admin-only" onclick="showRemovePropertyModal()" style="display:none">🏠 Remove Property</button>
     </div>
   </div>
@@ -1130,6 +1131,129 @@ async function confirmRemoveProperty(btn) {
   } catch (e) {
     errEl.textContent = e.message; errEl.style.display = '';
     btn.disabled = false; btn.textContent = 'Remove Property';
+  }
+}
+
+// ── Receive Keys modal ────────────────────────────────────────────────────────
+function showReceiveKeysModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>📥 Receive Keys</h3>
+      <p style="font-size:.85rem;color:var(--gray-600);margin-top:0">Inventory keys received for a property. A photo is required — AI will describe what's in the photo.</p>
+      <label>Property</label>
+      <div style="position:relative">
+        <input id="rk-prop-input" class="form-control" placeholder="Search property…" autocomplete="off">
+        <div id="rk-prop-results" class="search-results-dropdown" style="display:none"></div>
+      </div>
+      <div id="rk-prop-name" style="font-size:.85rem;font-weight:600;color:var(--primary);margin:6px 0 12px;display:none"></div>
+      <div id="rk-body" style="display:none">
+        <label>Photo of keys received <span style="color:var(--red)">*</span></label>
+        <input type="file" id="rk-photo" accept="image/*" capture="environment" style="margin-bottom:8px">
+        <div id="rk-photo-preview" style="margin-bottom:12px"></div>
+      </div>
+      <div id="rk-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="rk-confirm-btn" onclick="confirmReceiveKeys(this)" disabled>Receive Keys</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  let rkPropId = null;
+  let rkSearchTimer;
+  const propInput = overlay.querySelector('#rk-prop-input');
+  const resultsEl = overlay.querySelector('#rk-prop-results');
+  const propNameEl = overlay.querySelector('#rk-prop-name');
+  const bodyEl = overlay.querySelector('#rk-body');
+  const confirmBtn = overlay.querySelector('#rk-confirm-btn');
+  const photoInput = overlay.querySelector('#rk-photo');
+  const photoPreview = overlay.querySelector('#rk-photo-preview');
+
+  function checkRkReady() {
+    confirmBtn.disabled = !(rkPropId && photoInput.files.length > 0);
+  }
+
+  propInput.addEventListener('input', () => {
+    clearTimeout(rkSearchTimer);
+    rkSearchTimer = setTimeout(async () => {
+      const q = propInput.value.trim();
+      if (q.length < 2) { resultsEl.style.display = 'none'; return; }
+      try {
+        const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
+        if (!hits.length) { resultsEl.style.display = 'none'; return; }
+        resultsEl.innerHTML = hits.slice(0, 8).map((p, i) =>
+          `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
+        ).join('');
+        resultsEl._hits = hits;
+        resultsEl.querySelectorAll('.search-result-item').forEach(el => {
+          el.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const p = resultsEl._hits[+el.dataset.idx];
+            resultsEl.style.display = 'none';
+            propInput.value = '';
+            rkPropId = p.id;
+            overlay._rkPropId = p.id;
+            propNameEl.textContent = p.address || p.propertyCode;
+            propNameEl.style.display = '';
+            bodyEl.style.display = '';
+            checkRkReady();
+          });
+        });
+        resultsEl.style.display = 'block';
+      } catch (e) { console.warn('search error', e); }
+    }, 300);
+  });
+
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      photoPreview.innerHTML = `<img src="${url}" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:4px">`;
+    } else {
+      photoPreview.innerHTML = '';
+    }
+    checkRkReady();
+  });
+
+  propInput.focus();
+}
+
+async function confirmReceiveKeys(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const propInput = overlay.querySelector('#rk-prop-input');
+  const propNameEl = overlay.querySelector('#rk-prop-name');
+  const photoInput = overlay.querySelector('#rk-photo');
+  const errEl = overlay.querySelector('#rk-error');
+  errEl.style.display = 'none';
+
+  const propId = overlay._rkPropId;
+  if (!propId) { errEl.textContent = 'Please select a property.'; errEl.style.display = ''; return; }
+  const photoFile = photoInput.files[0];
+  if (!photoFile) { errEl.textContent = 'A photo of the keys is required.'; errEl.style.display = ''; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing photo…';
+
+  const formData = new FormData();
+  formData.append('propertyId', propId);
+  formData.append('photo', photoFile);
+
+  try {
+    const result = await fetch('/api/receive-keys', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('krb_token') || '') },
+      body: formData,
+    }).then(r => r.json());
+    if (result.error) throw new Error(result.error);
+    overlay.remove();
+    alert(`✅ Keys received for ${result.address}\n\nAI Inventory:\n${result.aiDescription}`);
+    loadDashboard();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = '';
+    btn.disabled = false; btn.textContent = 'Receive Keys';
   }
 }
 
