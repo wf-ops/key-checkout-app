@@ -974,9 +974,9 @@ function showRemovePropertyModal() {
       <h3>🏠 Remove Property</h3>
       <p style="font-size:.85rem;color:var(--red);margin-top:0;font-weight:600">This will disassociate all keys from this property and record the key return in Notion.</p>
       <label>Property</label>
-      <div style="position:relative">
-        <input id="rp-prop-input" class="form-control" placeholder="Search property…" autocomplete="off">
-        <div id="rp-prop-results" class="search-results-dropdown" style="display:none"></div>
+      <div class="modal-search-wrap">
+        <input type="text" id="rp-prop-input" placeholder="Search property…" autocomplete="off" />
+        <div class="modal-search-results" id="rp-prop-results"></div>
       </div>
       <div id="rp-body" style="display:none">
         <div id="rp-prop-name" style="font-weight:600;margin-bottom:12px;padding:8px 12px;background:var(--surface-alt,#f8f8f8);border-radius:8px;border:1px solid var(--border)"></div>
@@ -1147,9 +1147,9 @@ function showReceiveKeysModal() {
       <h3>📥 Receive Keys</h3>
       <p style="font-size:.85rem;color:var(--gray-600);margin-top:0">Inventory keys received for a property. A photo is required — AI will describe what's in the photo.</p>
       <label>Property</label>
-      <div style="position:relative">
-        <input id="rk-prop-input" class="form-control" placeholder="Search property…" autocomplete="off">
-        <div id="rk-prop-results" class="search-results-dropdown" style="display:none"></div>
+      <div class="modal-search-wrap">
+        <input type="text" id="rk-prop-input" placeholder="Search property…" autocomplete="off" />
+        <div class="modal-search-results" id="rk-prop-results"></div>
       </div>
       <div id="rk-prop-name" style="font-size:.85rem;font-weight:600;color:var(--primary);margin:6px 0 12px;display:none"></div>
       <div id="rk-body" style="display:none">
