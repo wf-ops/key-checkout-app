@@ -1386,9 +1386,6 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
       })
     ));
 
-    // 6. Archive the property page in Notion
-    await notionPatch(`https://api.notion.com/v1/pages/${propertyId}`, { archived: true });
-
     res.json({ success: true, keysCleared: keyRows.length });
   } catch (e) {
     console.error('[remove-property] error:', e.message);

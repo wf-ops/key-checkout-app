@@ -1068,7 +1068,7 @@ async function confirmRemoveProperty(btn) {
   const givenTo = overlay.querySelector('input[name="rp-given-to"]:checked')?.value || 'Landlord';
   const propName = overlay.querySelector('#rp-prop-name').textContent;
 
-  if (!confirm(`Remove "${propName}"?\n\nThis will:\n• Disassociate all linked keys\n• Archive the property in Notion\n• Record the key return photo\n\nThis cannot be undone from the app.`)) return;
+  if (!confirm(`Remove "${propName}"?\n\nThis will:\n• Disassociate all linked keys from this property\n• Record the key return photo in Notion\n\nThis cannot be undone from the app.`)) return;
 
   const errEl = overlay.querySelector('#rp-error'); errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Removing…';
@@ -1086,7 +1086,7 @@ async function confirmRemoveProperty(btn) {
     }).then(r => r.json());
     if (result.error) throw new Error(result.error);
     overlay.remove();
-    alert(`✅ Property removed.\n${result.keysCleared} key(s) disassociated.\nProperty archived in Notion.`);
+    alert(`✅ Done.\n${result.keysCleared} key(s) disassociated from property.\nKey return recorded in Notion.`);
     loadDashboard();
   } catch (e) {
     errEl.textContent = e.message; errEl.style.display = '';
