@@ -1015,12 +1015,25 @@ function showRemovePropertyModal() {
   propInput.addEventListener('input', () => {
     clearTimeout(rpSearchTimer);
     const q = propInput.value.trim();
-    if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+    if (q.length < 1) { resultsEl.innerHTML = ''; return; }
     rpSearchTimer = setTimeout(async () => {
-      const results = await api('/api/properties/search?q=' + encodeURIComponent(q));
-      resultsEl.innerHTML = results.map(p =>
-        `<div class="modal-search-item" onclick="rpSelectProp('${p.id}','${(p.address||p.propertyCode||'').replace(/'/g,"\\'")}',this)">${p.address || p.propertyCode}</div>`
-      ).join('') || '<div class="modal-search-item" style="color:var(--gray-600)">No results</div>';
+      try {
+        // Search using each word token so "1818 wash" or "1818wash" both work
+        const tokens = q.replace(/[^a-z0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
+        const searchQ = tokens[0] || q; // use first meaningful token
+        const results = await api('/api/properties/search?q=' + encodeURIComponent(searchQ));
+        // Client-side filter: keep only results containing all tokens
+        const filtered = results.filter(p => {
+          const text = (p.address + ' ' + p.propertyCode).toLowerCase();
+          return tokens.every(t => text.includes(t.toLowerCase()));
+        });
+        const list = filtered.length ? filtered : results; // fallback to all if no cross-match
+        resultsEl.innerHTML = list.map(p =>
+          `<div class="modal-search-item" onclick="rpSelectProp('${p.id}','${(p.address||p.propertyCode||'').replace(/'/g,"\\'")}',this)">${p.address || p.propertyCode}</div>`
+        ).join('') || '<div class="modal-search-item" style="color:var(--gray-600)">No results found</div>';
+      } catch (e) {
+        resultsEl.innerHTML = `<div class="modal-search-item" style="color:var(--red)">Search error: ${e.message}</div>`;
+      }
     }, 300);
   });
 
