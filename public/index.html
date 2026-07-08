@@ -1004,7 +1004,7 @@ function showRemovePropertyModal() {
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  let rpPropId = null;
+  let rpPropId = null, rpMfCode = null;
   let rpSearchTimer;
   const propInput = overlay.querySelector('#rp-prop-input');
   const resultsEl = overlay.querySelector('#rp-prop-results');
@@ -1019,19 +1019,40 @@ function showRemovePropertyModal() {
     clearTimeout(rpSearchTimer);
     rpSearchTimer = setTimeout(async () => {
       try {
-        const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
-        if (!hits.length) return;
-        resultsEl.innerHTML = hits.slice(0, 8).map((p, i) =>
-          `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
+        const [propHits, mfHits] = await Promise.all([
+          api('/api/search-properties?q=' + encodeURIComponent(q)),
+          api('/api/search-mf-codes?q=' + encodeURIComponent(q)),
+        ]);
+        if (!propHits.length && !mfHits.length) return;
+        // Build combined list: regular properties first, then MF codes
+        let html = propHits.slice(0, 6).map((p, i) =>
+          `<div class="search-result-item" data-type="prop" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
         ).join('');
-        resultsEl._hits = hits;
+        if (mfHits.length) {
+          if (propHits.length) html += `<div style="font-size:.75rem;color:var(--gray-600);padding:4px 12px;background:var(--surface-alt,#f8f8f8)">Common Area Keys</div>`;
+          html += mfHits.map((m, i) =>
+            `<div class="search-result-item" data-type="mf" data-idx="${i}">🏢 ${m.mfCode}<div class="result-code">Common area / MF keys</div></div>`
+          ).join('');
+        }
+        resultsEl.innerHTML = html;
+        resultsEl._propHits = propHits;
+        resultsEl._mfHits = mfHits;
         resultsEl.querySelectorAll('.search-result-item').forEach(el => {
           el.addEventListener('mousedown', e => {
             e.preventDefault();
-            const p = resultsEl._hits[+el.dataset.idx];
             resultsEl.style.display = 'none';
-            propInput.value = p.address || p.propertyCode;
-            overlay._rpSelectProp(p.id, p.address || p.propertyCode);
+            if (el.dataset.type === 'mf') {
+              const m = resultsEl._mfHits[+el.dataset.idx];
+              propInput.value = m.mfCode;
+              rpPropId = null; rpMfCode = m.mfCode;
+              overlay.querySelector('#rp-prop-name').textContent = `${m.mfCode} — Common Area Keys`;
+              bodyEl.style.display = '';
+              checkRpReady();
+            } else {
+              const p = resultsEl._propHits[+el.dataset.idx];
+              propInput.value = p.address || p.propertyCode;
+              overlay._rpSelectProp(p.id, p.address || p.propertyCode);
+            }
           });
         });
         resultsEl.style.display = 'block';
@@ -1062,10 +1083,10 @@ function showRemovePropertyModal() {
   });
 
   function checkRpReady() {
-    confirmBtn.disabled = !(rpPropId && photoInput.files.length > 0);
+    confirmBtn.disabled = !((rpPropId || rpMfCode) && photoInput.files.length > 0);
   }
 
-  overlay._getRpState = () => ({ rpPropId });
+  overlay._getRpState = () => ({ rpPropId, rpMfCode });
   propInput.focus();
 }
 
@@ -1073,8 +1094,8 @@ function showRemovePropertyModal() {
 
 async function confirmRemoveProperty(btn) {
   const overlay = btn.closest('.modal-overlay');
-  const { rpPropId } = overlay._getRpState();
-  if (!rpPropId) return;
+  const { rpPropId, rpMfCode } = overlay._getRpState();
+  if (!rpPropId && !rpMfCode) return;
   const photoFile = overlay.querySelector('#rp-photo').files[0];
   if (!photoFile) { overlay.querySelector('#rp-error').textContent = 'Photo is required.'; overlay.querySelector('#rp-error').style.display = ''; return; }
   const givenTo = overlay.querySelector('input[name="rp-given-to"]:checked')?.value || 'Landlord';
@@ -1086,12 +1107,16 @@ async function confirmRemoveProperty(btn) {
   btn.disabled = true; btn.textContent = 'Removing…';
 
   const formData = new FormData();
-  formData.append('propertyId', rpPropId);
   formData.append('givenTo', givenTo);
   formData.append('photo', photoFile);
 
+  // Choose endpoint based on whether it's a regular property or an MF code
+  const endpoint = rpMfCode ? '/api/remove-mf-code' : '/api/remove-property';
+  if (rpMfCode) formData.append('mfCode', rpMfCode);
+  else formData.append('propertyId', rpPropId);
+
   try {
-    const result = await fetch('/api/remove-property', {
+    const result = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Accept': 'application/json' },
       body: formData,

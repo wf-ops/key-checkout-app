@@ -329,6 +329,43 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Search MF Unit Property Codes — for common-area keys not linked via Rental Matrix relation
+app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json([]);
+    const rows = await queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { contains: q } });
+    const seen = new Set();
+    const codes = rows
+      .map(r => extractRichText(r.properties?.['MF Unit Property Code']))
+      .filter(c => c && !seen.has(c) && seen.add(c));
+    res.json(codes.map(c => ({ mfCode: c, label: `${c} (MF Common Area)` })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Remove property by MF code (common area keys only — no property page exists)
+app.post('/api/remove-mf-code', requireAuth, uploadMemory.single('photo'), async (req, res) => {
+  try {
+    const { mfCode, givenTo } = req.body;
+    if (!mfCode) return res.status(400).json({ error: 'mfCode required' });
+    if (!givenTo) return res.status(400).json({ error: 'givenTo required' });
+    if (!req.file) return res.status(400).json({ error: 'Photo is required' });
+    const keyRows = await queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { equals: mfCode } });
+    await Promise.all(keyRows.map(row =>
+      notionPatch(`https://api.notion.com/v1/pages/${row.id}`, {
+        properties: {
+          'MF Unit Property Code': { rich_text: [] },
+          'Status': { select: { name: 'In Office' } },
+        },
+      })
+    ));
+    res.json({ success: true, keysCleared: keyRows.length });
+  } catch (e) {
+    console.error('[remove-mf-code] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/keys', requireAuth, async (req, res) => {
   try {
     const { propertyId } = req.query;
