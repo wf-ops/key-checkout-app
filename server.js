@@ -42,6 +42,7 @@ function requireRole(...roles) {
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 async function uploadToDrive(buffer, originalname, mimetype) {
   const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
@@ -1337,7 +1338,6 @@ app.get('/api/slack/backfill/status', requireRole('Admin'), (req, res) => {
 
 // ── Remove Property ───────────────────────────────────────────────────────────
 // Accepts multipart: propertyId, givenTo, photo (file)
-const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), async (req, res) => {
   try {
