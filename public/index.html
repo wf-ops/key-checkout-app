@@ -645,6 +645,12 @@ async function showChangeKwiksetModal() {
           <input type="checkbox" id="kw-include-base" checked style="width:auto;margin:0" />
           Include base charge
         </label>
+        <label style="margin-top:10px">Bill to</label>
+        <select id="kw-bill-to" style="margin-bottom:4px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;width:100%">
+          <option value="Resident">Resident</option>
+          <option value="Landlord">Landlord / Owner</option>
+          <option value="KRB">KRB (Internal)</option>
+        </select>
         <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:6px;cursor:pointer">
           <input type="checkbox" id="kw-send-invoice" checked style="width:auto;margin:0" />
           Send invoice to Appfolio
@@ -771,7 +777,8 @@ async function saveKwikset(btn) {
     if (sendInvoice) {
       btn.textContent = 'Sending invoice…';
       const includeBase = overlay.querySelector('#kw-include-base').checked;
-    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: kwPropId, kwiksetCut: kwNewName, numKeys, includeBase, performedBy }) });
+      const billTo = overlay.querySelector('#kw-bill-to').value;
+      await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: kwPropId, kwiksetCut: kwNewName, numKeys, includeBase, performedBy, billTo }) });
     }
     overlay.remove();
     alert(`✅ Kwikset updated${sendInvoice ? ' and invoice sent to Appfolio' : ''}.`);
@@ -856,7 +863,13 @@ async function showChargeForKeysModal() {
         </label>
         <div id="cfk-charge-breakdown" style="background:var(--surface-alt,#f8f8f8);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.88rem;margin:6px 0 10px"></div>
         <label style="margin-top:10px">Performed by</label>
-        <input type="text" id="cfk-performed-by" placeholder="Staff name…" />
+        <input type="text" id="cfk-performed-by" placeholder="Staff name…" style="margin-bottom:4px" />
+        <label style="margin-top:10px">Bill to</label>
+        <select id="cfk-bill-to" style="padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;width:100%">
+          <option value="Resident">Resident</option>
+          <option value="Landlord">Landlord / Owner</option>
+          <option value="KRB">KRB (Internal)</option>
+        </select>
       </div>
       <div id="cfk-loading" style="text-align:center;padding:16px 0;color:var(--gray-600);font-size:.88rem;display:none">Loading…</div>
       <div id="cfk-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
@@ -941,7 +954,8 @@ async function saveChargeForKeys(btn) {
   const errEl = overlay.querySelector('#cfk-error'); errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: cfkPropId, numKeys, includeBase, performedBy }) });
+    const billTo = overlay.querySelector('#cfk-bill-to').value;
+    await api('/api/kwikset-invoice', { method: 'POST', body: JSON.stringify({ propertyId: cfkPropId, numKeys, includeBase, performedBy, billTo }) });
     overlay.remove();
     alert('✅ Invoice sent to Appfolio.');
   } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; btn.disabled = false; btn.textContent = 'Send Invoice'; }

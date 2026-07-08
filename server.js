@@ -718,7 +718,7 @@ app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
 // ── Kwikset invoice ────────────────────────────────────────────────────────────
 app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
-    const { propertyId, kwiksetCut, numKeys, performedBy, includeBase = true } = req.body;
+    const { propertyId, kwiksetCut, numKeys, performedBy, includeBase = true, billTo = 'Resident' } = req.body;
     if (!propertyId || !numKeys) return res.status(400).json({ error: 'propertyId and numKeys required' });
 
     const settings = await readSettings();
@@ -808,9 +808,14 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
       doc.text('Total', 50, doc.y, { width: 350 });
       doc.text(`$${total.toFixed(2)}`, 400, doc.y - doc.currentLineHeight(), { width: 162, align: 'right' });
 
+      const billToNote = billTo === 'KRB'
+        ? 'Please process this invoice as an internal KRB expense.'
+        : billTo === 'Landlord'
+          ? 'Please process this invoice in Appfolio as a charge to the owner/landlord.'
+          : 'Please process this invoice in Appfolio as a charge to the resident.';
       doc.moveDown(2);
       doc.font('Helvetica').fillColor('#555').fontSize(9)
-        .text('Please process this invoice in Appfolio as a charge to the resident.', { align: 'center' });
+        .text(billToNote, { align: 'center' });
 
       doc.end();
     });
