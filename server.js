@@ -76,6 +76,7 @@ const DB = {
   keys: 'bb222b13-e089-42ec-9458-9f1800c06bd8',
   log: '6493156c-9348-45a5-9632-0552edda23b5',
   properties: '2d161a46-cdef-80a8-aae1-cf5bb3f0fb0b',
+  mfProperties: '2f261a46-cdef-803d-b18a-f29bf9b1a9fb',
   staff: '32243e9b-6fd7-407e-8baf-55bfa320408d',
   lockboxes: '30a61a46-cdef-804e-88fb-fff4404cf3b6',
   kwiksetCuts: '30a61a46-cdef-80b1-aa2b-e6cb42560512',
@@ -345,32 +346,51 @@ app.get('/api/debug-key-fields', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Search MF Unit Property Codes — for common-area keys not linked via Rental Matrix relation
+// Search MF Unit Property Codes — MF Unit Property Code is a RELATION to the MF Properties DB
+// Step 1: search MF Properties by Property Code (title field)
+// Step 2: for each matching MF property page, find keys linked via the relation
 app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (!q) return res.json([]);
-    const rows = await queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { contains: q } });
-    const seen = new Set();
-    const codes = rows
-      .map(r => extractRichText(r.properties?.['MF Unit Property Code']))
-      .filter(c => c && !seen.has(c) && seen.add(c));
-    res.json(codes.map(c => ({ mfCode: c, label: `${c} (MF Common Area)` })));
+    // Search MF Properties database by Property Code (title)
+    const mfProps = await queryAll(DB.mfProperties, { property: 'Property Code', title: { contains: q } });
+    if (!mfProps.length) return res.json([]);
+    // Return each MF property as a selectable option (we'll look up keys by relation when needed)
+    const results = mfProps.map(r => {
+      const code = extractRichText(r.properties?.['Property Code']);
+      const addr = extractRichText(r.properties?.['Property Full Address']) || extractRichText(r.properties?.['Street Address 1 - Property']) || code;
+      return { mfCode: code, mfPageId: r.id, label: `${addr || code} (MF Common Area)` };
+    }).filter(r => r.mfCode);
+    res.json(results);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Remove property by MF code (common area keys only — no property page exists)
+// Remove property by MF code (common area keys only)
+// MF Unit Property Code is a relation field — query by relation contains mfPageId
 app.post('/api/remove-mf-code', requireAuth, uploadMemory.single('photo'), async (req, res) => {
   try {
-    const { mfCode, givenTo } = req.body;
-    if (!mfCode) return res.status(400).json({ error: 'mfCode required' });
+    const { mfCode, mfPageId, givenTo } = req.body;
+    if (!mfCode && !mfPageId) return res.status(400).json({ error: 'mfCode or mfPageId required' });
     if (!givenTo) return res.status(400).json({ error: 'givenTo required' });
     if (!req.file) return res.status(400).json({ error: 'Photo is required' });
-    const keyRows = await queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { equals: mfCode } });
+
+    // If we have a page ID, use relation filter; otherwise look up the page ID first
+    let pageId = mfPageId;
+    if (!pageId && mfCode) {
+      const mfRows = await queryAll(DB.mfProperties, { property: 'Property Code', title: { equals: mfCode } });
+      if (mfRows.length) pageId = mfRows[0].id;
+    }
+
+    let keyRows = [];
+    if (pageId) {
+      keyRows = await queryAll(DB.keys, { property: 'MF Unit Property Code', relation: { contains: pageId } });
+    }
+
     await Promise.all(keyRows.map(row =>
       notionPatch(`https://api.notion.com/v1/pages/${row.id}`, {
         properties: {
-          'MF Unit Property Code': { rich_text: [] },
+          'MF Unit Property Code': { relation: [] },
           'Status': { select: { name: 'In Office' } },
         },
       })
@@ -1428,10 +1448,19 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
       });
     }
 
-    // 5. Find all keys linked to this property — by Rental Matrix relation OR MF Unit Property Code
+    // 5. Find all keys linked to this property:
+    //    a) by Rental Matrix relation (standard)
+    //    b) by MF Unit Property Code relation — look up MF property page by Property Code first
+    let mfPageId = null;
+    if (propertyCode) {
+      try {
+        const mfRows = await queryAll(DB.mfProperties, { property: 'Property Code', title: { equals: propertyCode } });
+        if (mfRows.length) mfPageId = mfRows[0].id;
+      } catch (mfErr) { console.warn('[remove-property] MF lookup failed:', mfErr.message); }
+    }
     const [keysByRelation, keysByMFCode] = await Promise.all([
       queryAll(DB.keys, { property: 'Rental Matrix', relation: { contains: propertyId } }),
-      propertyCode ? queryAll(DB.keys, { property: 'MF Unit Property Code', rich_text: { equals: propertyCode } }) : Promise.resolve([]),
+      mfPageId ? queryAll(DB.keys, { property: 'MF Unit Property Code', relation: { contains: mfPageId } }) : Promise.resolve([]),
     ]);
     const seen = new Set();
     const keyRows = [...keysByRelation, ...keysByMFCode].filter(r => seen.has(r.id) ? false : seen.add(r.id));
@@ -1440,6 +1469,7 @@ app.post('/api/remove-property', requireAuth, uploadMemory.single('photo'), asyn
       notionPatch(`https://api.notion.com/v1/pages/${row.id}`, {
         properties: {
           'Rental Matrix': { relation: [] },
+          'MF Unit Property Code': { relation: [] },
           'Status': { select: { name: 'In Office' } },
         },
       })

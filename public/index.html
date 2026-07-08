@@ -192,7 +192,7 @@
     .kw-warning { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: .82rem; color: #5d4037; margin-top: 12px; line-height: 1.4; }
     @media (prefers-color-scheme: dark) { .kw-warning { background: #332900; border-color: #665500; color: #ffd54f; } }
     .modal-search-wrap { position: relative; }
-    .modal-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+    .modal-search-results, .search-results-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
     .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); padding: 9px 14px; cursor: pointer; font-size: .9rem; }
     .modal-search-results .search-result-item:last-child { border-bottom: none; }
     .modal-search-results .search-result-item:hover { background: var(--bg); }
@@ -974,9 +974,9 @@ function showRemovePropertyModal() {
       <h3>🏠 Remove Property</h3>
       <p style="font-size:.85rem;color:var(--red);margin-top:0;font-weight:600">This will disassociate all keys from this property and record the key return in Notion.</p>
       <label>Property</label>
-      <div class="modal-search-wrap">
-        <input type="text" id="rp-prop-input" placeholder="Search property…" autocomplete="off" />
-        <div class="modal-search-results" id="rp-prop-results"></div>
+      <div style="position:relative">
+        <input id="rp-prop-input" class="form-control" placeholder="Search property…" autocomplete="off">
+        <div id="rp-prop-results" class="search-results-dropdown" style="display:none"></div>
       </div>
       <div id="rp-body" style="display:none">
         <div id="rp-prop-name" style="font-weight:600;margin-bottom:12px;padding:8px 12px;background:var(--surface-alt,#f8f8f8);border-radius:8px;border:1px solid var(--border)"></div>
@@ -1005,7 +1005,7 @@ function showRemovePropertyModal() {
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  let rpPropId = null, rpMfCode = null;
+  let rpPropId = null, rpMfCode = null, rpMfPageId = null;
   let rpSearchTimer;
   const propInput = overlay.querySelector('#rp-prop-input');
   const resultsEl = overlay.querySelector('#rp-prop-results');
@@ -1034,7 +1034,7 @@ function showRemovePropertyModal() {
         if (mfHits.length) {
           if (propHits.length) html += `<div style="font-size:.75rem;color:var(--gray-600);padding:4px 12px;background:var(--surface-alt,#f8f8f8)">Common Area Keys</div>`;
           html += mfHits.map((m, i) =>
-            `<div class="search-result-item" data-type="mf" data-idx="${i}">🏢 ${m.mfCode}<div class="result-code">Common area / MF keys</div></div>`
+            `<div class="search-result-item" data-type="mf" data-idx="${i}">🏢 ${m.label || m.mfCode}<div class="result-code">Common Area Keys</div></div>`
           ).join('');
         }
         resultsEl.innerHTML = html;
@@ -1047,7 +1047,7 @@ function showRemovePropertyModal() {
             if (el.dataset.type === 'mf') {
               const m = resultsEl._mfHits[+el.dataset.idx];
               propInput.value = m.mfCode;
-              rpPropId = null; rpMfCode = m.mfCode;
+              rpPropId = null; rpMfCode = m.mfCode; rpMfPageId = m.mfPageId || null;
               overlay.querySelector('#rp-prop-name').textContent = `${m.mfCode} — Common Area Keys`;
               bodyEl.style.display = '';
               checkRpReady();
@@ -1089,7 +1089,7 @@ function showRemovePropertyModal() {
     confirmBtn.disabled = !((rpPropId || rpMfCode) && photoInput.files.length > 0);
   }
 
-  overlay._getRpState = () => ({ rpPropId, rpMfCode });
+  overlay._getRpState = () => ({ rpPropId, rpMfCode, rpMfPageId });
   propInput.focus();
 }
 
@@ -1097,7 +1097,7 @@ function showRemovePropertyModal() {
 
 async function confirmRemoveProperty(btn) {
   const overlay = btn.closest('.modal-overlay');
-  const { rpPropId, rpMfCode } = overlay._getRpState();
+  const { rpPropId, rpMfCode, rpMfPageId } = overlay._getRpState();
   if (!rpPropId && !rpMfCode) return;
   const photoFile = overlay.querySelector('#rp-photo').files[0];
   if (!photoFile) { overlay.querySelector('#rp-error').textContent = 'Photo is required.'; overlay.querySelector('#rp-error').style.display = ''; return; }
@@ -1115,8 +1115,12 @@ async function confirmRemoveProperty(btn) {
 
   // Choose endpoint based on whether it's a regular property or an MF code
   const endpoint = rpMfCode ? '/api/remove-mf-code' : '/api/remove-property';
-  if (rpMfCode) formData.append('mfCode', rpMfCode);
-  else formData.append('propertyId', rpPropId);
+  if (rpMfCode) {
+    formData.append('mfCode', rpMfCode);
+    if (rpMfPageId) formData.append('mfPageId', rpMfPageId);
+  } else {
+    formData.append('propertyId', rpPropId);
+  }
 
   try {
     const result = await fetch(endpoint, {
