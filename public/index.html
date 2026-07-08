@@ -1019,10 +1019,12 @@ function showRemovePropertyModal() {
     clearTimeout(rpSearchTimer);
     rpSearchTimer = setTimeout(async () => {
       try {
-        const [propHits, mfHits] = await Promise.all([
+        const [propRes, mfRes] = await Promise.allSettled([
           api('/api/search-properties?q=' + encodeURIComponent(q)),
           api('/api/search-mf-codes?q=' + encodeURIComponent(q)),
         ]);
+        const propHits = propRes.status === 'fulfilled' ? propRes.value : [];
+        const mfHits = mfRes.status === 'fulfilled' ? mfRes.value : [];
         if (!propHits.length && !mfHits.length) return;
         // Build combined list: regular properties first, then MF codes
         let html = propHits.slice(0, 6).map((p, i) =>
