@@ -347,23 +347,47 @@ app.get('/api/debug-key-fields', requireAuth, async (req, res) => {
 });
 
 // Search MF Unit Property Codes — MF Unit Property Code is a RELATION to the MF Properties DB
-// Step 1: search MF Properties by Property Code (title field)
-// Step 2: for each matching MF property page, find keys linked via the relation
+// Approach: query keys DB (integration always has access) for rows with MF Unit Property Code set,
+// then fetch the related MF property pages individually and filter by search term.
 app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
+    const q = (req.query.q || '').trim().toLowerCase();
     if (!q) return res.json([]);
-    // Search MF Properties database by Property Code (title)
-    const mfProps = await queryAll(DB.mfProperties, { property: 'Property Code', title: { contains: q } });
-    if (!mfProps.length) return res.json([]);
-    // Return each MF property as a selectable option (we'll look up keys by relation when needed)
-    const results = mfProps.map(r => {
-      const code = extractRichText(r.properties?.['Property Code']);
-      const addr = extractRichText(r.properties?.['Property Full Address']) || extractRichText(r.properties?.['Street Address 1 - Property']) || code;
-      return { mfCode: code, mfPageId: r.id, label: `${addr || code} (MF Common Area)` };
-    }).filter(r => r.mfCode);
+
+    // Find all keys that have an MF Unit Property Code relation set
+    const mfKeys = await queryAll(DB.keys, { property: 'MF Unit Property Code', relation: { is_not_empty: true } });
+
+    // Collect unique MF property page IDs from the relation
+    const seen = new Set();
+    const mfPageIds = [];
+    for (const row of mfKeys) {
+      const rel = row.properties?.['MF Unit Property Code']?.relation || [];
+      for (const r of rel) {
+        if (!seen.has(r.id)) { seen.add(r.id); mfPageIds.push(r.id); }
+      }
+    }
+    if (!mfPageIds.length) return res.json([]);
+
+    // Fetch each MF property page and filter by the search query
+    const pages = await Promise.all(
+      mfPageIds.map(id => fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json()))
+    );
+
+    const results = pages
+      .filter(p => p.object !== 'error')
+      .map(p => {
+        const code = extractRichText(p.properties?.['Property Code']);
+        const addr = extractRichText(p.properties?.['Property Full Address']) ||
+                     extractRichText(p.properties?.['Street Address 1 - Property']) || code;
+        return { mfCode: code, mfPageId: p.id, label: `${addr || code} (MF Common Area)` };
+      })
+      .filter(r => r.mfCode && (r.mfCode.toLowerCase().includes(q) || (r.label || '').toLowerCase().includes(q)));
+
     res.json(results);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('[search-mf-codes] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Remove property by MF code (common area keys only)
