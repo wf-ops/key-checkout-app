@@ -1021,7 +1021,7 @@ function showRemovePropertyModal() {
         // Search using each word token so "1818 wash" or "1818wash" both work
         const tokens = q.replace(/[^a-z0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
         const searchQ = tokens[0] || q; // use first meaningful token
-        const results = await api('/api/properties/search?q=' + encodeURIComponent(searchQ));
+        const results = await api('/api/search-properties?q=' + encodeURIComponent(searchQ));
         // Client-side filter: keep only results containing all tokens
         const filtered = results.filter(p => {
           const text = (p.address + ' ' + p.propertyCode).toLowerCase();
