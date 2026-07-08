@@ -236,11 +236,11 @@
   <button class="sheet-item" id="sheet-users" onclick="closeMoreSheet();showTab('users')">
     <span class="sheet-icon">👥</span> Users
   </button>
-  <button class="sheet-item admin-only" onclick="closeMoreSheet();showSettingsModal()" style="display:none">
+  <button class="sheet-item admin-only" onclick="closeMoreSheet();setTimeout(showSettingsModal,150)" style="display:none">
     <span class="sheet-icon">⚙️</span> Settings
   </button>
   <div class="sheet-divider"></div>
-  <button class="sheet-item" onclick="closeMoreSheet();showChangePinModal()">
+  <button class="sheet-item" onclick="closeMoreSheet();setTimeout(showChangePinModal,150)">
     <span class="sheet-icon">🔐</span> Change PIN
   </button>
   <button class="sheet-item" onclick="closeMoreSheet();doLogout()" style="color:var(--red)">
