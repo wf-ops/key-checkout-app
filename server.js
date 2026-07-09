@@ -331,6 +331,17 @@ app.get('/api/search-properties', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Debug: test MF Properties DB access
+app.get('/api/debug-mf-access', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.mfProperties, null);
+    const codes = rows.map(r => extractRichText(r.properties?.['Property Code'])).filter(Boolean);
+    res.json({ accessible: true, count: rows.length, codes: codes.slice(0, 10) });
+  } catch (e) {
+    res.json({ accessible: false, error: e.message });
+  }
+});
+
 // Debug: inspect first key page's property names
 app.get('/api/debug-key-fields', requireAuth, async (req, res) => {
   try {
