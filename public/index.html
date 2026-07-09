@@ -1140,7 +1140,7 @@ async function confirmRemoveProperty(btn) {
   try {
     const result = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Accept': 'application/json' },
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('krb_token') || '') },
       body: formData,
     }).then(r => r.json());
     if (result.error) throw new Error(result.error);
