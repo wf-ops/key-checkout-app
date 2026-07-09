@@ -362,42 +362,20 @@ app.get('/api/debug-key-fields', requireAuth, async (req, res) => {
 // then fetch the related MF property pages individually and filter by search term.
 app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
   try {
-    const q = (req.query.q || '').trim().toLowerCase();
+    const q = (req.query.q || '').trim();
     if (!q) return res.json([]);
-
-    // Fetch ALL keys (no filter) and inspect MF Unit Property Code relation client-side.
-    // The Notion API may not support is_not_empty on relation fields from external databases.
-    const allKeys = await queryAll(DB.keys, null);
-
-    // Collect unique MF property page IDs from the relation field
-    const seen = new Set();
-    const mfPageIds = [];
-    for (const row of allKeys) {
-      const rel = row.properties?.['MF Unit Property Code']?.relation || [];
-      for (const r of rel) {
-        if (!seen.has(r.id)) { seen.add(r.id); mfPageIds.push(r.id); }
-      }
-    }
-
-    console.log(`[search-mf-codes] total keys: ${allKeys.length}, unique MF page IDs: ${mfPageIds.length}`);
-    if (!mfPageIds.length) return res.json([]);
-
-    // Fetch each related MF property page and filter by the search query
-    const pages = await Promise.all(
-      mfPageIds.map(id => fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json()))
-    );
-
-    const results = pages
-      .filter(p => p.object !== 'error')
-      .map(p => {
-        const code = extractRichText(p.properties?.['Property Code']);
-        const addr = extractRichText(p.properties?.['Property Full Address']) ||
-                     extractRichText(p.properties?.['Street Address 1 - Property']) || code;
-        return { mfCode: code, mfPageId: p.id, label: `${addr || code} (MF Common Area)` };
-      })
-      .filter(r => r.mfCode && (r.mfCode.toLowerCase().includes(q) || (r.label || '').toLowerCase().includes(q)));
-
-    console.log(`[search-mf-codes] query="${q}" results: ${results.length}`);
+    // Search MF Properties DB directly now that integration has access
+    const mfProps = await queryAll(DB.mfProperties, {
+      or: [
+        { property: 'Property Code', title: { contains: q } },
+        { property: 'Street Address 1 - Property', rich_text: { contains: q } },
+      ],
+    });
+    const results = mfProps.map(r => {
+      const code = extractRichText(r.properties?.['Property Code']);
+      const addr = extractRichText(r.properties?.['Street Address 1 - Property']) || code;
+      return { mfCode: code, mfPageId: r.id, label: `${addr} (MF Common Area)` };
+    }).filter(r => r.mfCode);
     res.json(results);
   } catch (e) {
     console.error('[search-mf-codes] error:', e.message);
