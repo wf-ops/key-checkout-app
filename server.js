@@ -1108,6 +1108,160 @@ app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager'), async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── RentEngine Integration ──────────────────────────────────────────────────
+
+const RE_BASE = 'https://app.rentengine.io/api/public/v1';
+
+async function reGetAll(path) {
+  const token = process.env.RENT_ENGINE_API_KEY;
+  if (!token) throw new Error('RENT_ENGINE_API_KEY not configured');
+  const items = [];
+  let page = 0;
+  const limit = 100;
+  while (true) {
+    const res = await fetch(`${RE_BASE}${path}?limit=${limit}&page_number=${page}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`RentEngine ${res.status}: ${err}`);
+    }
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : (data.data || []);
+    items.push(...arr);
+    if (arr.length < limit) break;
+    page++;
+  }
+  return items;
+}
+
+// GET /api/rentengine/sync — compare RentEngine vs Notion lockboxes
+app.get('/api/rentengine/sync', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const [reLockboxes, notionRows] = await Promise.all([
+      reGetAll('/lockboxes'),
+      queryAll(DB.lockboxes, null),
+    ]);
+
+    // Resolve Notion property names (from Merge formula or relation fallback)
+    const notionBoxes = await Promise.all(notionRows.map(async row => {
+      const p = row.properties;
+      const sn = extractRichText(p['Lockbox SN']);
+      const propRel = p['Last Known Property']?.relation || [];
+      let propName = extractRichText(p['Merge']) || null;
+      if (!propName && propRel[0]?.id) {
+        try {
+          const propPage = await fetch(`https://api.notion.com/v1/pages/${propRel[0].id}`, { headers: notionHeaders() }).then(r => r.json());
+          propName = extractRichText(propPage.properties?.['Street Address - Property']) || extractRichText(propPage.properties?.['Property Code']) || null;
+        } catch (_) {}
+      }
+      return { sn, notionId: row.id, propName, status: extractSelect(p['Status']) || null, propRelId: propRel[0]?.id || null };
+    }));
+
+    const notionMap = new Map(notionBoxes.filter(b => b.sn).map(b => [String(b.sn), b]));
+    const reMap = new Map(reLockboxes.map(lb => [String(lb.serial_number), lb]));
+
+    const onlyInRE = [];
+    const onlyInNotion = [];
+    const conflicts = [];
+    const matched = [];
+
+    for (const [sn, re] of reMap) {
+      const reAddr = (re.property_address && re.property_address !== 'Not Assigned') ? re.property_address : null;
+      if (!notionMap.has(sn)) {
+        onlyInRE.push({ sn, reAddress: reAddr, reStatus: re.property_status });
+      } else {
+        const n = notionMap.get(sn);
+        // Conflict: one side says assigned, other says not — or addresses clearly differ
+        const notionAssigned = !!n.propRelId;
+        const reAssigned = !!reAddr;
+        let conflict = false;
+        let reason = '';
+        if (notionAssigned !== reAssigned) {
+          conflict = true;
+          reason = notionAssigned ? 'Notion has property, RentEngine does not' : 'RentEngine has property, Notion does not';
+        } else if (notionAssigned && reAssigned) {
+          // Both assigned — do the addresses overlap?
+          const reWords = reAddr.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+          const notionLower = (n.propName || '').toLowerCase();
+          const overlap = reWords.some(w => notionLower.includes(w));
+          if (!overlap) { conflict = true; reason = 'Property addresses do not match'; }
+        }
+        if (conflict) {
+          conflicts.push({ sn, reason, re: { address: reAddr, status: re.property_status }, notion: { address: n.propName, status: n.status, notionId: n.notionId } });
+        } else {
+          matched.push(sn);
+        }
+      }
+    }
+
+    for (const [sn, n] of notionMap) {
+      if (!reMap.has(sn)) {
+        onlyInNotion.push({ sn, notionId: n.notionId, propName: n.propName, status: n.status });
+      }
+    }
+
+    res.json({ onlyInRE, onlyInNotion, conflicts, matchedCount: matched.length, reTotal: reLockboxes.length, notionTotal: notionBoxes.length });
+  } catch (e) { console.error('[re-sync]', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/rentengine/sync/resolve — apply a conflict resolution
+app.post('/api/rentengine/sync/resolve', requireRole('Admin', 'Manager'), async (req, res) => {
+  try {
+    const { sn, keep, notionId } = req.body;
+    if (!sn || !keep || !notionId) return res.status(400).json({ error: 'sn, keep, notionId required' });
+    if (keep === 'notion') {
+      // Notion wins — nothing to change in Notion, we just note the decision
+      return res.json({ ok: true, action: 'kept Notion data' });
+    }
+    if (keep === 'rentengine') {
+      // RentEngine wins — clear the property link in Notion (RE says unassigned)
+      // or update status to match RE
+      const reLockboxes = await reGetAll('/lockboxes');
+      const re = reLockboxes.find(lb => String(lb.serial_number) === String(sn));
+      if (!re) return res.status(404).json({ error: 'Lockbox not found in RentEngine' });
+      const reAssigned = re.property_address && re.property_address !== 'Not Assigned';
+      if (!reAssigned) {
+        // RE says unassigned → clear Notion's property link
+        await notionPatch(`https://api.notion.com/v1/pages/${notionId}`, {
+          properties: { 'Last Known Property': { relation: [] }, 'Status': { select: { name: 'Unassigned' } } },
+        });
+      }
+      return res.json({ ok: true, action: reAssigned ? 'RE has property but no Notion match found — manual update needed' : 'cleared Notion property link' });
+    }
+    res.status(400).json({ error: 'keep must be "notion" or "rentengine"' });
+  } catch (e) { console.error('[re-resolve]', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/rentengine/webhook — receive real-time lockbox events from RentEngine
+app.post('/api/rentengine/webhook', express.json(), async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    if (process.env.RENT_ENGINE_WEBHOOK_SECRET && apiKey !== process.env.RENT_ENGINE_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+    const { type, table, record } = req.body;
+    console.log(`[re-webhook] ${type} on ${table}:`, JSON.stringify(record).slice(0, 200));
+
+    if (table === 'lockboxes' && record?.serial_number) {
+      const sn = String(record.serial_number);
+      const reAssigned = record.property_address && record.property_address !== 'Not Assigned';
+      // Find the matching Notion lockbox
+      const notionRows = await queryAll(DB.lockboxes, null);
+      const match = notionRows.find(r => extractRichText(r.properties?.['Lockbox SN']) === sn);
+      if (match) {
+        const notionAssigned = (match.properties?.['Last Known Property']?.relation || []).length > 0;
+        if (type === 'DELETE' || (!reAssigned && notionAssigned)) {
+          // Log a warning — don't auto-update, let user resolve via sync
+          console.log(`[re-webhook] Conflict detected for SN ${sn} — Notion says assigned, RE says removed`);
+          await sendSlackAlert(`⚠️ *RentEngine Lockbox Conflict*\nSN: ${sn}\nRentEngine: ${record.property_address || 'Unassigned'}\nRun a sync in Key Manager to resolve.`);
+        }
+      }
+    }
+    res.json({ received: true });
+  } catch (e) { console.error('[re-webhook]', e.message); res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async (req, res) => {
   try {
     const { serialNumber, date } = req.body;

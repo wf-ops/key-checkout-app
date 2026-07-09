@@ -366,7 +366,10 @@
 
 <div class="tab" id="tab-lockboxes">
   <div class="card">
-    <h3>Lockbox Day Codes</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <h3 style="margin:0">Lockbox Day Codes</h3>
+      <button class="btn btn-sm" style="background:var(--surface-alt);border:1px solid var(--border);color:var(--gray-900);font-size:.8rem;" onclick="runRESyncLockboxes()">🔄 Sync RentEngine</button>
+    </div>
     <input type="search" id="lockbox-search" placeholder="Search by SN or location…" oninput="filterLockboxes(this.value)"
       style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;background:var(--bg);color:var(--gray-900);margin-bottom:12px;outline:none;" />
     <div id="lockbox-list"><div class="spinner"></div></div>
@@ -1821,6 +1824,88 @@ function renderLockboxes(boxes) {
       .then(r => { const el = document.getElementById('lbcode-' + b.id); if (el) el.textContent = r.code || '—'; })
       .catch(e => { const w = document.getElementById('lbcode-wrap-' + b.id); if (w) w.innerHTML = `<div class="lockbox-code-err">${e.message}</div>`; });
   });
+}
+
+async function runRESyncLockboxes() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'background:var(--surface);border-radius:16px;padding:24px 20px;width:100%;max-width:520px;max-height:80vh;overflow-y:auto;';
+  sheet.innerHTML = '<div style="font-size:1.05rem;font-weight:700;margin-bottom:16px;">🔄 RentEngine Sync</div><div class="spinner"></div>';
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  try {
+    const data = await api('/api/rentengine/sync');
+    let html = `<div style="font-size:1.05rem;font-weight:700;margin-bottom:4px;">🔄 RentEngine Sync</div>
+      <div style="font-size:.82rem;color:var(--gray-600);margin-bottom:16px;">
+        RentEngine: ${data.reTotal} lockboxes &nbsp;·&nbsp; Notion: ${data.notionTotal} lockboxes &nbsp;·&nbsp; ✅ ${data.matchedCount} matched
+      </div>`;
+
+    if (data.conflicts.length) {
+      html += `<div style="font-weight:600;margin-bottom:8px;color:#dc2626;">⚠️ Conflicts (${data.conflicts.length})</div>`;
+      data.conflicts.forEach((c, i) => {
+        html += `<div class="re-conflict-row" style="border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-bottom:10px;background:rgba(239,68,68,.05);">
+          <div style="font-weight:600;margin-bottom:6px;">SN: ${c.sn}</div>
+          <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:8px;">${c.reason}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:.83rem;">
+            <div style="padding:8px;background:var(--bg);border-radius:6px;">
+              <div style="font-weight:600;margin-bottom:2px;">🏢 RentEngine</div>
+              <div>${c.re.address || '— Unassigned —'}</div>
+              <div style="color:var(--gray-600)">${c.re.status || ''}</div>
+            </div>
+            <div style="padding:8px;background:var(--bg);border-radius:6px;">
+              <div style="font-weight:600;margin-bottom:2px;">📋 Notion</div>
+              <div>${c.notion.address || '— Unassigned —'}</div>
+              <div style="color:var(--gray-600)">${c.notion.status || ''}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" style="flex:1;background:#2563eb;color:#fff;border:none;" onclick="resolveREConflict('${c.sn}','rentengine','${c.notion.notionId}',this.closest('.re-conflict-row'))">Keep RentEngine</button>
+            <button class="btn btn-sm" style="flex:1;background:var(--primary);color:#fff;border:none;" onclick="resolveREConflict('${c.sn}','notion','${c.notion.notionId}',this.closest('.re-conflict-row'))">Keep Notion</button>
+            <button class="btn btn-sm" style="flex:1;background:var(--surface-alt);border:1px solid var(--border);color:var(--gray-900);" onclick="this.closest('.re-conflict-row').style.opacity='.4'">Skip</button>
+          </div>
+        </div>`;
+      });
+    }
+
+    if (data.onlyInRE.length) {
+      html += `<div style="font-weight:600;margin:12px 0 8px;">📥 Only in RentEngine (${data.onlyInRE.length})</div>`;
+      html += data.onlyInRE.map(r => `<div style="font-size:.83rem;padding:6px 0;border-bottom:1px solid var(--border);">SN ${r.sn} &nbsp;·&nbsp; ${r.reAddress || 'Unassigned'}</div>`).join('');
+    }
+
+    if (data.onlyInNotion.length) {
+      html += `<div style="font-weight:600;margin:12px 0 8px;">📤 Only in Notion (${data.onlyInNotion.length})</div>`;
+      html += data.onlyInNotion.map(n => `<div style="font-size:.83rem;padding:6px 0;border-bottom:1px solid var(--border);">SN ${n.sn} &nbsp;·&nbsp; ${n.propName || 'Unassigned'}</div>`).join('');
+    }
+
+    if (!data.conflicts.length && !data.onlyInRE.length && !data.onlyInNotion.length) {
+      html += `<div style="text-align:center;padding:20px 0;color:var(--primary);font-size:1.1rem;">✅ All lockboxes in sync!</div>`;
+    }
+
+    html += `<button class="btn btn-full" style="margin-top:16px;background:var(--surface-alt);border:1px solid var(--border);color:var(--gray-900);" onclick="this.closest('.modal-overlay').remove()">Close</button>`;
+    sheet.innerHTML = html;
+  } catch (e) {
+    sheet.innerHTML = `<div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;">🔄 RentEngine Sync</div>
+      <div style="color:#dc2626;margin-bottom:16px;">${e.message}</div>
+      <button class="btn btn-full" onclick="this.closest('.modal-overlay').remove()">Close</button>`;
+  }
+}
+
+async function resolveREConflict(sn, keep, notionId, row) {
+  try {
+    row.style.opacity = '.6';
+    row.querySelectorAll('button').forEach(b => b.disabled = true);
+    await api('/api/rentengine/sync/resolve', { method: 'POST', body: JSON.stringify({ sn, keep, notionId }) });
+    row.innerHTML = `<div style="text-align:center;padding:8px;color:var(--primary);font-size:.9rem;">✅ Resolved — kept ${keep === 'notion' ? 'Notion' : 'RentEngine'} data for SN ${sn}</div>`;
+    row.style.opacity = '1';
+  } catch (e) {
+    row.style.opacity = '1';
+    row.querySelectorAll('button').forEach(b => b.disabled = false);
+    alert('Resolution failed: ' + e.message);
+  }
 }
 
 function filterLockboxes(q) {
