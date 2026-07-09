@@ -1596,7 +1596,12 @@ app.get('/api/available-key-tags', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.keys, {
       and: [
-        { property: 'Status', select: { equals: 'In Office' } },
+        {
+          or: [
+            { property: 'Status', select: { equals: 'In Office' } },
+            { property: 'Status', select: { is_empty: true } },
+          ],
+        },
         { property: 'Rental Matrix', relation: { is_empty: true } },
         { property: 'MF Unit Property Code', relation: { is_empty: true } },
       ],
