@@ -973,20 +973,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       try { logProps['Due Date'] = { date: { start: returnBy } }; } catch (_) {}
     }
     if (staffId) { try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {} }
-    // Include checkout photo file ID if provided (graceful — won't fail if field doesn't exist in Notion)
-    if (checkoutFileId) {
-      try { logProps['Photo File ID'] = { rich_text: [{ text: { content: checkoutFileId } }] }; } catch (_) {}
-    }
-    let logPage;
-    try {
-      logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
-    } catch (e) {
-      // Retry without optional fields (Photo File ID, Due Date) if Notion rejects them
-      console.error('[checkout] log create failed, retrying without optional fields:', e.message);
-      delete logProps['Photo File ID'];
-      delete logProps['Due Date'];
-      logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
-    }
+    const logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
       properties: {
         'Status': { select: { name: 'Checked Out' } },
@@ -1045,14 +1032,14 @@ async function checkOverdueKeys() {
     const overdue = rows.filter(row => {
       const p = row.properties;
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || '';
-      const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start;
+      const dateDue = p['Due Date']?.date?.start;
       if (!title || !dateDue) return false;
       return new Date(dateDue) < new Date(today);
     });
     if (overdue.length === 0) { console.log('Daily check: no overdue keys'); return; }
     const lines = overdue.map(row => {
       const p = row.properties;
-      const dateDue = p['Date Out']?.date?.end || p['Date Out']?.date?.start || '';
+      const dateDue = p['Due Date']?.date?.start || '';
       const daysLate = Math.floor((new Date(today) - new Date(dateDue)) / 86400000);
       const who = p['Checked Out By']?.people?.map(u => u.name).join(', ') || '?';
       const title = p['Log Entry']?.title?.map(t => t.plain_text).join('') || 'Unknown key';
