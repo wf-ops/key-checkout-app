@@ -173,6 +173,11 @@ function extractRichText(prop) {
   if (prop.type === 'rich_text') return prop.rich_text.map(r => r.plain_text).join('');
   if (prop.type === 'title') return prop.title.map(r => r.plain_text).join('');
   if (prop.type === 'number') return prop.number != null ? String(prop.number) : '';
+  if (prop.type === 'formula') {
+    const f = prop.formula;
+    if (f?.type === 'string') return f.string || '';
+    if (f?.type === 'number') return f.number != null ? String(f.number) : '';
+  }
   return '';
 }
 function extractSelect(prop) {
@@ -1061,7 +1066,7 @@ app.get('/api/lockboxes', requireAuth, async (req, res) => {
   try {
     const rows = await queryAll(DB.lockboxes, null, [{ property: 'Lockbox SN', direction: 'ascending' }]);
     const seen = new Set();
-    const boxes = rows.map(r => {
+    const baseBoxes = rows.map(r => {
       const p = r.properties;
       const propRel = p['Last Known Property']?.relation || [];
       return { id: r.id, sn: extractRichText(p['Lockbox SN']), krbBox: p['KRB Key Box #']?.number || null, status: p['Status']?.select?.name || 'Unassigned', propertyId: propRel[0]?.id || null, propertyName: extractRichText(p['Merge']) || null, notes: extractRichText(p['Notes']) };
@@ -1070,7 +1075,19 @@ app.get('/api/lockboxes', requireAuth, async (req, res) => {
       seen.add(b.sn);
       return true;
     });
-    res.json(boxes);
+    // For any box missing a propertyName but having a propertyId, fetch the property name
+    const needsName = baseBoxes.filter(b => !b.propertyName && b.propertyId);
+    if (needsName.length) {
+      await Promise.allSettled(needsName.map(async b => {
+        try {
+          const page = await fetch(`https://api.notion.com/v1/pages/${b.propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+          if (page.object !== 'error') {
+            b.propertyName = extractRichText(page.properties?.['Street Address - Property']) || extractRichText(page.properties?.['Property Code']) || null;
+          }
+        } catch {}
+      }));
+    }
+    res.json(baseBoxes);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
