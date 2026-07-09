@@ -438,7 +438,7 @@ app.get('/api/keys', requireAuth, async (req, res) => {
         id: row.id,
         tag: extractRichText(p['Key Tag #']),
         name: keyTypes.join(', ') || 'Key',
-        status: rawStatus === 'In Office' ? 'Available' : rawStatus,
+        status: (rawStatus === 'In Office' || rawStatus === '') ? 'Available' : rawStatus,
         rawStatus,
         keyTypes,
       };
