@@ -203,6 +203,13 @@
     .modal-search-results .search-result-item { border-bottom: 1px solid var(--border); padding: 9px 14px; cursor: pointer; font-size: .9rem; }
     .modal-search-results .search-result-item:last-child { border-bottom: none; }
     .modal-search-results .search-result-item:hover { background: var(--bg); }
+
+    .tag-picker-list { border: 1px solid var(--border); border-radius: 10px; max-height: 220px; overflow-y: auto; margin-top: 6px; }
+    .tag-picker-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .tag-picker-item:last-child { border-bottom: none; }
+    .tag-picker-item:hover, .tag-picker-item.selected { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+    .tag-picker-num { font-size: 1.1rem; font-weight: 800; min-width: 36px; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .tag-picker-types { font-size: .78rem; color: var(--gray-600); }
   </style>
 </head>
 <body>
@@ -286,6 +293,7 @@
     <h3>Quick Actions</h3>
     <div class="quick-actions">
       <button class="quick-action-btn" onclick="showReceiveKeysModal()">📥 Receive Keys</button>
+      <button class="quick-action-btn" onclick="showAssignKeyTagModal()">🏷️ Assign Key Tag</button>
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
       <button class="quick-action-btn" onclick="showChargeForKeysModal()">🔑 Charge for Keys</button>
       <button class="quick-action-btn admin-only" onclick="showRemovePropertyModal()" style="display:none">🏠 Remove Property</button>
@@ -1265,6 +1273,180 @@ async function confirmReceiveKeys(btn) {
   } catch (e) {
     errEl.textContent = e.message; errEl.style.display = '';
     btn.disabled = false; btn.textContent = 'Receive Keys';
+  }
+}
+
+// ── Assign Key Tag modal ──────────────────────────────────────────────────────
+async function showAssignKeyTagModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <h3>🏷️ Assign Key Tag</h3>
+      <p style="font-size:.85rem;color:var(--gray-600);margin-top:0">Link an available key tag to a property. A photo of the keys on the tag is required.</p>
+
+      <div id="akt-step1">
+        <label style="margin-top:0">Filter tags</label>
+        <input type="text" id="akt-filter" placeholder="Type a number to filter…" autocomplete="off" style="margin-bottom:8px" />
+        <div id="akt-tag-list" class="tag-picker-list"><div style="padding:20px;text-align:center;color:var(--gray-400);font-size:.85rem">Loading…</div></div>
+      </div>
+
+      <div id="akt-step2" style="display:none">
+        <div id="akt-selected-tag" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:color-mix(in srgb,var(--primary) 10%,transparent);border:1px solid color-mix(in srgb,var(--primary) 30%,transparent);border-radius:10px;margin:8px 0 14px">
+          <span style="font-size:1.3rem;font-weight:800;color:var(--primary)" id="akt-tag-num"></span>
+          <span style="font-size:.82rem;color:var(--gray-600)" id="akt-tag-types"></span>
+          <button onclick="document.getElementById('akt-step1').style.display='';document.getElementById('akt-step2').style.display='none';document.getElementById('akt-filter').focus();document.getElementById('akt-confirm-btn').disabled=true;" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--gray-600);font-size:.85rem">Change</button>
+        </div>
+        <label>Property</label>
+        <div class="modal-search-wrap">
+          <input type="text" id="akt-prop-input" placeholder="Search property…" autocomplete="off" />
+          <div class="modal-search-results" id="akt-prop-results"></div>
+        </div>
+        <div id="akt-prop-name" style="font-size:.85rem;font-weight:600;color:var(--primary);margin:6px 0 0;display:none"></div>
+        <label>Photo of keys on tag <span style="color:var(--red)">*</span></label>
+        <input type="file" id="akt-photo" accept="image/*" capture="environment" style="margin-bottom:4px" />
+        <div id="akt-photo-preview" style="margin-bottom:8px"></div>
+      </div>
+
+      <div id="akt-error" style="color:var(--red);font-size:.85rem;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" id="akt-confirm-btn" onclick="confirmAssignKeyTag(this)" disabled>Assign Tag</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  let aktKeyId = null, aktPropId = null;
+  let aktSearchTimer;
+  const filterInput = overlay.querySelector('#akt-filter');
+  const tagListEl = overlay.querySelector('#akt-tag-list');
+  const step1 = overlay.querySelector('#akt-step1');
+  const step2 = overlay.querySelector('#akt-step2');
+  const propInput = overlay.querySelector('#akt-prop-input');
+  const propResults = overlay.querySelector('#akt-prop-results');
+  const propNameEl = overlay.querySelector('#akt-prop-name');
+  const photoInput = overlay.querySelector('#akt-photo');
+  const photoPreview = overlay.querySelector('#akt-photo-preview');
+  const confirmBtn = overlay.querySelector('#akt-confirm-btn');
+
+  function checkReady() {
+    confirmBtn.disabled = !(aktKeyId && aktPropId && photoInput.files.length > 0);
+  }
+
+  // Load available tags
+  let allTags = [];
+  try {
+    allTags = await api('/api/available-key-tags');
+  } catch (e) {
+    tagListEl.innerHTML = `<div style="padding:16px;color:var(--red);font-size:.85rem">Failed to load tags: ${e.message}</div>`;
+    return;
+  }
+
+  function renderTags(filter) {
+    const q = (filter || '').trim();
+    const filtered = q ? allTags.filter(t => t.tag.includes(q)) : allTags;
+    if (!filtered.length) {
+      tagListEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:.85rem">${q ? 'No matching tags' : 'No available tags'}</div>`;
+      return;
+    }
+    tagListEl.innerHTML = filtered.map((t, i) =>
+      `<div class="tag-picker-item" data-idx="${i}" data-id="${t.id}" data-tag="${t.tag}" data-types="${(t.keyTypes||[]).join(', ')}">
+        <span class="tag-picker-num">${t.tag}</span>
+        <span class="tag-picker-types">${(t.keyTypes||[]).join(', ') || 'No key types set'}</span>
+      </div>`
+    ).join('');
+    tagListEl.querySelectorAll('.tag-picker-item').forEach(el => {
+      el.addEventListener('click', () => {
+        aktKeyId = el.dataset.id;
+        overlay._aktKeyId = aktKeyId;
+        overlay.querySelector('#akt-tag-num').textContent = `Tag ${el.dataset.tag}`;
+        overlay.querySelector('#akt-tag-types').textContent = el.dataset.types || '';
+        step1.style.display = 'none';
+        step2.style.display = '';
+        propInput.focus();
+        checkReady();
+      });
+    });
+  }
+
+  renderTags('');
+  filterInput.addEventListener('input', () => renderTags(filterInput.value));
+  filterInput.focus();
+
+  // Property search
+  propInput.addEventListener('input', () => {
+    clearTimeout(aktSearchTimer);
+    aktSearchTimer = setTimeout(async () => {
+      const q = propInput.value.trim();
+      propResults.style.display = 'none';
+      if (q.length < 2) return;
+      try {
+        const hits = await api('/api/search-properties?q=' + encodeURIComponent(q));
+        if (!hits.length) return;
+        propResults.innerHTML = hits.slice(0, 8).map((p, i) =>
+          `<div class="search-result-item" data-idx="${i}">${p.address || p.propertyCode}<div class="result-code">${p.propertyCode || ''}</div></div>`
+        ).join('');
+        propResults._hits = hits;
+        propResults.querySelectorAll('.search-result-item').forEach(el => {
+          el.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const p = propResults._hits[+el.dataset.idx];
+            propResults.style.display = 'none';
+            propInput.value = '';
+            aktPropId = p.id;
+            overlay._aktPropId = p.id;
+            propNameEl.textContent = p.address || p.propertyCode;
+            propNameEl.style.display = '';
+            checkReady();
+          });
+        });
+        propResults.style.display = 'block';
+      } catch (e) { console.warn('property search error', e); }
+    }, 300);
+  });
+
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    photoPreview.innerHTML = file
+      ? `<img src="${URL.createObjectURL(file)}" style="max-width:100%;max-height:180px;border-radius:8px;margin-top:4px;border:1px solid var(--border)">`
+      : '';
+    checkReady();
+  });
+}
+
+async function confirmAssignKeyTag(btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const keyId = overlay._aktKeyId;
+  const propId = overlay._aktPropId;
+  const photoInput = overlay.querySelector('#akt-photo');
+  const errEl = overlay.querySelector('#akt-error');
+  errEl.style.display = 'none';
+
+  if (!keyId || !propId) { errEl.textContent = 'Please select a tag and property.'; errEl.style.display = ''; return; }
+  const photoFile = photoInput.files[0];
+  if (!photoFile) { errEl.textContent = 'A photo of the keys on the tag is required.'; errEl.style.display = ''; return; }
+
+  btn.disabled = true; btn.textContent = 'Assigning…';
+
+  const formData = new FormData();
+  formData.append('keyId', keyId);
+  formData.append('propertyId', propId);
+  formData.append('photo', photoFile);
+
+  try {
+    const result = await fetch('/api/assign-key-tag', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('krb_token') || '') },
+      body: formData,
+    }).then(r => r.json());
+    if (result.error) throw new Error(result.error);
+    overlay.remove();
+    alert(`✅ Key tag assigned to ${result.address}`);
+    loadDashboard();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = '';
+    btn.disabled = false; btn.textContent = 'Assign Tag';
   }
 }
 

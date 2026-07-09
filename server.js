@@ -1590,6 +1590,75 @@ app.post('/api/receive-keys', requireAuth, uploadMemory.single('photo'), async (
   }
 });
 
+// ── Assign Key Tag ─────────────────────────────────────────────────────────────
+// Returns keys that are In Office with no property (Rental Matrix) assigned
+app.get('/api/available-key-tags', requireAuth, async (req, res) => {
+  try {
+    const rows = await queryAll(DB.keys, {
+      and: [
+        { property: 'Status', select: { equals: 'In Office' } },
+        { property: 'Rental Matrix', relation: { is_empty: true } },
+        { property: 'MF Unit Property Code', relation: { is_empty: true } },
+      ],
+    }, [{ property: 'Key Tag #', direction: 'ascending' }]);
+    const tags = rows.map(r => ({
+      id: r.id,
+      tag: extractRichText(r.properties?.['Key Tag #']),
+      keyTypes: extractMultiSelect(r.properties?.['Key Types']),
+    })).filter(t => t.tag);
+    res.json(tags);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Assigns a property to a key tag and records a photo
+app.post('/api/assign-key-tag', requireAuth, uploadMemory.single('photo'), async (req, res) => {
+  try {
+    const { keyId, propertyId } = req.body;
+    if (!keyId) return res.status(400).json({ error: 'keyId required' });
+    if (!propertyId) return res.status(400).json({ error: 'propertyId required' });
+    if (!req.file) return res.status(400).json({ error: 'Photo is required' });
+
+    // 1. Upload photo to Notion key page
+    let notionFileUrl = null;
+    try {
+      const createRes = await fetch('https://api.notion.com/v1/files', {
+        method: 'POST',
+        headers: { ...notionHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent: { type: 'page_id', page_id: keyId }, name: req.file.originalname || 'key-tag-photo.jpg' }),
+      });
+      const createData = await createRes.json();
+      if (createData.upload_url) {
+        await fetch(createData.upload_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': req.file.mimetype },
+          body: req.file.buffer,
+        });
+        if (createData.url) notionFileUrl = createData.url;
+      }
+    } catch (uploadErr) {
+      console.warn('[assign-key-tag] Notion file upload failed:', uploadErr.message);
+    }
+
+    // 2. Update key: set Rental Matrix relation + photo
+    const updateProps = {
+      'Rental Matrix': { relation: [{ id: propertyId }] },
+    };
+    if (notionFileUrl) {
+      updateProps['Photos of Keys at Takeover'] = { files: [{ type: 'external', external: { url: notionFileUrl }, name: req.file.originalname || 'key-tag-photo.jpg' }] };
+    }
+    await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, { properties: updateProps });
+
+    // 3. Get property name for confirmation
+    const propPage = await fetch(`https://api.notion.com/v1/pages/${propertyId}`, { headers: notionHeaders() }).then(r => r.json());
+    const address = extractRichText(propPage.properties?.['Street Address - Property']) || 'Unknown Property';
+
+    res.json({ success: true, address });
+  } catch (e) {
+    console.error('[assign-key-tag] error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`KRB Key App running on http://localhost:${PORT}`);
