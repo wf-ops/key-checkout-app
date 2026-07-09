@@ -354,21 +354,24 @@ app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
     const q = (req.query.q || '').trim().toLowerCase();
     if (!q) return res.json([]);
 
-    // Find all keys that have an MF Unit Property Code relation set
-    const mfKeys = await queryAll(DB.keys, { property: 'MF Unit Property Code', relation: { is_not_empty: true } });
+    // Fetch ALL keys (no filter) and inspect MF Unit Property Code relation client-side.
+    // The Notion API may not support is_not_empty on relation fields from external databases.
+    const allKeys = await queryAll(DB.keys, null);
 
-    // Collect unique MF property page IDs from the relation
+    // Collect unique MF property page IDs from the relation field
     const seen = new Set();
     const mfPageIds = [];
-    for (const row of mfKeys) {
+    for (const row of allKeys) {
       const rel = row.properties?.['MF Unit Property Code']?.relation || [];
       for (const r of rel) {
         if (!seen.has(r.id)) { seen.add(r.id); mfPageIds.push(r.id); }
       }
     }
+
+    console.log(`[search-mf-codes] total keys: ${allKeys.length}, unique MF page IDs: ${mfPageIds.length}`);
     if (!mfPageIds.length) return res.json([]);
 
-    // Fetch each MF property page and filter by the search query
+    // Fetch each related MF property page and filter by the search query
     const pages = await Promise.all(
       mfPageIds.map(id => fetch(`https://api.notion.com/v1/pages/${id}`, { headers: notionHeaders() }).then(r => r.json()))
     );
@@ -383,6 +386,7 @@ app.get('/api/search-mf-codes', requireAuth, async (req, res) => {
       })
       .filter(r => r.mfCode && (r.mfCode.toLowerCase().includes(q) || (r.label || '').toLowerCase().includes(q)));
 
+    console.log(`[search-mf-codes] query="${q}" results: ${results.length}`);
     res.json(results);
   } catch (e) {
     console.error('[search-mf-codes] error:', e.message);
