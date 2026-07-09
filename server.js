@@ -433,11 +433,13 @@ app.get('/api/keys', requireAuth, async (req, res) => {
       const p = row.properties;
       const rawStatus = extractSelect(p['Status']);
       const keyTypes = extractMultiSelect(p['Key Types']);
+      if (propertyId) console.log(`[keys] tag=${extractRichText(p['Key Tag #'])} rawStatus="${rawStatus}"`);
       return {
         id: row.id,
         tag: extractRichText(p['Key Tag #']),
         name: keyTypes.join(', ') || 'Key',
         status: rawStatus === 'In Office' ? 'Available' : rawStatus,
+        rawStatus,
         keyTypes,
       };
     });
