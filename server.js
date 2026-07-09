@@ -447,6 +447,7 @@ app.get('/api/keys', requireAuth, async (req, res) => {
 
 app.get('/api/checked-out-keys', requireAuth, async (req, res) => {
   try {
+    const today = mtDateStr();
     const rows = await queryAll(DB.keys, { property: 'Status', select: { equals: 'Checked Out' } });
     const keys = await Promise.all(rows.map(async row => {
       const p = row.properties;
@@ -460,7 +461,20 @@ app.get('/api/checked-out-keys', requireAuth, async (req, res) => {
           propertyName = extractRichText(propPage.properties?.['Street Address - Property']) || extractRichText(propPage.properties?.['Property Code']) || '';
         } catch (_) {}
       }
-      return { id: row.id, tag, name: keyTypes.join(', ') || 'Key', keyTypes, propertyName };
+      // Find active log entry to get Due Date
+      let dueDate = null;
+      const logRel = p['Key Check-In/ Check-Out Log']?.relation || [];
+      for (const rel of [...logRel].reverse()) {
+        try {
+          const logPage = await fetch(`https://api.notion.com/v1/pages/${rel.id}`, { headers: notionHeaders() }).then(r => r.json());
+          if (!logPage.properties?.['Date Returned']?.date) {
+            dueDate = logPage.properties?.['Due Date']?.date?.start || null;
+            break;
+          }
+        } catch (_) {}
+      }
+      const overdue = dueDate ? dueDate < today : false;
+      return { id: row.id, tag, name: keyTypes.join(', ') || 'Key', keyTypes, propertyName, dueDate, overdue };
     }));
     res.json(keys.filter(k => k.tag));
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -943,7 +957,7 @@ app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, re
 // POST /api/checkout — requires checkoutFileId (Drive file ID of key photo)
 app.post('/api/checkout', requireAuth, async (req, res) => {
   try {
-    const { keyId, staffId, propertyId, checkoutFileId } = req.body;
+    const { keyId, staffId, propertyId, checkoutFileId, returnBy } = req.body;
     if (!keyId || !propertyId) return res.status(400).json({ error: 'keyId and propertyId required' });
     const keyPage = await fetch(`https://api.notion.com/v1/pages/${keyId}`, { headers: notionHeaders() }).then(r => r.json());
     const keyTag = extractRichText(keyPage.properties?.['Key Tag #']) || '?';
@@ -953,6 +967,9 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       'Date Out': { date: { start: mtDateStr() } },
       'Property': { relation: [{ id: propertyId }] },
     };
+    if (returnBy) {
+      try { logProps['Due Date'] = { date: { start: returnBy } }; } catch (_) {}
+    }
     if (staffId) { try { logProps['Checked Out By'] = { people: [{ id: staffId }] }; } catch (_) {} }
     // Include checkout photo file ID if provided (graceful — won't fail if field doesn't exist in Notion)
     if (checkoutFileId) {

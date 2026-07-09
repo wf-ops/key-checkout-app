@@ -171,6 +171,10 @@
     /* Check-in list */
     .ci-key-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .ci-key-row:last-child { border-bottom: none; }
+    .ci-key-overdue { background: #fff5f5; border-radius: 8px; padding: 10px 8px; margin: 0 -8px; }
+    @media (prefers-color-scheme: dark) { .ci-key-overdue { background: rgba(239,68,68,.12); } }
+    .ci-key-due { font-size: .78rem; color: var(--gray-600); margin-top: 2px; }
+    .ci-due-overdue { color: #dc2626; font-weight: 600; }
     .ci-key-info { flex: 1; min-width: 0; }
     .ci-key-name { font-size: .9rem; font-weight: 600; }
     .ci-key-prop { font-size: .75rem; color: var(--gray-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -321,6 +325,10 @@
     <div id="co-staff-select" style="display:none">
       <label>Staff</label>
       <select id="co-staff-dd"></select>
+    </div>
+    <div id="co-return-section" style="display:none">
+      <label>Return By</label>
+      <input type="date" id="co-return-date" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:1rem;background:var(--surface);color:var(--gray-900);box-sizing:border-box;" onchange="onCoReturnDateChanged()" />
     </div>
     <div id="co-photo-section" style="display:none">
       <label>📷 Photo of keys being checked out</label>
@@ -1458,6 +1466,7 @@ async function selectPropForCheckout(id, name) {
   document.getElementById('co-selected-prop').innerHTML = `<span>${name}</span><button onclick="clearPropSelection('co')">✕</button>`;
   document.getElementById('co-key-select').style.display = 'none';
   document.getElementById('co-staff-select').style.display = 'none';
+  document.getElementById('co-return-section').style.display = 'none';
   document.getElementById('co-photo-section').style.display = 'none';
   document.getElementById('co-btn').style.display = 'none';
   try {
@@ -1470,6 +1479,8 @@ async function selectPropForCheckout(id, name) {
       const staff = await api('/api/staff');
       document.getElementById('co-staff-dd').innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
       document.getElementById('co-staff-select').style.display = 'block';
+      document.getElementById('co-return-section').style.display = 'block';
+      document.getElementById('co-return-date').value = '';
       document.getElementById('co-photo-section').style.display = 'block';
       document.getElementById('co-btn').style.display = 'block';
       document.getElementById('co-btn').disabled = true;
@@ -1480,6 +1491,12 @@ async function selectPropForCheckout(id, name) {
     alert('Failed to load keys for this property: ' + e.message);
   }
 }
+function coCheckReady() {
+  const hasPhoto = !!document.getElementById('co-photo-input').files[0];
+  const hasDate = !!document.getElementById('co-return-date').value;
+  document.getElementById('co-btn').disabled = !(hasPhoto && hasDate);
+}
+function onCoReturnDateChanged() { coCheckReady(); }
 function onCoPhotoSelected() {
   const file = document.getElementById('co-photo-input').files[0];
   if (!file) return;
@@ -1488,20 +1505,22 @@ function onCoPhotoSelected() {
   const reader = new FileReader();
   reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; retake.style.display = 'block'; };
   reader.readAsDataURL(file);
-  document.getElementById('co-btn').disabled = false;
+  coCheckReady();
 }
 async function doCheckout() {
   const keyId = document.getElementById('co-key-dd').value;
   const staffId = document.getElementById('co-staff-dd').value;
   const photoFile = document.getElementById('co-photo-input').files[0];
+  const returnBy = document.getElementById('co-return-date').value;
   if (!keyId || !staffId || !coSelectedProp) return;
+  if (!returnBy) { alert('Please set a return date.'); return; }
   if (!photoFile) { alert('Please take a photo of the keys first.'); return; }
   const btn = document.getElementById('co-btn');
   btn.disabled = true; btn.textContent = 'Uploading photo…';
   try {
     const { fileId } = await uploadPhoto(photoFile);
     btn.textContent = 'Checking out…';
-    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: fileId }) });
+    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: fileId, returnBy }) });
     clearPropSelection('co'); loadDashboard(); showTab('dashboard');
   } catch (e) { alert('Checkout failed: ' + e.message); btn.disabled = false; btn.textContent = 'Check Out'; }
 }
@@ -1510,6 +1529,8 @@ function clearPropSelection(prefix) {
     coSelectedProp = null;
     document.getElementById('co-key-select').style.display = 'none';
     document.getElementById('co-staff-select').style.display = 'none';
+    document.getElementById('co-return-section').style.display = 'none';
+    document.getElementById('co-return-date').value = '';
     document.getElementById('co-photo-section').style.display = 'none';
     document.getElementById('co-photo-preview').style.display = 'none';
     document.getElementById('co-photo-retake').style.display = 'none';
@@ -1528,11 +1549,12 @@ async function loadCheckinKeys() {
     const keys = await api('/api/checked-out-keys');
     if (!keys.length) { el.innerHTML = '<div class="empty">No keys currently checked out</div>'; return; }
     el.innerHTML = keys.map(k => `
-      <div class="ci-key-row">
+      <div class="ci-key-row${k.overdue ? ' ci-key-overdue' : ''}">
         <span class="key-tag">${k.tag}</span>
         <div class="ci-key-info">
           <div class="ci-key-name">${k.name}</div>
           <div class="ci-key-prop">${k.propertyName || '—'}</div>
+          ${k.dueDate ? `<div class="ci-key-due${k.overdue ? ' ci-due-overdue' : ''}">${k.overdue ? '⚠️ Overdue · ' : 'Due '}${k.dueDate}</div>` : ''}
         </div>
         <button class="btn btn-primary btn-sm ci-checkin-btn">Check In</button>
       </div>`).join('');
