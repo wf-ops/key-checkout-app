@@ -1757,7 +1757,7 @@ function renderLockboxes(boxes) {
     <div class="lockbox-item">
       <div class="lockbox-sn">SN: ${b.sn}</div>
       <div><span class="lockbox-status ${lockboxStatusClass(b.status)}">${b.status || 'Unassigned'}</span></div>
-      <div class="lockbox-location">${b.propertyName || '— No location assigned —'}</div>
+      <div class="lockbox-location">${b.status === 'At Property' && b.propertyName ? b.propertyName : (b.propertyName ? `Last known: ${b.propertyName}` : '— No location assigned —')}</div>
       <div class="lockbox-code-display">
         <div id="lbcode-wrap-${b.id}"><div class="lockbox-code-val" id="lbcode-${b.id}"><span class="lockbox-loading">Loading…</span></div></div>
         <div class="lockbox-code-label">Today's<br>Code</div>
