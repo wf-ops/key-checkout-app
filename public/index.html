@@ -1460,18 +1460,24 @@ async function selectPropForCheckout(id, name) {
   document.getElementById('co-staff-select').style.display = 'none';
   document.getElementById('co-photo-section').style.display = 'none';
   document.getElementById('co-btn').style.display = 'none';
-  const keys = await api('/api/keys?propertyId=' + id);
-  const avail = keys.filter(k => k.status === 'Available');
-  const dd = document.getElementById('co-key-dd');
-  dd.innerHTML = avail.length ? avail.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('') : '<option disabled>No keys available</option>';
-  document.getElementById('co-key-select').style.display = avail.length ? 'block' : 'none';
-  if (avail.length) {
-    const staff = await api('/api/staff');
-    document.getElementById('co-staff-dd').innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    document.getElementById('co-staff-select').style.display = 'block';
-    document.getElementById('co-photo-section').style.display = 'block';
-    document.getElementById('co-btn').style.display = 'block';
-    document.getElementById('co-btn').disabled = true;
+  try {
+    const keys = await api('/api/keys?propertyId=' + id);
+    const avail = keys.filter(k => k.status === 'Available');
+    const dd = document.getElementById('co-key-dd');
+    dd.innerHTML = avail.length ? avail.map(k => `<option value="${k.id}">${k.tag} — ${k.name}</option>`).join('') : '<option disabled>No keys available</option>';
+    document.getElementById('co-key-select').style.display = avail.length ? 'block' : 'none';
+    if (avail.length) {
+      const staff = await api('/api/staff');
+      document.getElementById('co-staff-dd').innerHTML = staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      document.getElementById('co-staff-select').style.display = 'block';
+      document.getElementById('co-photo-section').style.display = 'block';
+      document.getElementById('co-btn').style.display = 'block';
+      document.getElementById('co-btn').disabled = true;
+    } else {
+      document.getElementById('co-key-select').style.display = 'block';
+    }
+  } catch (e) {
+    alert('Failed to load keys for this property: ' + e.message);
   }
 }
 function onCoPhotoSelected() {
