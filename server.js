@@ -981,11 +981,11 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
     try {
       logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
     } catch (e) {
-      // If Photo File ID field doesn't exist, retry without it
-      if (checkoutFileId && e.message.includes('Photo File ID')) {
-        delete logProps['Photo File ID'];
-        logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
-      } else { throw e; }
+      // Retry without optional fields (Photo File ID, Due Date) if Notion rejects them
+      console.error('[checkout] log create failed, retrying without optional fields:', e.message);
+      delete logProps['Photo File ID'];
+      delete logProps['Due Date'];
+      logPage = await notionPost('https://api.notion.com/v1/pages', { parent: { database_id: DB.log }, properties: logProps });
     }
     await notionPatch(`https://api.notion.com/v1/pages/${keyId}`, {
       properties: {
