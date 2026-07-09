@@ -289,6 +289,10 @@
     <h3>Key Inventory</h3>
     <div id="dash-stats"><div class="spinner"></div></div>
   </div>
+  <div class="card" id="dash-overdue-card">
+    <h3 id="overdue-keys-title">Overdue Keys</h3>
+    <div id="dash-overdue"><div class="spinner"></div></div>
+  </div>
   <div class="card">
     <h3 id="missing-keys-title">Missing Keys</h3>
     <div id="dash-missing"><div class="spinner"></div></div>
@@ -569,11 +573,31 @@ function selectProp(prefix, id, name) {
 
 // ── Dashboard
 async function loadDashboard() {
-  const [keys, log, missing] = await Promise.all([
+  const [keys, log, missing, checkedOut] = await Promise.all([
     api('/api/keys'),
     api('/api/log?limit=5'),
     api('/api/missing-keys').catch(() => []),
+    api('/api/checked-out-keys').catch(() => []),
   ]);
+  // Overdue keys
+  const overdue = checkedOut.filter(k => k.overdue);
+  const overdueTitle = document.getElementById('overdue-keys-title');
+  const overdueEl = document.getElementById('dash-overdue');
+  const overdueCard = document.getElementById('dash-overdue-card');
+  if (overdue.length === 0) {
+    overdueCard.style.display = 'none';
+  } else {
+    overdueCard.style.display = '';
+    overdueTitle.innerHTML = `Overdue Keys <span style="color:var(--red);font-weight:700">(${overdue.length})</span>`;
+    overdueEl.innerHTML = overdue.map(k => `
+      <div class="key-item">
+        <span class="key-tag">${k.tag}</span>
+        <div class="key-meta">
+          <div class="key-name">${k.propertyName || 'Unknown property'}</div>
+          <div class="key-sub" style="color:#dc2626;font-weight:600">⚠️ Due ${k.dueDate}</div>
+        </div>
+      </div>`).join('');
+  }
   const available = keys.filter(k => k.status === 'Available').length;
   const out = keys.filter(k => k.status === 'Checked Out').length;
   document.getElementById('dash-stats').innerHTML = `
