@@ -810,7 +810,7 @@ async function writeSettings(data) {
   }
 }
 
-app.get('/api/settings', requireRole('Admin'), async (req, res) => {
+app.get('/api/settings', requireAuth, async (req, res) => {
   try {
     res.json(await readSettings());
   } catch (e) { res.status(500).json({ error: e.message }); }
