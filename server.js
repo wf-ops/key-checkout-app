@@ -163,8 +163,13 @@ async function notionPost(url, body) {
 
 async function notionPatch(url, body) {
   const res = await fetch(url, { method: 'PATCH', headers: notionHeaders(), body: JSON.stringify(body) });
-  if (!res.ok) { const text = await res.text(); throw new Error(`Notion API ${res.status}: ${text}`); }
-  return res.json();
+  const data = await res.json();
+  if (!res.ok || data?.object === 'error') {
+    const msg = data?.message || data?.code || res.status;
+    console.error('[notionPatch] failed:', url, JSON.stringify(body).slice(0, 200), '->', msg);
+    throw new Error(`Notion API error: ${msg}`);
+  }
+  return data;
 }
 
 async function queryAll(dbId, filter, sorts) {
@@ -762,6 +767,7 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager', 'Fi
 app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { kwiksetPageId, previousKwiksetId } = req.body;
+    console.log('[kwikset] propertyId:', req.params.propertyId, 'kwiksetPageId:', kwiksetPageId, 'previousKwiksetId:', previousKwiksetId);
     const props = { 'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] } };
     if (previousKwiksetId) {
       const propPage = await fetch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { headers: notionHeaders() }).then(r => r.json());
@@ -770,9 +776,10 @@ app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager', '
         props['Previous Kwiksets'] = { relation: [...existing, { id: previousKwiksetId }] };
       }
     }
-    await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
+    const result = await notionPatch(`https://api.notion.com/v1/pages/${req.params.propertyId}`, { properties: props });
+    console.log('[kwikset] patch result object type:', result?.object);
     res.json({ success: true });
-  } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[kwikset] error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // ── App settings (stored in settings.json next to server.js) ──────────────────
