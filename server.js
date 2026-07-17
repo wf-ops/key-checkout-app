@@ -730,7 +730,7 @@ app.get('/api/property-codes/:propertyId', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { field, value } = req.body;
     const fieldDef = PROPERTY_CODE_FIELDS[field];
@@ -745,7 +745,7 @@ app.patch('/api/property-codes/:propertyId', requireRole('Admin', 'Manager'), as
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager'), async (req, res) => {
+app.patch('/api/property-kwikset/:propertyId', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { kwiksetPageId, previousKwiksetId } = req.body;
     const props = { 'Kwikset Cut': { relation: kwiksetPageId ? [{ id: kwiksetPageId }] : [] } };
@@ -827,7 +827,7 @@ app.patch('/api/settings', requireRole('Admin'), async (req, res) => {
 });
 
 // ── Kwikset invoice ────────────────────────────────────────────────────────────
-app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/kwikset-invoice', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { propertyId, kwiksetCut, numKeys, performedBy, includeBase = true, billTo = 'Resident' } = req.body;
     if (!propertyId || !numKeys) return res.status(400).json({ error: 'propertyId and numKeys required' });
@@ -1097,7 +1097,7 @@ app.get('/api/lockboxes', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager'), async (req, res) => {
+app.patch('/api/lockboxes/:id', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { status, propertyId } = req.body;
     const props = {};
@@ -1262,7 +1262,7 @@ app.post('/api/rentengine/webhook', express.json(), async (req, res) => {
   } catch (e) { console.error('[re-webhook]', e.message); res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager'), async (req, res) => {
+app.post('/api/lockboxes/generate-code', requireRole('Admin', 'Manager', 'Field Manager'), async (req, res) => {
   try {
     const { serialNumber, date } = req.body;
     if (!serialNumber || !date) return res.status(400).json({ error: 'serialNumber and date required' });
