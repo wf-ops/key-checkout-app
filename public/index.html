@@ -387,8 +387,9 @@
 const BASE = '';
 
 async function api(path, opts = {}) {
-  opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const res = await fetch(BASE + path, opts);
+  const { signal, ...rest } = opts;
+  rest.headers = { 'Content-Type': 'application/json', ...(rest.headers || {}) };
+  const res = await fetch(BASE + path, signal ? { ...rest, signal } : rest);
   if (res.status === 401) { showLogin(); throw new Error('Not authenticated'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -398,11 +399,20 @@ async function api(path, opts = {}) {
 async function uploadPhoto(file) {
   const fd = new FormData();
   fd.append('photo', file);
-  const res = await fetch('/api/upload-photo', { method: 'POST', body: fd });
-  if (res.status === 401) { showLogin(); throw new Error('Not authenticated'); }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Upload failed');
-  return data; // { fileId, url }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    const res = await fetch('/api/upload-photo', { method: 'POST', body: fd, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (res.status === 401) { showLogin(); throw new Error('Not authenticated'); }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    return data; // { fileId, url }
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('Photo upload timed out. Please try again on a better connection.');
+    throw e;
+  }
 }
 
 let loginUsers = [];
@@ -1549,7 +1559,16 @@ async function doCheckout() {
   try {
     const { fileId } = await uploadPhoto(photoFile);
     btn.textContent = 'Checking out…';
-    await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: fileId, returnBy }) });
+    const ctrl2 = new AbortController();
+    const timer2 = setTimeout(() => ctrl2.abort(), 30000);
+    try {
+      await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: fileId, returnBy }), signal: ctrl2.signal });
+      clearTimeout(timer2);
+    } catch (e2) {
+      clearTimeout(timer2);
+      if (e2.name === 'AbortError') throw new Error('Checkout request timed out. Please try again.');
+      throw e2;
+    }
     clearPropSelection('co'); loadDashboard(); showTab('dashboard');
   } catch (e) { alert('Checkout failed: ' + e.message); btn.disabled = false; btn.textContent = 'Check Out'; }
 }
