@@ -44,19 +44,30 @@ function requireRole(...roles) {
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
+let _driveAuth = null;
+function getDriveAuth() {
+  if (!_driveAuth) {
+    const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    _driveAuth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
+  }
+  return _driveAuth;
+}
+
 async function uploadToDrive(buffer, originalname, mimetype) {
-  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ['https://www.googleapis.com/auth/drive'] });
-  const drive = google.drive({ version: 'v3', auth });
+  const drive = google.drive({ version: 'v3', auth: getDriveAuth() });
   const ext = path.extname(originalname) || '.jpg';
   const filename = `key-photo-${Date.now()}${ext}`;
-  const file = await drive.files.create({
-    requestBody: { name: filename, parents: [process.env.GOOGLE_DRIVE_FOLDER_ID] },
-    media: { mimeType: mimetype || 'image/jpeg', body: Readable.from(buffer) },
-    fields: 'id,webViewLink',
-  });
-  await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
-  return { fileId: file.data.id, url: file.data.webViewLink };
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Drive upload timed out after 45s')), 45000));
+  const upload = (async () => {
+    const file = await drive.files.create({
+      requestBody: { name: filename, parents: [process.env.GOOGLE_DRIVE_FOLDER_ID] },
+      media: { mimeType: mimetype || 'image/jpeg', body: Readable.from(buffer) },
+      fields: 'id,webViewLink',
+    });
+    await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
+    return { fileId: file.data.id, url: file.data.webViewLink };
+  })();
+  return Promise.race([upload, timeout]);
 }
 
 async function downloadFileFromDrive(fileId) {
