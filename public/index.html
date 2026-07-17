@@ -304,7 +304,7 @@
       <button class="quick-action-btn" onclick="showAssignKeyTagModal()">🏷️ Assign Key Tag</button>
       <button class="quick-action-btn" onclick="showChangeKwiksetModal()">🔐 Change Kwikset</button>
       <button class="quick-action-btn" onclick="showChargeForKeysModal()">🔑 Charge for Keys</button>
-      <button class="quick-action-btn admin-only" onclick="showRemovePropertyModal()" style="display:none">🏠 Remove Property</button>
+      <button class="quick-action-btn admin-only field-manager-ok" onclick="showRemovePropertyModal()" style="display:none">🏠 Remove Property</button>
     </div>
   </div>
   <div class="card">
@@ -484,7 +484,9 @@ function onLogin(user) {
   showTab('dashboard');
   loadDashboard();
   const isAdminUser = (user.role || '').toLowerCase() === 'admin';
+  const canRemove = isAdminUser || (currentUser?.role || '').toLowerCase() === 'field manager';
   document.querySelectorAll('.admin-only').forEach(el => { if (isAdminUser) el.style.display = ''; });
+  document.querySelectorAll('.field-manager-ok').forEach(el => { if (canRemove) el.style.display = ''; });
 }
 
 async function runSlackBackfill(btn) {
