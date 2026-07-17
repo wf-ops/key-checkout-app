@@ -1557,24 +1557,29 @@ async function doCheckout() {
   const btn = document.getElementById('co-btn');
   btn.disabled = true; btn.textContent = 'Checking out…';
   try {
-    // Upload photo in background — don't block checkout on it
-    let fileId = null;
-    const photoPromise = uploadPhoto(photoFile).then(r => { fileId = r.fileId; }).catch(e => console.warn('Photo upload failed (non-fatal):', e.message));
+    // Start photo upload in background — don't block checkout on it
+    const photoPromise = uploadPhoto(photoFile).catch(e => { console.warn('Photo upload failed:', e.message); return null; });
 
     // Submit checkout immediately
     const ctrl2 = new AbortController();
     const timer2 = setTimeout(() => ctrl2.abort(), 30000);
+    let logId = null;
     try {
-      await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, checkoutFileId: null, returnBy }), signal: ctrl2.signal });
+      const result = await api('/api/checkout', { method: 'POST', body: JSON.stringify({ keyId, staffId, propertyId: coSelectedProp.id, returnBy }), signal: ctrl2.signal });
       clearTimeout(timer2);
+      logId = result.logId;
     } catch (e2) {
       clearTimeout(timer2);
       if (e2.name === 'AbortError') throw new Error('Checkout request timed out. Please try again.');
       throw e2;
     }
     clearPropSelection('co'); loadDashboard(); showTab('dashboard');
-    // Let photo upload finish in background if still running
-    photoPromise.catch(() => {});
+    // Save photo to log entry once upload finishes
+    if (logId) {
+      photoPromise.then(r => {
+        if (r?.fileId) api(`/api/checkout-photo/${logId}`, { method: 'PATCH', body: JSON.stringify({ fileId: r.fileId }) }).catch(() => {});
+      });
+    }
   } catch (e) { alert('Checkout failed: ' + e.message); btn.disabled = false; btn.textContent = 'Check Out'; }
 }
 function clearPropSelection(prefix) {

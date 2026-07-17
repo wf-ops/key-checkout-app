@@ -998,6 +998,18 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// PATCH /api/checkout-photo/:logId — saves photo file ID to an existing log entry
+app.patch('/api/checkout-photo/:logId', requireAuth, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    if (!fileId) return res.status(400).json({ error: 'fileId required' });
+    await notionPatch(`https://api.notion.com/v1/pages/${req.params.logId}`, {
+      properties: { 'Photo File ID': { rich_text: [{ text: { content: fileId } }] } },
+    });
+    res.json({ success: true });
+  } catch (e) { console.error('[checkout-photo]', e.message); res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/checkin — accepts checkInFileId for return photo storage
 app.post('/api/checkin', requireAuth, async (req, res) => {
   try {
