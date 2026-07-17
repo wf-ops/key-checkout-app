@@ -64,8 +64,18 @@ async function uploadToDrive(buffer, originalname, mimetype) {
       media: { mimeType: mimetype || 'image/jpeg', body: Readable.from(buffer) },
       fields: 'id,webViewLink',
     });
-    await drive.permissions.create({ fileId: file.data.id, requestBody: { role: 'reader', type: 'anyone' } });
-    return { fileId: file.data.id, url: file.data.webViewLink };
+    const fileId = file.data.id;
+    // Retry permissions up to 3 times — Drive sometimes returns 404 immediately after create
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
+        await drive.permissions.create({ fileId, requestBody: { role: 'reader', type: 'anyone' } });
+        break;
+      } catch (permErr) {
+        if (attempt === 2) console.warn('[uploadToDrive] permissions.create failed (non-fatal):', permErr.message);
+      }
+    }
+    return { fileId, url: file.data.webViewLink };
   })();
   return Promise.race([upload, timeout]);
 }
